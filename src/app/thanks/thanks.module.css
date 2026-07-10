@@ -1,0 +1,50 @@
+.page {
+  min-height: 100vh;
+  background: var(--bg-section);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(31, 46, 42, 0.08);
+  padding: 48px 32px;
+  text-align: center;
+}
+
+.icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 16px;
+}
+
+.desc {
+  font-size: 15px;
+  color: #555;
+  line-height: 1.9;
+  margin-bottom: 28px;
+}
+
+.note {
+  background: var(--bg-section);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: left;
+}
+
+.note p {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.8;
+}

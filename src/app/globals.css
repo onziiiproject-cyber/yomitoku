@@ -1,0 +1,47 @@
+:root {
+  --dark-bg: #1F2E2A;
+  --dark-bg-2: #162320;
+  --primary: #84B59F;
+  --primary-light: #A8CDB9;
+  --primary-dark: #5A8F7A;
+  --accent: #C5E0D3;
+  --text-on-dark: #F0F7F4;
+  --text-secondary: #8FB5A6;
+  --text-dark: #1F2E2A;
+  --bg-section: #F5FBF8;
+  --bg-alt: #EAF4EF;
+  --line-green: #06C755;
+  --line-green-hover: #05b34c;
+  --warning: #E8A87C;
+  --border: #D0E8DC;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Hiragino Sans",
+    Meiryo, sans-serif;
+  color: var(--text-dark);
+  background: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+}

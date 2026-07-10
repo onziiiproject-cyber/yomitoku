@@ -1,0 +1,107 @@
+.page {
+  min-height: 100vh;
+  background: var(--bg-section);
+  padding: 48px 24px 80px;
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.back {
+  display: inline-block;
+  font-size: 14px;
+  color: var(--primary-dark);
+  margin-bottom: 32px;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+/* Used in each legal page */
+.doc {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 40px 36px;
+  box-shadow: 0 2px 12px rgba(31, 46, 42, 0.06);
+}
+
+.doc h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 8px;
+}
+
+.doc .updated {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 36px;
+}
+
+.doc h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 28px 0 8px;
+  padding-left: 10px;
+  border-left: 3px solid var(--primary);
+}
+
+.doc p,
+.doc li {
+  font-size: 14px;
+  line-height: 1.9;
+  color: #444;
+}
+
+.doc ul,
+.doc ol {
+  padding-left: 20px;
+  margin-top: 4px;
+}
+
+.doc li {
+  margin-bottom: 4px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 4px;
+}
+
+.table th,
+.table td {
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 1.7;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.table th {
+  width: 35%;
+  font-weight: 600;
+  color: var(--text-dark);
+  background: var(--bg-section);
+  white-space: nowrap;
+}
+
+.table td {
+  color: #444;
+}
+
+@media (max-width: 600px) {
+  .doc {
+    padding: 28px 20px;
+  }
+
+  .table th {
+    width: 40%;
+    font-size: 13px;
+  }
+}

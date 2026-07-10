@@ -1,0 +1,130 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CompanyStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+model Company {
+  id                   String   @id @default(cuid())
+  name                 String
+  contactName          String
+  email                String
+  status               CompanyStatus @default(PENDING_PAYMENT)
+
+  stripeCustomerId     String?  @unique
+  stripeSubscriptionId String?  @unique
+
+  // Issued only once payment succeeds — an unpaid signup never has a usable invite code.
+  inviteCode           String?  @unique
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  tags            CompanyTag[]
+  lineRecipients  LineRecipient[]
+  messageSends    MessageSend[]
+}
+
+model Tag {
+  id        String @id @default(cuid())
+  key       String @unique
+  label     String
+  sortOrder Int    @default(0)
+
+  companies CompanyTag[]
+}
+
+model CompanyTag {
+  companyId String
+  tagId     String
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([companyId, tagId])
+}
+
+model LineRecipient {
+  id           String   @id @default(cuid())
+  companyId    String
+  lineUserId   String   @unique
+  displayName  String?
+  followedAt   DateTime @default(now())
+  unfollowedAt DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messageSends MessageSend[]
+}
+
+enum WebhookSource {
+  STRIPE
+  LINE
+}
+
+model WebhookEvent {
+  id              String   @id @default(cuid())
+  source          WebhookSource
+  externalEventId String
+  type            String
+  payload         String
+  receivedAt      DateTime @default(now())
+  processedAt     DateTime?
+
+  @@unique([source, externalEventId])
+}
+
+enum MessageBatchKind {
+  WEEKLY_DIGEST
+  BREAKING_NEWS
+  MANUAL_TEST
+}
+
+model MessageBatch {
+  id             String   @id @default(cuid())
+  kind           MessageBatchKind
+  title          String
+  content        String
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+
+  sends MessageSend[]
+}
+
+enum MessageSendStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED_UNPAID
+  SKIPPED_UNFOLLOWED
+}
+
+model MessageSend {
+  id              String   @id @default(cuid())
+  messageBatchId  String
+  companyId       String
+  lineRecipientId String?
+
+  status         MessageSendStatus @default(PENDING)
+  lineResponseId String?
+  sentAt         DateTime?
+  error          String?
+
+  messageBatch  MessageBatch   @relation(fields: [messageBatchId], references: [id], onDelete: Cascade)
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lineRecipient LineRecipient? @relation(fields: [lineRecipientId], references: [id], onDelete: Cascade)
+
+  @@unique([messageBatchId, lineRecipientId])
+}
