@@ -100,7 +100,8 @@ model MessageBatch {
   idempotencyKey String   @unique
   createdAt      DateTime @default(now())
 
-  sends MessageSend[]
+  sends     MessageSend[]
+  documents BatchDocument[]
 }
 
 model SiteDocument {
@@ -115,6 +116,18 @@ model SiteDocument {
   importance  String    @default("normal") // "high" | "normal"
   processedAt DateTime?
   createdAt   DateTime  @default(now())
+
+  batches BatchDocument[]
+}
+
+model BatchDocument {
+  messageBatchId String
+  siteDocumentId String
+
+  messageBatch MessageBatch @relation(fields: [messageBatchId], references: [id], onDelete: Cascade)
+  siteDocument SiteDocument @relation(fields: [siteDocumentId], references: [id], onDelete: Cascade)
+
+  @@id([messageBatchId, siteDocumentId])
 }
 
 enum MessageSendStatus {

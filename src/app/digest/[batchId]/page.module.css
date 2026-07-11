@@ -1,0 +1,199 @@
+.page {
+  min-height: 100vh;
+  background: #f0f4f3;
+  font-family: -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+}
+
+/* Cover */
+.cover {
+  background: #1b5e52;
+  color: white;
+  padding: 40px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.coverIcon {
+  font-size: 32px;
+  margin-bottom: 4px;
+}
+
+.coverLabel {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #a8d5c8;
+  letter-spacing: 0.05em;
+}
+
+.coverTitle {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.coverDate {
+  margin: 0;
+  font-size: 13px;
+  color: #a8d5c8;
+}
+
+.coverBadge {
+  display: inline-block;
+  background: #4a9e8f;
+  color: white;
+  padding: 8px 18px;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 8px;
+  align-self: flex-start;
+}
+
+.disclaimer {
+  margin: 16px 0 0;
+  font-size: 11px;
+  color: #7bb8ae;
+  line-height: 1.5;
+}
+
+/* Summary */
+.summary {
+  background: white;
+  margin: 0;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e8eeec;
+}
+
+.summary p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #333;
+}
+
+/* Sections */
+.section {
+  padding: 20px 16px 8px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1b5e52;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sectionIcon {
+  font-size: 18px;
+}
+
+/* Cards */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border-left: 4px solid #4a9e8f;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.cardHigh {
+  border-left-color: #c0392b;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sourceIcon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.4;
+}
+
+.cardSummary {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #444;
+  line-height: 1.7;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+}
+
+.tag {
+  background: #e8f5f1;
+  color: #1b7a6d;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.metaDate {
+  font-size: 11px;
+  color: #999;
+  white-space: nowrap;
+}
+
+.sourceLink {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1b7a6d;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sourceLink:hover {
+  text-decoration: underline;
+}
+
+/* Footer */
+.footer {
+  background: #1b5e52;
+  color: #a8d5c8;
+  padding: 24px;
+  margin-top: 20px;
+  text-align: center;
+}
+
+.footer p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.footerNote {
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  margin-top: 6px !important;
+  color: #7bb8ae !important;
+}
