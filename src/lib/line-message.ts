@@ -112,13 +112,13 @@ function weeklyDigestFlex(
           ...(uniqueTags.length > 0
             ? [
                 {
-                  type: "box",
-                  layout: "horizontal",
-                  spacing: "sm",
+                  type: "text",
+                  text: uniqueTags.join("  ·  "),
+                  size: "xs",
+                  color: "#1B7A6D",
+                  wrap: true,
                   margin: "md",
-                  contents: uniqueTags.map(tagChip),
-                  flexWrap: true,
-                } as messagingApi.FlexBox,
+                } as messagingApi.FlexText,
               ]
             : []),
         ],
@@ -199,7 +199,7 @@ function breakingNewsFlex(doc: DigestDoc): messagingApi.FlexMessage {
             layout: "vertical",
             backgroundColor: "#FFF5F5",
             cornerRadius: "8px",
-            padding: "12px",
+            paddingAll: "12px",
             margin: "md",
             contents: [
               {
@@ -208,7 +208,6 @@ function breakingNewsFlex(doc: DigestDoc): messagingApi.FlexMessage {
                 wrap: true,
                 size: "sm",
                 color: "#444444",
-                lineSpacing: "4px",
               } as messagingApi.FlexText,
             ],
           } as messagingApi.FlexBox,
