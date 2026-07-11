@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 import { scrapeMhlwLatest, scrapeShingi } from "./scraper";
 import { analyzeDocument, buildWeeklyDigest } from "./anthropic";
-import { pushWeeklyDigest, type DigestDoc } from "./line-message";
+import { pushWeeklyDigest, pushBreakingNews, type DigestDoc } from "./line-message";
 
 export interface DigestResult {
   newDocs: number;
@@ -190,4 +190,102 @@ export async function runWeeklyDigest(): Promise<DigestResult> {
   }
 
   return { newDocs: analyzed.length, sentTo, batchId: batch.id, errors };
+}
+
+export interface BreakingNewsResult {
+  checked: number;
+  newDocs: number;
+  sentTo: number;
+  errors: string[];
+}
+
+export async function runBreakingNewsCheck(): Promise<BreakingNewsResult> {
+  const errors: string[] = [];
+
+  let shingiItems: Awaited<ReturnType<typeof scrapeShingi>> = [];
+  try {
+    shingiItems = await scrapeShingi();
+  } catch (e) {
+    errors.push(`Shingi scrape failed: ${e}`);
+    return { checked: 0, newDocs: 0, sentTo: 0, errors };
+  }
+
+  // Deduplicate against DB
+  const existingUrls = new Set(
+    (
+      await prisma.siteDocument.findMany({
+        where: { url: { in: shingiItems.map((i) => i.url) } },
+        select: { url: true },
+      })
+    ).map((d) => d.url)
+  );
+
+  const newItems = shingiItems.filter((i) => !existingUrls.has(i.url));
+  if (newItems.length === 0) {
+    return { checked: shingiItems.length, newDocs: 0, sentTo: 0, errors };
+  }
+
+  // Analyze + save
+  const analyzed: Array<{ doc: (typeof newItems)[0]; result: Awaited<ReturnType<typeof analyzeDocument>> }> = [];
+  for (const item of newItems) {
+    try {
+      const result = await analyzeDocument(item.title, item.rawText);
+      await prisma.siteDocument.upsert({
+        where: { url: item.url },
+        create: {
+          url: item.url,
+          title: item.title,
+          source: item.source,
+          publishedAt: item.publishedAt,
+          rawText: item.rawText,
+          summary: result.summary,
+          tags: result.tags,
+          importance: result.importance,
+          processedAt: new Date(),
+        },
+        update: {
+          summary: result.summary,
+          tags: result.tags,
+          importance: result.importance,
+          processedAt: new Date(),
+        },
+      });
+      analyzed.push({ doc: item, result });
+    } catch (e) {
+      errors.push(`Analysis failed for "${item.title}": ${e}`);
+    }
+  }
+
+  if (analyzed.length === 0) {
+    return { checked: shingiItems.length, newDocs: 0, sentTo: 0, errors };
+  }
+
+  const recipients = await prisma.lineRecipient.findMany({
+    where: { unfollowedAt: null, company: { status: "ACTIVE" } },
+  });
+
+  if (recipients.length === 0) {
+    return { checked: shingiItems.length, newDocs: analyzed.length, sentTo: 0, errors };
+  }
+
+  let sentTo = 0;
+  for (const { doc, result } of analyzed) {
+    const digestDoc: DigestDoc = {
+      title: doc.title,
+      summary: result.summary,
+      url: doc.url,
+      importance: result.importance,
+      tags: result.tags,
+    };
+    for (const recipient of recipients) {
+      try {
+        await pushBreakingNews(recipient.lineUserId, digestDoc);
+        sentTo++;
+      } catch (e) {
+        errors.push(`Push failed for ${recipient.lineUserId}: ${e}`);
+      }
+    }
+  }
+
+  return { checked: shingiItems.length, newDocs: analyzed.length, sentTo, errors };
 }
