@@ -103,6 +103,20 @@ model MessageBatch {
   sends MessageSend[]
 }
 
+model SiteDocument {
+  id          String    @id @default(cuid())
+  url         String    @unique
+  title       String
+  source      String    // "mhlw_latest" | "shingi"
+  publishedAt DateTime?
+  rawText     String    @db.Text
+  summary     String?   @db.Text
+  tags        String[]
+  importance  String    @default("normal") // "high" | "normal"
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+}
+
 enum MessageSendStatus {
   PENDING
   SENT
