@@ -21,7 +21,8 @@ model Company {
   id                   String   @id @default(cuid())
   name                 String
   contactName          String
-  email                String
+  email                String   @unique
+  passwordHash         String?
   status               CompanyStatus @default(PENDING_PAYMENT)
 
   stripeCustomerId     String?  @unique
@@ -29,6 +30,8 @@ model Company {
 
   // Issued only once payment succeeds — an unpaid signup never has a usable invite code.
   inviteCode           String?  @unique
+
+  maxRecipients        Int      @default(3)
 
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt

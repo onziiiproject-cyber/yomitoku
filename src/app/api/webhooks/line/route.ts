@@ -64,17 +64,65 @@ export async function POST(req: Request) {
       });
     }
 
-    // Reply with LINE user ID when user sends any text message (for setup/debug)
+    // Handle text messages: company code or info
     if (ev.type === "message" && ev.message?.type === "text" && ev.replyToken && userId) {
-      const recipient = await prisma.lineRecipient.findUnique({ where: { lineUserId: userId } });
-      const replyText = recipient
-        ? `✅ 登録済みです\nLINE ID: ${userId}`
-        : `あなたのLINE ID:\n${userId}\n\n※ まだ会員登録が完了していません。`;
+      const text = ev.message.text?.trim() ?? "";
+      const existingRecipient = await prisma.lineRecipient.findUnique({ where: { lineUserId: userId } });
 
-      await client.replyMessage({
-        replyToken: ev.replyToken,
-        messages: [{ type: "text", text: replyText }],
-      });
+      // Check if the message looks like a company invite code
+      const codeMatch = text.match(/^[A-Za-z0-9]{6,12}$/);
+      if (codeMatch && !existingRecipient) {
+        const company = await prisma.company.findFirst({
+          where: { inviteCode: text.toUpperCase(), status: "ACTIVE" },
+          include: { lineRecipients: { where: { unfollowedAt: null } } },
+        });
+
+        if (!company) {
+          await client.replyMessage({
+            replyToken: ev.replyToken,
+            messages: [{ type: "text", text: `「${text}」は有効な会社コードではありません。\n登録済みの会社コードを確認してください。` }],
+          });
+        } else if (company.lineRecipients.length >= company.maxRecipients) {
+          await client.replyMessage({
+            replyToken: ev.replyToken,
+            messages: [{ type: "text", text: `${company.name}のLINE登録人数が上限（${company.maxRecipients}名）に達しています。\n管理者にお問い合わせください。` }],
+          });
+        } else {
+          // Get display name from LINE
+          let displayName = "メンバー";
+          try {
+            const profile = await client.getProfile(userId);
+            displayName = profile.displayName;
+          } catch { /* ignore */ }
+
+          await prisma.lineRecipient.create({
+            data: { lineUserId: userId, companyId: company.id, displayName },
+          });
+
+          await client.replyMessage({
+            replyToken: ev.replyToken,
+            messages: [{
+              type: "text",
+              text: `✅ 登録完了！\n\n${company.name}のメンバーとして登録されました。\n毎週水曜日に介護保険最新情報をお届けします。\n\nヨミトク BASE でいつでも過去の情報を検索できます。`,
+            }],
+          });
+        }
+        continue;
+      }
+
+      // Already registered → show status
+      if (existingRecipient) {
+        const company = await prisma.company.findUnique({ where: { id: existingRecipient.companyId } });
+        await client.replyMessage({
+          replyToken: ev.replyToken,
+          messages: [{ type: "text", text: `✅ 登録済みです\n事業所：${company?.name ?? "-"}\n\nヨミトク BASEから過去の情報を検索できます。` }],
+        });
+      } else {
+        await client.replyMessage({
+          replyToken: ev.replyToken,
+          messages: [{ type: "text", text: `ヨミトクへようこそ！\n\n事業所の会社コードをこのチャットに送ると、LINE通知を受け取れるようになります。\n\n会社コードはヨミトクBASE（設定ページ）で確認できます。` }],
+        });
+      }
     }
   }
 
