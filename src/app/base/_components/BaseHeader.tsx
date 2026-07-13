@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function BaseHeader({ companyName }: { companyName: string }) {
   const router = useRouter();
@@ -28,14 +29,15 @@ export default function BaseHeader({ companyName }: { companyName: string }) {
     }}>
       <div style={{ height: "100%", display: "flex", alignItems: "center", gap: 16, padding: "0 20px" }}>
         {/* Logo */}
-        <a href="/base" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none", flexShrink: 0, width: 200 }}>
-          <div style={{ width: 34, height: 34, background: "#0D686E", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ color: "#fff", fontWeight: 900, fontSize: 17, fontFamily: "sans-serif" }}>Y</span>
-          </div>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "#0D686E", lineHeight: 1 }}>ヨミトク BASE</div>
-            <div style={{ fontSize: 10, color: "#7AADA6", lineHeight: 1, marginTop: 3 }}>介護保険情報の知識基地</div>
-          </div>
+        <a href="/base" style={{ display: "flex", alignItems: "center", textDecoration: "none", flexShrink: 0, width: 200 }}>
+          <Image
+            src="/icons/logo-base-horizontal-trimmed.png"
+            alt="ヨミトク BASE"
+            width={446}
+            height={125}
+            priority
+            style={{ height: 36, width: "auto" }}
+          />
         </a>
 
         {/* Search bar */}
