@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { ShingiPDFData } from "./pdf-shingi";
 
 let _client: Anthropic | null = null;
 function getClient() {
@@ -41,7 +42,7 @@ export async function analyzeDocument(
         content: `あなたは介護保険専門の情報アナリストです。以下の文書を分析してください。
 
 タイトル: ${title}
-内容: ${content.slice(0, 2000)}
+内容: ${content.slice(0, 4000)}
 
 以下のJSON形式のみで回答してください（他のテキスト不要）：
 {
@@ -135,4 +136,87 @@ ${docList}
   });
 
   return response.content[0].type === "text" ? response.content[0].text : "";
+}
+
+export async function buildShingiPDFData(
+  title: string,
+  rawText: string,
+  sessionUrl: string
+): Promise<ShingiPDFData> {
+  const client = getClient();
+
+  // 特殊文字・HTMLエンティティをクリーニング
+  const cleanText = rawText
+    .replace(/&#\d+;/g, " ")
+    .replace(/&[a-zA-Z]+;/g, " ")
+    .replace(/[""'']/g, '"')
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 8192,
+    messages: [
+      {
+        role: "user",
+        content: `あなたは介護保険の専門家です。以下の社会保障審議会 介護給付費分科会の会議ページのテキストから、スライド生成用の構造化データを作成してください。
+
+タイトル: ${title}
+テキスト:
+${cleanText.slice(0, 8000)}
+
+以下のJSONフォーマットのみで回答してください（他のテキスト不要）:
+{
+  "meta": {
+    "council_name": "社会保障審議会 介護給付費分科会",
+    "session_no": 会議回数（数値）,
+    "date": "○年○月○日",
+    "feature_label": "○○特集・全Nテーマ"
+  },
+  "themes": [
+    { "no": 1, "name": "テーマ名", "short_desc": "1〜2行説明", "icon": "house|nurse|group|clipboard|heart|brain|chart|person", "color": "teal|darkteal|olive" }
+  ],
+  "summary": {
+    "lead": "今回は「○○」に関するNつのテーマが議論されました。",
+    "body": "共通の背景・課題についての説明",
+    "keywords": [
+      { "label": "キーワード1", "desc": "説明", "icon": "person|pin|chart|warning" },
+      { "label": "キーワード2", "desc": "説明", "icon": "person|pin|chart|warning" }
+    ]
+  },
+  "theme_details": [
+    {
+      "no": 1,
+      "category": "カテゴリ",
+      "name": "テーマ名",
+      "overview": "サービス概要200〜300字",
+      "stats": [],
+      "ai_comment": "経営者向けAIコメント60〜80字",
+      "revision_points": [{ "title": "ポイント名", "desc": "説明", "ref": "" }],
+      "issues": [{ "desc": "課題説明", "value": "", "note": "", "ref": "" }],
+      "opinions": [{ "title": "意見タイトル", "desc": "説明", "ref": "" }],
+      "impact_stars": 3,
+      "related_roles": ["事業種別"],
+      "source_label": "資料名",
+      "source_url": "${sessionUrl}"
+    }
+  ]
+}
+
+ルール：テキストから読み取れる情報のみ記載。数値・統計は推測不可。colorはteal/darkteal/oliveを順番に割り当て。iconはテーマ内容から選択。`,
+      },
+    ],
+  });
+
+  const text = response.content[0].type === "text" ? response.content[0].text : "{}";
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("Shingi PDF data parse failed: no JSON found");
+  try {
+    return JSON.parse(match[0]) as ShingiPDFData;
+  } catch (e) {
+    // JSONが壊れている場合、コードブロック内を探す
+    const block = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (block) return JSON.parse(block[1].trim()) as ShingiPDFData;
+    throw new Error(`Shingi PDF data parse failed: ${e}`);
+  }
 }

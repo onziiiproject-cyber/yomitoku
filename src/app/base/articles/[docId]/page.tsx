@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
+import FavoriteButton from "../../_components/FavoriteButton";
+import GuestHeader from "../../_components/GuestHeader";
 
 const SOURCE_LABEL: Record<string, { label: string; color: string; bg: string }> = {
   mhlw_latest: { label: "介護保険最新情報", color: "#1B7A6D", bg: "#E8F5F1" },
@@ -18,16 +20,22 @@ export default async function ArticleDetailPage({
 }: {
   params: Promise<{ docId: string }>;
 }) {
-  const session = await getSession();
-  if (!session) redirect("/base/login");
+  const [session, { docId }] = await Promise.all([getSession(), params]);
 
-  const { docId } = await params;
-  const doc = await prisma.siteDocument.findUnique({ where: { id: docId } });
+  const [doc, favoriteRecord] = await Promise.all([
+    prisma.siteDocument.findUnique({ where: { id: docId } }),
+    session
+      ? prisma.favorite.findUnique({
+          where: { companyId_siteDocumentId: { companyId: session.companyId, siteDocumentId: docId } },
+        })
+      : Promise.resolve(null),
+  ]);
+
   if (!doc) notFound();
 
   const src = SOURCE_LABEL[doc.source] ?? { label: doc.source, color: "#555", bg: "#F3F4F6" };
+  const isFavorited = !!favoriteRecord;
 
-  // Related articles: same tags, different doc
   const related = doc.tags.length > 0
     ? await prisma.siteDocument.findMany({
         where: {
@@ -41,16 +49,24 @@ export default async function ArticleDetailPage({
       })
     : [];
 
-  return (
+  const content = (
     <div style={{ paddingTop: 20 }}>
-      {/* Back */}
-      <Link href="/base" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, color: "#1B7A6D", textDecoration: "none", marginBottom: 20 }}>
-        ← 一覧に戻る
-      </Link>
+      {/* Back + Favorite */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <Link href="/base" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, color: "#1B7A6D", textDecoration: "none" }}>
+          ← 一覧に戻る
+        </Link>
+        <FavoriteButton
+          docId={doc.id}
+          initialFavorited={isFavorited}
+          isLoggedIn={!!session}
+          size="md"
+        />
+      </div>
 
       {/* Article card */}
       <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", border: "1.5px solid #E8F0EE" }}>
-        {/* Source + date header */}
+        {/* Header */}
         <div style={{ background: doc.importance === "high" ? "#7B2D2D" : "#1B5E52", padding: "16px 20px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <span style={{ background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 4 }}>
@@ -129,6 +145,44 @@ export default async function ArticleDetailPage({
             </a>
           </div>
 
+          {/* Login CTA for guests */}
+          {!session && (
+            <div style={{
+              background: "#F7FAF9",
+              border: "1.5px solid #D1E8E4",
+              borderRadius: 12,
+              padding: "16px 20px",
+              marginBottom: 24,
+              display: "flex",
+              alignItems: "center",
+              gap: 16,
+            }}>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: "#1B5E52", margin: 0, marginBottom: 4 }}>
+                  この記事を保存しますか？
+                </p>
+                <p style={{ fontSize: 12, color: "#6B9E96", margin: 0 }}>
+                  ログインするとお気に入りに追加できます
+                </p>
+              </div>
+              <a
+                href="/base/login"
+                style={{
+                  background: "#0D686E",
+                  color: "#fff",
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  flexShrink: 0,
+                }}
+              >
+                ログイン
+              </a>
+            </div>
+          )}
+
           {/* Related articles */}
           {related.length > 0 && (
             <div>
@@ -171,4 +225,17 @@ export default async function ArticleDetailPage({
       </div>
     </div>
   );
+
+  if (!session) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#F7FAF9", fontFamily: "sans-serif" }}>
+        <GuestHeader />
+        <main style={{ maxWidth: 800, margin: "0 auto", padding: "0 16px 80px" }}>
+          {content}
+        </main>
+      </div>
+    );
+  }
+
+  return content;
 }

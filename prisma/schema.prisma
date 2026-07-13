@@ -39,6 +39,7 @@ model Company {
   tags            CompanyTag[]
   lineRecipients  LineRecipient[]
   messageSends    MessageSend[]
+  favorites       Favorite[]
 }
 
 model Tag {
@@ -120,7 +121,8 @@ model SiteDocument {
   processedAt DateTime?
   createdAt   DateTime  @default(now())
 
-  batches BatchDocument[]
+  batches   BatchDocument[]
+  favorites Favorite[]
 }
 
 model BatchDocument {
@@ -157,4 +159,15 @@ model MessageSend {
   lineRecipient LineRecipient? @relation(fields: [lineRecipientId], references: [id], onDelete: Cascade)
 
   @@unique([messageBatchId, lineRecipientId])
+}
+
+model Favorite {
+  companyId      String
+  siteDocumentId String
+  createdAt      DateTime @default(now())
+
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  siteDocument SiteDocument @relation(fields: [siteDocumentId], references: [id], onDelete: Cascade)
+
+  @@id([companyId, siteDocumentId])
 }

@@ -272,6 +272,201 @@ export async function pushBreakingNews(
   return res.sentMessages?.[0]?.id ?? "";
 }
 
+// ─── 分科会かんたん解説メッセージ ───────────────────────────────────────────────
+
+function shingiCoverFlex(
+  sessionNo: number,
+  councilShortName: string,
+  date: string,
+  featureLabel: string,
+  themeNames: string[],
+  coverPdfUrl: string
+): messagingApi.FlexMessage {
+  return {
+    type: "flex",
+    altText: `【ヨミトク】第${sessionNo}回 分科会かんたん解説が届きました`,
+    contents: {
+      type: "bubble",
+      size: "mega",
+      header: {
+        type: "box",
+        layout: "vertical",
+        backgroundColor: "#1B5E52",
+        paddingAll: "20px",
+        contents: [
+          { type: "text", text: "📋  分科会かんたん解説", color: "#a8d5c8", size: "xs", weight: "bold" } as messagingApi.FlexText,
+          { type: "text", text: `第${sessionNo}回 ${councilShortName}`, color: "#ffffff", size: "lg", weight: "bold", wrap: true, margin: "sm" } as messagingApi.FlexText,
+          { type: "text", text: `${date}  ·  ${featureLabel}`, color: "#a8d5c8", size: "sm", margin: "sm", wrap: true } as messagingApi.FlexText,
+        ],
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "20px",
+        spacing: "sm",
+        contents: [
+          { type: "text", text: "今回の議論テーマ", size: "xs", color: "#888888", weight: "bold" } as messagingApi.FlexText,
+          ...themeNames.map((name, i) => ({
+            type: "text",
+            text: `${i + 1}. ${name}`,
+            size: "sm",
+            color: "#1a1a1a",
+            wrap: true,
+            margin: "sm",
+          } as messagingApi.FlexText)),
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "16px",
+        contents: [
+          {
+            type: "button",
+            action: { type: "uri", label: "📄 表紙＋全体サマリーPDFを見る", uri: coverPdfUrl },
+            style: "primary",
+            color: "#1B7A6D",
+          } as messagingApi.FlexButton,
+        ],
+      },
+    } as messagingApi.FlexBubble,
+  };
+}
+
+function shingiTopicsFlex(
+  sessionNo: number,
+  matchingThemes: Array<{ no: number; name: string }>,
+  topicPdfUrls: Record<number, string>
+): messagingApi.FlexMessage {
+  const buttons: messagingApi.FlexComponent[] = matchingThemes.slice(0, 4).map(t => ({
+    type: "button",
+    action: { type: "uri", label: `📄 ${t.name}`, uri: topicPdfUrls[t.no] },
+    style: "secondary",
+    height: "sm",
+    margin: "sm",
+  } as messagingApi.FlexButton));
+
+  return {
+    type: "flex",
+    altText: `【ヨミトク】第${sessionNo}回 あなたの事業所に関係するテーマがあります`,
+    contents: {
+      type: "bubble",
+      size: "mega",
+      header: {
+        type: "box",
+        layout: "vertical",
+        backgroundColor: "#2E7D8C",
+        paddingAll: "16px",
+        contents: [
+          { type: "text", text: "📌  あなたの事業所に関係するテーマがあります", color: "#ffffff", size: "sm", weight: "bold", wrap: true } as messagingApi.FlexText,
+        ],
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "20px",
+        contents: [
+          {
+            type: "text",
+            text: "登録タグに関連するテーマが今回の分科会で議論されました。詳細PDFをご確認ください。",
+            size: "sm",
+            color: "#444444",
+            wrap: true,
+          } as messagingApi.FlexText,
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "16px",
+        spacing: "sm",
+        contents: buttons,
+      },
+    } as messagingApi.FlexBubble,
+  };
+}
+
+function shingiNoMatchFlex(
+  sessionNo: number,
+  baseUrl: string
+): messagingApi.FlexMessage {
+  return {
+    type: "flex",
+    altText: `【ヨミトク】第${sessionNo}回 今回は該当するトピックスはありませんでした`,
+    contents: {
+      type: "bubble",
+      size: "mega",
+      body: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "24px",
+        spacing: "md",
+        contents: [
+          { type: "text", text: "今回は該当するトピックスはありませんでした", size: "md", weight: "bold", color: "#1a1a1a", wrap: true } as messagingApi.FlexText,
+          {
+            type: "text",
+            text: "登録タグに関連するテーマが今回はありませんでした。全テーマの解説はBASEからご確認いただけます。",
+            size: "sm",
+            color: "#666666",
+            wrap: true,
+            margin: "md",
+          } as messagingApi.FlexText,
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "16px",
+        contents: [
+          {
+            type: "button",
+            action: { type: "uri", label: "全テーマをBASEで見る →", uri: baseUrl },
+            style: "secondary",
+          } as messagingApi.FlexButton,
+        ],
+      },
+    } as messagingApi.FlexBubble,
+  };
+}
+
+export async function pushShingiCover(
+  lineUserId: string,
+  sessionNo: number,
+  councilShortName: string,
+  date: string,
+  featureLabel: string,
+  themeNames: string[],
+  coverPdfUrl: string
+): Promise<string> {
+  const client = getClient();
+  const message = shingiCoverFlex(sessionNo, councilShortName, date, featureLabel, themeNames, coverPdfUrl);
+  const res = await client.pushMessage({ to: lineUserId, messages: [message] });
+  return res.sentMessages?.[0]?.id ?? "";
+}
+
+export async function pushShingiTopics(
+  lineUserId: string,
+  sessionNo: number,
+  matchingThemes: Array<{ no: number; name: string }>,
+  topicPdfUrls: Record<number, string>
+): Promise<string> {
+  const client = getClient();
+  const message = shingiTopicsFlex(sessionNo, matchingThemes, topicPdfUrls);
+  const res = await client.pushMessage({ to: lineUserId, messages: [message] });
+  return res.sentMessages?.[0]?.id ?? "";
+}
+
+export async function pushShingiNoMatch(
+  lineUserId: string,
+  sessionNo: number,
+  baseUrl: string
+): Promise<string> {
+  const client = getClient();
+  const message = shingiNoMatchFlex(sessionNo, baseUrl);
+  const res = await client.pushMessage({ to: lineUserId, messages: [message] });
+  return res.sentMessages?.[0]?.id ?? "";
+}
+
 export async function pushTestMessage(lineUserId: string): Promise<void> {
   const client = getClient();
   await client.pushMessage({

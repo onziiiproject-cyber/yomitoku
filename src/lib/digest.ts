@@ -1,8 +1,9 @@
 import { prisma } from "./prisma";
 import { scrapeMhlwLatest, scrapeShingi } from "./scraper";
-import { analyzeDocument, buildWeeklyDigest, buildPDFAIComment } from "./anthropic";
-import { pushWeeklyDigest, pushBreakingNews, type DigestDoc } from "./line-message";
+import { analyzeDocument, buildWeeklyDigest, buildPDFAIComment, buildShingiPDFData } from "./anthropic";
+import { pushWeeklyDigest, pushBreakingNews, pushShingiCover, pushShingiTopics, pushShingiNoMatch, type DigestDoc } from "./line-message";
 import { generateDigestPDF, type PDFDigestDoc } from "./pdf-digest";
+import { generateShingiCoverPDF, generateShingiTopicPDF } from "./pdf-shingi";
 import { put } from "@vercel/blob";
 
 export interface DigestResult {
@@ -305,24 +306,97 @@ export async function runBreakingNewsCheck(): Promise<BreakingNewsResult> {
 
   const recipients = await prisma.lineRecipient.findMany({
     where: { unfollowedAt: null, company: { status: "ACTIVE" } },
+    include: { company: { include: { tags: { include: { tag: true } } } } },
   });
 
   if (recipients.length === 0) {
     return { checked: shingiItems.length, newDocs: analyzed.length, sentTo: 0, errors };
   }
 
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoru-xi.vercel.app";
+
   let sentTo = 0;
-  for (const { doc, result } of analyzed) {
-    const digestDoc: DigestDoc = {
-      title: doc.title,
-      summary: result.summary,
-      url: doc.url,
-      importance: result.importance,
-      tags: result.tags,
-    };
+  for (const { doc } of analyzed) {
+    // PDF生成を試みる（失敗してもテキスト通知にフォールバック）
+    let coverPdfUrl: string | null = null;
+    let topicPdfUrls: Record<number, string> = {};
+    let pdfData: Awaited<ReturnType<typeof buildShingiPDFData>> | null = null;
+
+    try {
+      pdfData = await buildShingiPDFData(doc.title, doc.rawText, doc.url);
+
+      const coverBuffer = await generateShingiCoverPDF(pdfData);
+      const coverBlob = await put(
+        `shingi/session-${pdfData.meta.session_no}/cover.pdf`,
+        coverBuffer,
+        { access: "public", contentType: "application/pdf", addRandomSuffix: false }
+      );
+      coverPdfUrl = coverBlob.url;
+
+      for (const theme of pdfData.themes) {
+        try {
+          const topicBuffer = await generateShingiTopicPDF(pdfData, theme.no);
+          const topicBlob = await put(
+            `shingi/session-${pdfData.meta.session_no}/topic-${theme.no}.pdf`,
+            topicBuffer,
+            { access: "public", contentType: "application/pdf", addRandomSuffix: false }
+          );
+          topicPdfUrls[theme.no] = topicBlob.url;
+        } catch (e) {
+          errors.push(`Topic PDF failed (theme ${theme.no}): ${e}`);
+        }
+      }
+    } catch (e) {
+      errors.push(`Shingi PDF generation failed: ${e}`);
+    }
+
     for (const recipient of recipients) {
       try {
-        await pushBreakingNews(recipient.lineUserId, digestDoc);
+        if (pdfData && coverPdfUrl) {
+          // 表紙PDFを全員に送信
+          await pushShingiCover(
+            recipient.lineUserId,
+            pdfData.meta.session_no,
+            pdfData.meta.council_name.replace("社会保障審議会 ", ""),
+            pdfData.meta.date,
+            pdfData.meta.feature_label,
+            pdfData.themes.map(t => t.name),
+            coverPdfUrl
+          );
+
+          // タグマッチング
+          const companyTags = recipient.company.tags.map(ct => ct.tag.key);
+          if (companyTags.length > 0) {
+            const matchingThemes = pdfData.theme_details.filter(detail =>
+              detail.related_roles.some(role => companyTags.includes(role))
+            );
+
+            if (matchingThemes.length > 0) {
+              const availableTopics = matchingThemes.filter(t => topicPdfUrls[t.no]);
+              if (availableTopics.length > 0) {
+                await pushShingiTopics(
+                  recipient.lineUserId,
+                  pdfData.meta.session_no,
+                  availableTopics.map(t => ({ no: t.no, name: t.name })),
+                  topicPdfUrls
+                );
+              }
+            } else {
+              // タグはあるが今回はマッチなし
+              await pushShingiNoMatch(recipient.lineUserId, pdfData.meta.session_no, baseUrl);
+            }
+          }
+        } else {
+          // PDF生成失敗時はテキスト通知にフォールバック
+          const digestDoc: DigestDoc = {
+            title: doc.title,
+            summary: doc.rawText.slice(0, 200),
+            url: doc.url,
+            importance: "high",
+            tags: [],
+          };
+          await pushBreakingNews(recipient.lineUserId, digestDoc);
+        }
         sentTo++;
       } catch (e) {
         errors.push(`Push failed for ${recipient.lineUserId}: ${e}`);

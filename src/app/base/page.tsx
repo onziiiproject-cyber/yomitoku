@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import ArticleList from "./_components/ArticleList";
+import GuestHeader from "./_components/GuestHeader";
 
 const CATEGORIES = [
   { key: "all", label: "すべて" },
@@ -18,14 +18,12 @@ export default async function BasePage({
   searchParams: Promise<{ q?: string; cat?: string; page?: string }>;
 }) {
   const session = await getSession();
-  if (!session) redirect("/base/login");
 
   const { q = "", cat = "all", page = "1" } = await searchParams;
   const pageNum = Math.max(1, parseInt(page));
   const take = 20;
   const skip = (pageNum - 1) * take;
 
-  // Build where clause
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { summary: { not: null } };
 
@@ -46,7 +44,7 @@ export default async function BasePage({
     where.tags = { hasSome: ["補助金・助成金"] };
   }
 
-  const [docs, total] = await Promise.all([
+  const [docs, total, favoritedIds] = await Promise.all([
     prisma.siteDocument.findMany({
       where,
       orderBy: [{ importance: "desc" }, { publishedAt: "desc" }, { createdAt: "desc" }],
@@ -55,11 +53,14 @@ export default async function BasePage({
       select: { id: true, title: true, summary: true, tags: true, source: true, publishedAt: true, importance: true, createdAt: true },
     }),
     prisma.siteDocument.count({ where }),
+    session
+      ? prisma.favorite.findMany({ where: { companyId: session.companyId }, select: { siteDocumentId: true } }).then((fs) => fs.map((f) => f.siteDocumentId))
+      : Promise.resolve([]),
   ]);
 
   const totalPages = Math.ceil(total / take);
 
-  return (
+  const content = (
     <div style={{ paddingTop: 24 }}>
       {/* Hero search */}
       <div style={{
@@ -109,6 +110,45 @@ export default async function BasePage({
         </form>
       </div>
 
+      {/* Guest CTA */}
+      {!session && (
+        <div style={{
+          background: "#FFF8F0",
+          border: "1.5px solid #F5A623",
+          borderRadius: 12,
+          padding: "14px 20px",
+          marginBottom: 20,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 700, color: "#7B4F00", margin: 0, marginBottom: 2 }}>
+              ログインして記事を保存しよう
+            </p>
+            <p style={{ fontSize: 12, color: "#A07040", margin: 0 }}>
+              アカウントに紐づいたお気に入りリストが作れます
+            </p>
+          </div>
+          <a
+            href="/base/login"
+            style={{
+              background: "#0D686E",
+              color: "#fff",
+              padding: "8px 18px",
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 700,
+              textDecoration: "none",
+              flexShrink: 0,
+            }}
+          >
+            ログイン
+          </a>
+        </div>
+      )}
+
       {/* Category tabs */}
       <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 20 }}>
         {CATEGORIES.map((c) => (
@@ -139,10 +179,8 @@ export default async function BasePage({
         <span>{total}件</span>
       </div>
 
-      {/* Article list */}
-      <ArticleList docs={docs} />
+      <ArticleList docs={docs} favoritedIds={favoritedIds} isLoggedIn={!!session} />
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 32 }}>
           {pageNum > 1 && (
@@ -156,6 +194,19 @@ export default async function BasePage({
       )}
     </div>
   );
+
+  if (!session) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#F7FAF9", fontFamily: "sans-serif" }}>
+        <GuestHeader />
+        <main style={{ maxWidth: 800, margin: "0 auto", padding: "0 16px 80px" }}>
+          {content}
+        </main>
+      </div>
+    );
+  }
+
+  return content;
 }
 
 const pageLinkStyle: React.CSSProperties = {

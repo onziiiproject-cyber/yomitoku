@@ -108,7 +108,7 @@ export async function scrapeMhlwLatest(
     let rawText = link.text;
     try {
       const pageHtml = await fetchPage(link.href);
-      rawText = stripHtml(pageHtml).slice(0, 3000);
+      rawText = stripHtml(pageHtml).slice(0, 5000);
     } catch {
       // Use title as fallback
     }
@@ -151,7 +151,7 @@ export async function scrapeShingi(since?: Date): Promise<ScrapedItem[]> {
     let rawText = link.text;
     try {
       const pageHtml = await fetchPage(link.href);
-      rawText = stripHtml(pageHtml).slice(0, 3000);
+      rawText = stripHtml(pageHtml).slice(0, 10000);
     } catch {
       // Use title as fallback
     }

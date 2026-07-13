@@ -1,8 +1,9 @@
 "use client";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 export default function BaseHeader({ companyName }: { companyName: string }) {
   const router = useRouter();
+  const pathname = usePathname();
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -18,10 +19,10 @@ export default function BaseHeader({ companyName }: { companyName: string }) {
       zIndex: 100,
       boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
     }}>
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 16px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 16px", height: 56, display: "flex", alignItems: "center", gap: 16 }}>
         {/* Logo */}
-        <a href="/base" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-          <div style={{ width: 30, height: 30, background: "#1B5E52", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <a href="/base" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", flexShrink: 0 }}>
+          <div style={{ width: 30, height: 30, background: "#1B5E52", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ color: "#fff", fontWeight: 800, fontSize: 15 }}>Y</span>
           </div>
           <div>
@@ -30,9 +31,33 @@ export default function BaseHeader({ companyName }: { companyName: string }) {
           </div>
         </a>
 
+        {/* Nav */}
+        <nav style={{ display: "flex", alignItems: "center", gap: 4, flex: 1 }}>
+          <a
+            href="/base/favorites"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 13,
+              fontWeight: 600,
+              color: pathname === "/base/favorites" ? "#1B5E52" : "#6B9E96",
+              textDecoration: "none",
+              padding: "5px 10px",
+              borderRadius: 8,
+              background: pathname === "/base/favorites" ? "#E8F5F1" : "transparent",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill={pathname === "/base/favorites" ? "#1B5E52" : "none"} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+            </svg>
+            お気に入り
+          </a>
+        </nav>
+
         {/* Right */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <a href="/base/settings" style={{ fontSize: 12, color: "#6B9E96", textDecoration: "none" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <a href="/base/settings" style={{ fontSize: 12, color: "#6B9E96", textDecoration: "none", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {companyName}
           </a>
           <button
