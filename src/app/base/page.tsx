@@ -178,9 +178,9 @@ export default async function BasePage({
             <input
               name="q"
               placeholder="何をお探しですか？　例：処遇改善　加算　運営指導"
-              style={{ flex: 1, padding: "11px 16px", borderRadius: 10, border: "none", fontSize: 14, outline: "none", color: "#1a1a1a" }}
+              style={{ flex: 1, padding: "11px 16px", borderRadius: 10, border: "2px solid rgba(255,255,255,0.6)", fontSize: 14, outline: "none", color: "#1a1a1a", background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
             />
-            <button type="submit" style={{ background: "#F5A623", color: "#fff", border: "none", borderRadius: 10, padding: "11px 20px", fontWeight: 700, fontSize: 14, cursor: "pointer", flexShrink: 0 }}>
+            <button type="submit" style={{ background: "#F5A623", color: "#fff", border: "none", borderRadius: 10, padding: "11px 20px", fontWeight: 700, fontSize: 14, cursor: "pointer", flexShrink: 0, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
               検索
             </button>
           </form>
