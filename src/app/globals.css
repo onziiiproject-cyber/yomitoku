@@ -47,3 +47,21 @@ a {
 img {
   max-width: 100%;
 }
+
+/* Login page input placeholder */
+.login-input::placeholder {
+  color: #999999;
+}
+
+/* Login page 2-column layout */
+.login-two-col {
+  grid-template-columns: 1.1fr 1fr;
+  gap: 56px;
+}
+
+@media (max-width: 700px) {
+  .login-two-col {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+}

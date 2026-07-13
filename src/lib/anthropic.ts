@@ -102,3 +102,37 @@ ${docList}
 
   return response.content[0].type === "text" ? response.content[0].text : "";
 }
+
+export async function buildPDFAIComment(
+  docs: Array<{ title: string; summary: string; tags: string[]; importance: string }>
+): Promise<string> {
+  if (docs.length === 0) return "今週は新しい通知はありませんでした。";
+
+  const client = getClient();
+  const docList = docs
+    .map((d, i) => `${i + 1}. 【${d.importance === "high" ? "重要" : "通常"}】${d.title}\n   ${d.summary}`)
+    .join("\n\n");
+
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 300,
+    messages: [
+      {
+        role: "user",
+        content: `介護事業所の経営者・管理者に向けて、今週の通知全体を踏まえた実務アドバイスを200字以内で書いてください。
+
+今週の通知一覧:
+${docList}
+
+ルール:
+・「今週は」で始める
+・今週特に注意すべき点を1〜2つ挙げる
+・具体的な行動につながる言葉で締める
+・箇条書き不使用、自然な文体で
+・経営判断に直結する視点を重視する`,
+      },
+    ],
+  });
+
+  return response.content[0].type === "text" ? response.content[0].text : "";
+}

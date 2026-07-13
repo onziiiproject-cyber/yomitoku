@@ -35,7 +35,8 @@ function weeklyDigestFlex(
   digestText: string,
   allTags: string[],
   digestUrl: string,
-  libraryUrl: string | null
+  libraryUrl: string | null,
+  pdfUrl: string | null = null
 ): messagingApi.FlexMessage {
   const uniqueTags = [...new Set(allTags)].slice(0, 6);
 
@@ -48,6 +49,16 @@ function weeklyDigestFlex(
       height: "md",
     } as messagingApi.FlexButton,
   ];
+
+  if (pdfUrl) {
+    footerContents.push({
+      type: "button",
+      action: { type: "uri", label: "📄 週刊ダイジェストPDFを見る", uri: pdfUrl },
+      style: "secondary",
+      height: "sm",
+      margin: "sm",
+    } as messagingApi.FlexButton);
+  }
 
   if (libraryUrl) {
     footerContents.push({
@@ -235,7 +246,8 @@ export async function pushWeeklyDigest(
   digestText: string,
   docs: DigestDoc[],
   weekLabel: string,
-  batchId: string
+  batchId: string,
+  pdfUrl: string | null = null
 ): Promise<string> {
   const client = getClient();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
@@ -244,7 +256,7 @@ export async function pushWeeklyDigest(
   const libraryUrl = liffLibraryId ? `https://liff.line.me/${liffLibraryId}` : null;
 
   const allTags = docs.flatMap((d) => d.tags);
-  const message = weeklyDigestFlex(weekLabel, docs.length, digestText, allTags, digestUrl, libraryUrl);
+  const message = weeklyDigestFlex(weekLabel, docs.length, digestText, allTags, digestUrl, libraryUrl, pdfUrl);
 
   const res = await client.pushMessage({ to: lineUserId, messages: [message] });
   return res.sentMessages?.[0]?.id ?? "";

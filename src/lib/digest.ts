@@ -1,12 +1,15 @@
 import { prisma } from "./prisma";
 import { scrapeMhlwLatest, scrapeShingi } from "./scraper";
-import { analyzeDocument, buildWeeklyDigest } from "./anthropic";
+import { analyzeDocument, buildWeeklyDigest, buildPDFAIComment } from "./anthropic";
 import { pushWeeklyDigest, pushBreakingNews, type DigestDoc } from "./line-message";
+import { generateDigestPDF, type PDFDigestDoc } from "./pdf-digest";
+import { put } from "@vercel/blob";
 
 export interface DigestResult {
   newDocs: number;
   sentTo: number;
   batchId: string;
+  pdfUrl: string | null;
   errors: string[];
 }
 
@@ -51,7 +54,7 @@ export async function runWeeklyDigest(): Promise<DigestResult> {
 
   const newItems = allItems.filter((i) => !existingUrls.has(i.url));
   if (newItems.length === 0) {
-    return { newDocs: 0, sentTo: 0, batchId: "", errors };
+    return { newDocs: 0, sentTo: 0, batchId: "", pdfUrl: null, errors };
   }
 
   // 3. Analyze with Claude
@@ -91,7 +94,7 @@ export async function runWeeklyDigest(): Promise<DigestResult> {
   }
 
   if (analyzed.length === 0) {
-    return { newDocs: 0, sentTo: 0, batchId: "", errors };
+    return { newDocs: 0, sentTo: 0, batchId: "", pdfUrl: null, errors };
   }
 
   // 4. Build digest text
@@ -110,7 +113,7 @@ export async function runWeeklyDigest(): Promise<DigestResult> {
   const todayKey = `weekly-${new Date().toISOString().slice(0, 10)}`;
   const existing = await prisma.messageBatch.findUnique({ where: { idempotencyKey: todayKey } });
   if (existing) {
-    return { newDocs: analyzed.length, sentTo: 0, batchId: existing.id, errors: [...errors, "Already sent today"] };
+    return { newDocs: analyzed.length, sentTo: 0, batchId: existing.id, pdfUrl: null, errors: [...errors, "Already sent today"] };
   }
 
   // 6. Create MessageBatch
@@ -132,7 +135,46 @@ export async function runWeeklyDigest(): Promise<DigestResult> {
     skipDuplicates: true,
   });
 
-  // 8. Get active LINE recipients
+  // 8. Generate PDF → Vercel Blob
+  let pdfUrl: string | null = null;
+  try {
+    const pdfDocs: PDFDigestDoc[] = analyzed.map(({ doc, result, savedId }) => ({
+      id: savedId,
+      title: doc.title,
+      summary: result.summary ?? "",
+      url: doc.url,
+      importance: result.importance,
+      tags: result.tags,
+      publishedAt: doc.publishedAt ?? null,
+      source: doc.source,
+    }));
+
+    const aiComment = await buildPDFAIComment(
+      pdfDocs.map(d => ({ title: d.title, summary: d.summary, tags: d.tags, importance: d.importance }))
+    );
+
+    const now = new Date();
+    const fmtJp = (d: Date) => `令和${d.getFullYear() - 2018}年${d.getMonth() + 1}月${d.getDate()}日`;
+
+    const pdfBuffer = await generateDigestPDF(
+      pdfDocs,
+      weekLabel,
+      { from: fmtJp(oneWeekAgo()), to: fmtJp(now) },
+      aiComment
+    );
+
+    const filename = `digest/weekly-${now.toISOString().slice(0, 10)}.pdf`;
+    const blob = await put(filename, pdfBuffer, {
+      access: "public",
+      contentType: "application/pdf",
+      addRandomSuffix: false,
+    });
+    pdfUrl = blob.url;
+  } catch (e) {
+    errors.push(`PDF generation failed: ${e}`);
+  }
+
+  // 9. Skip if already sent today
   const recipients = await prisma.lineRecipient.findMany({
     where: {
       unfollowedAt: null,
@@ -142,7 +184,7 @@ export async function runWeeklyDigest(): Promise<DigestResult> {
   });
 
   if (recipients.length === 0) {
-    return { newDocs: analyzed.length, sentTo: 0, batchId: batch.id, errors };
+    return { newDocs: analyzed.length, sentTo: 0, batchId: batch.id, pdfUrl, errors };
   }
 
   // 9. Send LINE messages
@@ -162,7 +204,8 @@ export async function runWeeklyDigest(): Promise<DigestResult> {
         digestText,
         docsToSend,
         weekLabel,
-        batch.id
+        batch.id,
+        pdfUrl
       );
       await prisma.messageSend.create({
         data: {
@@ -189,7 +232,7 @@ export async function runWeeklyDigest(): Promise<DigestResult> {
     }
   }
 
-  return { newDocs: analyzed.length, sentTo, batchId: batch.id, errors };
+  return { newDocs: analyzed.length, sentTo, batchId: batch.id, pdfUrl, errors };
 }
 
 export interface BreakingNewsResult {
