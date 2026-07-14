@@ -146,8 +146,8 @@ export default async function BasePage({
       {!session && (
         <div style={{ background: "#FFF8F0", border: "1.5px solid #F5A623", borderRadius: 12, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <div>
-            <p style={{ fontSize: 14, fontWeight: 700, color: "#7B4F00", margin: 0, marginBottom: 2 }}>ログインして記事を保存しよう</p>
-            <p style={{ fontSize: 12, color: "#A07040", margin: 0 }}>アカウントに紐づいたお気に入りリストが作れます</p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: "#7B4F00", margin: 0, marginBottom: 2 }}>ログインして記事全体を読もう</p>
+            <p style={{ fontSize: 12, color: "#A07040", margin: 0 }}>会員登録することでLINEでの通知＋全文が読めるようになります</p>
           </div>
           <a href="/base/login" style={{ background: "#0D686E", color: "#fff", padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: "none", flexShrink: 0 }}>
             ログイン
