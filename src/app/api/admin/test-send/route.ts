@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
   }
 
   const digestDocs: DigestDoc[] = docs.map((d) => ({
+    id: d.id,
     title: d.title,
     summary: d.summary ?? "",
     url: d.url,

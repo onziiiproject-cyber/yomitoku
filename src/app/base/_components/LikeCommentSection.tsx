@@ -6,6 +6,8 @@ interface Comment {
   body: string;
   companyName: string;
   createdAt: string;
+  likeCount: number;
+  likedByMe: boolean;
 }
 
 function Avatar({ name }: { name: string }) {
@@ -106,8 +108,24 @@ export default function LikeCommentSection({
     });
     const data = await res.json();
     if (!res.ok) { setError(data.error ?? "エラーが発生しました"); }
-    else { setComments((prev) => [data, ...prev]); setBody(""); setShowCommentInput(false); }
+    else {
+      setComments((prev) => [{ ...data, likeCount: 0, likedByMe: false }, ...prev]);
+      setBody(""); setShowCommentInput(false);
+    }
     setPosting(false);
+  }
+
+  async function handleCommentLike(commentId: string) {
+    if (!isLoggedIn) { requireLogin(); return; }
+    const res = await fetch("/api/base/comment-likes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commentId }),
+    });
+    const data = await res.json();
+    setComments((prev) => prev.map((c) =>
+      c.id === commentId ? { ...c, likedByMe: data.liked, likeCount: data.count } : c
+    ));
   }
 
   const actionBtn = (
@@ -215,7 +233,21 @@ export default function LikeCommentSection({
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a" }}>{c.companyName}</span>
                   <span style={{ fontSize: 11, color: "#aaa" }}>{relativeTime(c.createdAt)}</span>
                 </div>
-                <p style={{ fontSize: 14, color: "#333", margin: 0, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{c.body}</p>
+                <p style={{ fontSize: 14, color: "#333", margin: 0, lineHeight: 1.7, whiteSpace: "pre-wrap", marginBottom: 8 }}>{c.body}</p>
+                <button
+                  onClick={() => handleCommentLike(c.id)}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                    background: "transparent", border: "none", padding: "2px 0",
+                    fontSize: 12, color: c.likedByMe ? "#E53E3E" : "#aaa",
+                    cursor: "pointer", fontWeight: c.likedByMe ? 700 : 400,
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill={c.likedByMe ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                  </svg>
+                  {c.likeCount > 0 ? `${c.likeCount}` : "いいね"}
+                </button>
               </div>
             </div>
           ))}

@@ -99,7 +99,8 @@ export async function runWeeklyDigest(): Promise<DigestResult> {
   }
 
   // 4. Build digest text
-  const digestDocs: DigestDoc[] = analyzed.map(({ doc, result }) => ({
+  const digestDocs: DigestDoc[] = analyzed.map(({ doc, result, savedId }) => ({
+    id: savedId,
     title: doc.title,
     summary: result.summary,
     url: doc.url,
@@ -270,11 +271,11 @@ export async function runBreakingNewsCheck(): Promise<BreakingNewsResult> {
   }
 
   // Analyze + save
-  const analyzed: Array<{ doc: (typeof newItems)[0]; result: Awaited<ReturnType<typeof analyzeDocument>> }> = [];
+  const analyzed: Array<{ doc: (typeof newItems)[0]; result: Awaited<ReturnType<typeof analyzeDocument>>; savedId: string }> = [];
   for (const item of newItems) {
     try {
       const result = await analyzeDocument(item.title, item.rawText);
-      await prisma.siteDocument.upsert({
+      const saved = await prisma.siteDocument.upsert({
         where: { url: item.url },
         create: {
           url: item.url,
@@ -294,7 +295,7 @@ export async function runBreakingNewsCheck(): Promise<BreakingNewsResult> {
           processedAt: new Date(),
         },
       });
-      analyzed.push({ doc: item, result });
+      analyzed.push({ doc: item, result, savedId: saved.id });
     } catch (e) {
       errors.push(`Analysis failed for "${item.title}": ${e}`);
     }
@@ -316,7 +317,7 @@ export async function runBreakingNewsCheck(): Promise<BreakingNewsResult> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoru-xi.vercel.app";
 
   let sentTo = 0;
-  for (const { doc } of analyzed) {
+  for (const { doc, savedId } of analyzed) {
     // PDF生成を試みる（失敗してもテキスト通知にフォールバック）
     let coverPdfUrl: string | null = null;
     let topicPdfUrls: Record<number, string> = {};
@@ -389,6 +390,7 @@ export async function runBreakingNewsCheck(): Promise<BreakingNewsResult> {
         } else {
           // PDF生成失敗時はテキスト通知にフォールバック
           const digestDoc: DigestDoc = {
+            id: savedId,
             title: doc.title,
             summary: doc.rawText.slice(0, 200),
             url: doc.url,

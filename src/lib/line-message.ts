@@ -7,6 +7,7 @@ function getClient() {
 }
 
 export interface DigestDoc {
+  id: string;
   title: string;
   summary: string;
   url: string;
@@ -145,7 +146,7 @@ function weeklyDigestFlex(
   };
 }
 
-function breakingNewsFlex(doc: DigestDoc): messagingApi.FlexMessage {
+function breakingNewsFlex(doc: DigestDoc, appUrl: string): messagingApi.FlexMessage {
   return {
     type: "flex",
     altText: `【ヨミトク速報】${doc.title}`,
@@ -231,7 +232,7 @@ function breakingNewsFlex(doc: DigestDoc): messagingApi.FlexMessage {
         contents: [
           {
             type: "button",
-            action: { type: "uri", label: "通知PDFを見る →", uri: doc.url },
+            action: { type: "uri", label: "BASEで記事を読む →", uri: `${appUrl}/base/articles/${doc.id}` },
             style: "primary",
             color: "#7B2D2D",
           } as messagingApi.FlexButton,
@@ -267,7 +268,8 @@ export async function pushBreakingNews(
   doc: DigestDoc
 ): Promise<string> {
   const client = getClient();
-  const message = breakingNewsFlex(doc);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
+  const message = breakingNewsFlex(doc, appUrl);
   const res = await client.pushMessage({ to: lineUserId, messages: [message] });
   return res.sentMessages?.[0]?.id ?? "";
 }

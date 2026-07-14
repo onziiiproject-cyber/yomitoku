@@ -44,7 +44,10 @@ export default async function ArticleDetailPage({
     prisma.articleComment.findMany({
       where: { siteDocumentId: docId },
       orderBy: { createdAt: "desc" },
-      include: { company: { select: { name: true } } },
+      include: {
+        company: { select: { name: true } },
+        commentLikes: { select: { companyId: true } },
+      },
     }),
   ]);
 
@@ -59,6 +62,8 @@ export default async function ArticleDetailPage({
     body: c.body,
     companyName: c.company.name,
     createdAt: c.createdAt.toISOString(),
+    likeCount: c.commentLikes.length,
+    likedByMe: session ? c.commentLikes.some((l) => l.companyId === session.companyId) : false,
   }));
 
   const related = doc.tags.length > 0
