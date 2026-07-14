@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import FavoriteButton from "../../_components/FavoriteButton";
 import GuestHeader from "../../_components/GuestHeader";
 import LikeCommentSection from "../../_components/LikeCommentSection";
 
@@ -23,13 +22,19 @@ export default async function ArticleDetailPage({
 }) {
   const [session, { docId }] = await Promise.all([getSession(), params]);
 
-  const [doc, favoriteRecord, likeRecord, likeCount, comments] = await Promise.all([
+  const [doc, favoriteRecord, readRecord, readCount, likeRecord, likeCount, comments] = await Promise.all([
     prisma.siteDocument.findUnique({ where: { id: docId } }),
     session
       ? prisma.favorite.findUnique({
           where: { companyId_siteDocumentId: { companyId: session.companyId, siteDocumentId: docId } },
         })
       : Promise.resolve(null),
+    session
+      ? prisma.articleRead.findUnique({
+          where: { companyId_siteDocumentId: { companyId: session.companyId, siteDocumentId: docId } },
+        })
+      : Promise.resolve(null),
+    prisma.articleRead.count({ where: { siteDocumentId: docId } }),
     session
       ? prisma.articleLike.findUnique({
           where: { companyId_siteDocumentId: { companyId: session.companyId, siteDocumentId: docId } },
@@ -47,6 +52,7 @@ export default async function ArticleDetailPage({
 
   const src = SOURCE_LABEL[doc.source] ?? { label: doc.source, color: "#555", bg: "#F3F4F6" };
   const isFavorited = !!favoriteRecord;
+  const isRead = !!readRecord;
   const isLiked = !!likeRecord;
   const initialComments = comments.map((c) => ({
     id: c.id,
@@ -70,17 +76,11 @@ export default async function ArticleDetailPage({
 
   const content = (
     <div style={{ paddingTop: 20 }}>
-      {/* Back + Favorite */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+      {/* Back */}
+      <div style={{ marginBottom: 20 }}>
         <Link href="/base" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, color: "#1B7A6D", textDecoration: "none" }}>
           ← 一覧に戻る
         </Link>
-        <FavoriteButton
-          docId={doc.id}
-          initialFavorited={isFavorited}
-          isLoggedIn={!!session}
-          size="md"
-        />
       </div>
 
       {/* Article card */}
@@ -205,8 +205,11 @@ export default async function ArticleDetailPage({
           {/* Like & Comments */}
           <LikeCommentSection
             docId={doc.id}
+            initialRead={isRead}
+            initialReadCount={readCount}
             initialLiked={isLiked}
             initialLikeCount={likeCount}
+            initialFavorited={isFavorited}
             initialComments={initialComments}
             isLoggedIn={!!session}
           />
