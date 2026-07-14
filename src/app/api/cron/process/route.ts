@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await runProcessPending(1);
+    const result = await runProcessPending(4);
     console.log("[cron/process]", result);
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
