@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createSession, setSessionCookie } from "@/lib/auth";
+import { createSession } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -68,12 +68,20 @@ export async function GET(req: NextRequest) {
     companyId: recipient.company.id,
     email: recipient.company.email,
     companyName: recipient.company.name,
+    lineRecipientId: recipient.id,
+    nickname: recipient.nickname ?? recipient.displayName ?? undefined,
   });
 
+  // NextResponse.redirect に直接クッキーをセット
+  // （setSessionCookie は next/headers を使うため redirect レスポンスに乗らない）
   const res = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/base`);
-  await setSessionCookie(token);
-
-  // stateクッキーを削除
+  res.cookies.set("yb_session", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 30,
+    path: "/",
+  });
   res.cookies.delete("line_oauth_state");
 
   return res;

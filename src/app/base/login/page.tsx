@@ -88,15 +88,15 @@ export default function LoginPage() {
       {/* ── Main ── */}
       <main style={{ flex: 1, padding: "32px 48px" }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-          <div style={{
+          <div className="login-main-grid" style={{
             display: "grid",
-            gridTemplateColumns: isTwoCol ? "1.15fr 1fr" : "1fr",
-            gap: isTwoCol ? "48px" : "40px",
+            gridTemplateColumns: "1.15fr 1fr",
+            gap: "48px",
             alignItems: "center",
           }}>
 
             {/* ── Left ── */}
-            <div>
+            <div className="login-left-panel">
 
               {/* Logo block */}
               <div style={{ marginBottom: "28px" }}>
@@ -208,7 +208,7 @@ export default function LoginPage() {
             </div>
 
             {/* ── Right: Login card ── */}
-            <div style={{
+            <div className="login-right-panel" style={{
               background: "white",
               borderRadius: "20px",
               padding: "44px 42px 36px",
