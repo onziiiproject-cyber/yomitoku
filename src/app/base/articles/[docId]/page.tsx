@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import FavoriteButton from "../../_components/FavoriteButton";
 import GuestHeader from "../../_components/GuestHeader";
+import LikeCommentSection from "../../_components/LikeCommentSection";
 
 const SOURCE_LABEL: Record<string, { label: string; color: string; bg: string }> = {
   mhlw_latest: { label: "介護保険最新情報", color: "#1B7A6D", bg: "#E8F5F1" },
@@ -22,19 +23,37 @@ export default async function ArticleDetailPage({
 }) {
   const [session, { docId }] = await Promise.all([getSession(), params]);
 
-  const [doc, favoriteRecord] = await Promise.all([
+  const [doc, favoriteRecord, likeRecord, likeCount, comments] = await Promise.all([
     prisma.siteDocument.findUnique({ where: { id: docId } }),
     session
       ? prisma.favorite.findUnique({
           where: { companyId_siteDocumentId: { companyId: session.companyId, siteDocumentId: docId } },
         })
       : Promise.resolve(null),
+    session
+      ? prisma.articleLike.findUnique({
+          where: { companyId_siteDocumentId: { companyId: session.companyId, siteDocumentId: docId } },
+        })
+      : Promise.resolve(null),
+    prisma.articleLike.count({ where: { siteDocumentId: docId } }),
+    prisma.articleComment.findMany({
+      where: { siteDocumentId: docId },
+      orderBy: { createdAt: "desc" },
+      include: { company: { select: { name: true } } },
+    }),
   ]);
 
   if (!doc) notFound();
 
   const src = SOURCE_LABEL[doc.source] ?? { label: doc.source, color: "#555", bg: "#F3F4F6" };
   const isFavorited = !!favoriteRecord;
+  const isLiked = !!likeRecord;
+  const initialComments = comments.map((c) => ({
+    id: c.id,
+    body: c.body,
+    companyName: c.company.name,
+    createdAt: c.createdAt.toISOString(),
+  }));
 
   const related = doc.tags.length > 0
     ? await prisma.siteDocument.findMany({
@@ -182,6 +201,15 @@ export default async function ArticleDetailPage({
               </a>
             </div>
           )}
+
+          {/* Like & Comments */}
+          <LikeCommentSection
+            docId={doc.id}
+            initialLiked={isLiked}
+            initialLikeCount={likeCount}
+            initialComments={initialComments}
+            isLoggedIn={!!session}
+          />
 
           {/* Related articles */}
           {related.length > 0 && (

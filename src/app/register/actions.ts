@@ -1,27 +1,33 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 
 const schema = z.object({
-  companyName: z.string().min(1).max(100),
-  contactName: z.string().min(1).max(50),
-  email: z.string().email(),
-  tagKeys: z.array(z.string()).min(1),
-  lineUserId: z.string().min(1),
-  lineDisplayName: z.string().optional(),
+  companyName:  z.string().min(1).max(100),
+  contactName:  z.string().min(1).max(50),
+  contactRole:  z.string().min(1),
+  email:        z.string().email(),
+  password:     z.string().min(8),
+  phone:        z.string().optional(),
+  prefecture:   z.string().optional(),
+  tagKeys:      z.array(z.string()).min(1),
 });
 
 export async function startRegistration(_: unknown, formData: FormData) {
   const raw = {
-    companyName: formData.get("companyName"),
-    contactName: formData.get("contactName"),
-    email: formData.get("email"),
-    tagKeys: formData.getAll("tagKeys"),
-    lineUserId: formData.get("lineUserId"),
-    lineDisplayName: formData.get("lineDisplayName") ?? undefined,
+    companyName:  formData.get("companyName"),
+    contactName:  formData.get("contactName"),
+    contactRole:  formData.get("contactRole"),
+    email:        formData.get("email"),
+    password:     formData.get("password"),
+    phone:        formData.get("phone") || undefined,
+    prefecture:   formData.get("prefecture") || undefined,
+    tagKeys:      formData.getAll("tagKeys"),
   };
 
   const parsed = schema.safeParse(raw);
@@ -29,44 +35,52 @@ export async function startRegistration(_: unknown, formData: FormData) {
     return { error: "入力内容を確認してください。" };
   }
 
-  const { companyName, contactName, email, tagKeys, lineUserId, lineDisplayName } = parsed.data;
+  const { companyName, contactName, contactRole, email, password, phone, prefecture, tagKeys } = parsed.data;
 
   const tags = await prisma.tag.findMany({ where: { key: { in: tagKeys } } });
   if (tags.length === 0) {
-    return { error: "カテゴリを1つ以上選択してください。" };
+    return { error: "受け取りたい情報を1つ以上選択してください。" };
+  }
+
+  const existing = await prisma.company.findUnique({ where: { email } });
+  if (existing) {
+    return { error: "このメールアドレスはすでに登録されています。" };
   }
 
   const stripeCustomer = await stripe.customers.create({
     name: companyName,
     email,
-    metadata: { contactName, lineUserId },
+    metadata: { contactName, contactRole, prefecture: prefecture ?? "" },
   });
+
+  const passwordHash = await bcrypt.hash(password, 12);
 
   const company = await prisma.company.create({
     data: {
-      name: companyName,
+      name:         companyName,
       contactName,
+      contactRole,
       email,
+      passwordHash,
+      phone:        phone ?? null,
+      prefecture:   prefecture ?? null,
       stripeCustomerId: stripeCustomer.id,
       tags: { create: tags.map((t) => ({ tagId: t.id })) },
-      lineRecipients: {
-        create: { lineUserId, displayName: lineDisplayName ?? null },
-      },
     },
   });
+
+  const headersList = await headers();
+  const host = headersList.get("host") ?? "yomitoru-xi.vercel.app";
+  const proto = headersList.get("x-forwarded-proto") ?? "https";
+  const baseUrl = `${proto}://${host}`;
 
   const session = await stripe.checkout.sessions.create({
     customer: stripeCustomer.id,
     mode: "subscription",
-    line_items: [
-      {
-        price: process.env.STRIPE_PRICE_ID!,
-        quantity: 1,
-      },
-    ],
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/thanks?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/register?cancelled=1`,
-    metadata: { companyId: company.id },
+    line_items: [{ price: process.env.STRIPE_PRICE_ID!, quantity: 1 }],
+    success_url: `${baseUrl}/thanks?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url:  `${baseUrl}/register?cancelled=1`,
+    metadata:         { companyId: company.id },
     subscription_data: { metadata: { companyId: company.id } },
   });
 

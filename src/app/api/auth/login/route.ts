@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createSession, setSessionCookie } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
-  const { email, password } = await req.json();
+  const { email, password, rememberMe } = await req.json();
   if (!email || !password) {
     return NextResponse.json({ error: "メールアドレスとパスワードを入力してください" }, { status: 400 });
   }
@@ -22,13 +22,18 @@ export async function POST(req: NextRequest) {
   if (company.status === "CANCELED") {
     return NextResponse.json({ error: "このアカウントは解約済みです" }, { status: 403 });
   }
+  if (company.status === "PENDING_PAYMENT") {
+    return NextResponse.json({ error: "お支払いが完了していません。登録メールをご確認ください" }, { status: 403 });
+  }
+
+  await prisma.company.update({ where: { id: company.id }, data: { lastLoginAt: new Date() } });
 
   const token = await createSession({
     companyId: company.id,
     email: company.email,
     companyName: company.name,
   });
-  await setSessionCookie(token);
+  await setSessionCookie(token, rememberMe === true);
 
   return NextResponse.json({ ok: true });
 }

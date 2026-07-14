@@ -31,13 +31,13 @@ export async function getSession(): Promise<SessionPayload | null> {
   }
 }
 
-export async function setSessionCookie(token: string) {
+export async function setSessionCookie(token: string, remember = true) {
   const jar = await cookies();
   jar.set(COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 30,
+    ...(remember ? { maxAge: 60 * 60 * 24 * 30 } : {}), // チェックなし→ブラウザ閉じたら消える
     path: "/",
   });
 }

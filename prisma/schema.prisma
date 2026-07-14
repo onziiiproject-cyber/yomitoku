@@ -18,28 +18,37 @@ enum CompanyStatus {
 }
 
 model Company {
-  id                   String   @id @default(cuid())
-  name                 String
-  contactName          String
-  email                String   @unique
-  passwordHash         String?
-  status               CompanyStatus @default(PENDING_PAYMENT)
+  id           String        @id @default(cuid())
+  name         String
+  contactName  String
+  contactRole  String?
+  phone        String?
+  prefecture   String?
+  email        String        @unique
+  passwordHash String?
+  status       CompanyStatus @default(PENDING_PAYMENT)
 
-  stripeCustomerId     String?  @unique
-  stripeSubscriptionId String?  @unique
+  stripeCustomerId     String? @unique
+  stripeSubscriptionId String? @unique
 
   // Issued only once payment succeeds — an unpaid signup never has a usable invite code.
-  inviteCode           String?  @unique
+  inviteCode String? @unique
 
-  maxRecipients        Int      @default(3)
+  passwordResetToken  String?   @unique
+  passwordResetExpiry DateTime?
+  lastLoginAt         DateTime?
 
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  maxRecipients Int @default(3)
 
-  tags            CompanyTag[]
-  lineRecipients  LineRecipient[]
-  messageSends    MessageSend[]
-  favorites       Favorite[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags           CompanyTag[]
+  lineRecipients LineRecipient[]
+  messageSends   MessageSend[]
+  favorites      Favorite[]
+  articleLikes   ArticleLike[]
+  articleComments ArticleComment[]
 }
 
 model Tag {
@@ -48,7 +57,8 @@ model Tag {
   label     String
   sortOrder Int    @default(0)
 
-  companies CompanyTag[]
+  companies  CompanyTag[]
+  recipients LineRecipientTag[]
 }
 
 model CompanyTag {
@@ -62,15 +72,26 @@ model CompanyTag {
 }
 
 model LineRecipient {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   companyId    String
-  lineUserId   String   @unique
+  lineUserId   String    @unique
   displayName  String?
-  followedAt   DateTime @default(now())
+  followedAt   DateTime  @default(now())
   unfollowedAt DateTime?
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  messageSends MessageSend[]
+  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messageSends  MessageSend[]
+  recipientTags LineRecipientTag[]
+}
+
+model LineRecipientTag {
+  lineRecipientId String
+  tagId           String
+
+  lineRecipient LineRecipient @relation(fields: [lineRecipientId], references: [id], onDelete: Cascade)
+  tag           Tag           @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([lineRecipientId, tagId])
 }
 
 enum WebhookSource {
@@ -79,12 +100,12 @@ enum WebhookSource {
 }
 
 model WebhookEvent {
-  id              String   @id @default(cuid())
+  id              String        @id @default(cuid())
   source          WebhookSource
   externalEventId String
   type            String
   payload         String
-  receivedAt      DateTime @default(now())
+  receivedAt      DateTime      @default(now())
   processedAt     DateTime?
 
   @@unique([source, externalEventId])
@@ -97,12 +118,12 @@ enum MessageBatchKind {
 }
 
 model MessageBatch {
-  id             String   @id @default(cuid())
+  id             String           @id @default(cuid())
   kind           MessageBatchKind
   title          String
   content        String
-  idempotencyKey String   @unique
-  createdAt      DateTime @default(now())
+  idempotencyKey String           @unique
+  createdAt      DateTime         @default(now())
 
   sends     MessageSend[]
   documents BatchDocument[]
@@ -112,7 +133,7 @@ model SiteDocument {
   id          String    @id @default(cuid())
   url         String    @unique
   title       String
-  source      String    // "mhlw_latest" | "shingi"
+  source      String // "mhlw_latest" | "shingi"
   publishedAt DateTime?
   rawText     String    @db.Text
   summary     String?   @db.Text
@@ -123,6 +144,8 @@ model SiteDocument {
 
   batches   BatchDocument[]
   favorites Favorite[]
+  likes     ArticleLike[]
+  comments  ArticleComment[]
 }
 
 model BatchDocument {
@@ -144,7 +167,7 @@ enum MessageSendStatus {
 }
 
 model MessageSend {
-  id              String   @id @default(cuid())
+  id              String  @id @default(cuid())
   messageBatchId  String
   companyId       String
   lineRecipientId String?
@@ -170,4 +193,26 @@ model Favorite {
   siteDocument SiteDocument @relation(fields: [siteDocumentId], references: [id], onDelete: Cascade)
 
   @@id([companyId, siteDocumentId])
+}
+
+model ArticleLike {
+  companyId      String
+  siteDocumentId String
+  createdAt      DateTime @default(now())
+
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  siteDocument SiteDocument @relation(fields: [siteDocumentId], references: [id], onDelete: Cascade)
+
+  @@id([companyId, siteDocumentId])
+}
+
+model ArticleComment {
+  id             String   @id @default(cuid())
+  companyId      String
+  siteDocumentId String
+  body           String   @db.Text
+  createdAt      DateTime @default(now())
+
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  siteDocument SiteDocument @relation(fields: [siteDocumentId], references: [id], onDelete: Cascade)
 }

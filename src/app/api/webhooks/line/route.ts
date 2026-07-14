@@ -43,7 +43,6 @@ export async function POST(req: Request) {
     const userId = ev.source?.userId;
 
     if (ev.type === "follow" && userId) {
-      // Log follow event
       await prisma.webhookEvent.upsert({
         where: { source_externalEventId: { source: "LINE", externalEventId: `follow-${userId}` } },
         create: {
@@ -55,6 +54,16 @@ export async function POST(req: Request) {
         },
         update: { processedAt: new Date() },
       });
+
+      if (ev.replyToken) {
+        await client.replyMessage({
+          replyToken: ev.replyToken,
+          messages: [{
+            type: "text",
+            text: "ヨミトクへようこそ！🎉\n\nLINE通知を受け取るには、事業所の「会社コード」をこのチャットに送ってください。\n\n会社コードはヨミトクBASEの設定ページで確認できます。",
+          }],
+        });
+      }
     }
 
     if (ev.type === "unfollow" && userId) {
@@ -69,11 +78,11 @@ export async function POST(req: Request) {
       const text = ev.message.text?.trim() ?? "";
       const existingRecipient = await prisma.lineRecipient.findUnique({ where: { lineUserId: userId } });
 
-      // Check if the message looks like a company invite code
-      const codeMatch = text.match(/^[A-Za-z0-9]{6,12}$/);
+      // Check if the message looks like a company invite code (8 uppercase alphanumeric chars)
+      const codeMatch = text.match(/^[A-Z2-9]{8}$/);
       if (codeMatch && !existingRecipient) {
         const company = await prisma.company.findFirst({
-          where: { inviteCode: text.toUpperCase(), status: "ACTIVE" },
+          where: { inviteCode: text, status: "ACTIVE" },
           include: { lineRecipients: { where: { unfollowedAt: null } } },
         });
 
@@ -95,9 +104,18 @@ export async function POST(req: Request) {
             displayName = profile.displayName;
           } catch { /* ignore */ }
 
-          await prisma.lineRecipient.create({
+          const newRecipient = await prisma.lineRecipient.create({
             data: { lineUserId: userId, companyId: company.id, displayName },
           });
+
+          // 法人タグを個人の初期タグとしてコピー
+          const companyTags = await prisma.companyTag.findMany({ where: { companyId: company.id } });
+          if (companyTags.length > 0) {
+            await prisma.lineRecipientTag.createMany({
+              data: companyTags.map((ct) => ({ lineRecipientId: newRecipient.id, tagId: ct.tagId })),
+              skipDuplicates: true,
+            });
+          }
 
           await client.replyMessage({
             replyToken: ev.replyToken,
@@ -110,13 +128,9 @@ export async function POST(req: Request) {
         continue;
       }
 
-      // Already registered → show status
+      // 登録済みユーザーからのメッセージは無視（リッチメニューのmessageアクション等）
       if (existingRecipient) {
-        const company = await prisma.company.findUnique({ where: { id: existingRecipient.companyId } });
-        await client.replyMessage({
-          replyToken: ev.replyToken,
-          messages: [{ type: "text", text: `✅ 登録済みです\n事業所：${company?.name ?? "-"}\n\nヨミトク BASEから過去の情報を検索できます。` }],
-        });
+        continue;
       } else {
         await client.replyMessage({
           replyToken: ev.replyToken,

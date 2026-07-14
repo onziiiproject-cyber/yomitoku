@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @font-face { font-family: 'system'; src: local('Hiragino Sans'); }
+    body { margin: 0; background: #eef1f0; }
+  </style>
+</helmet>
+<div style="width:1600px; height:900px; background:#fbfbfa; display:flex; align-items:center; justify-content:center; font-family: 'Hiragino Kaku Gothic ProN','Hiragino Sans','Yu Gothic',sans-serif;">
+  <div style="position:relative; width:1520px; height:820px; background:#ffffff; border-radius:32px; box-shadow: 0 20px 60px rgba(20,40,38,0.08); overflow:hidden; padding:56px 64px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between;">
+
+    <div style="display:flex; flex-direction:column; gap:28px; max-width:900px; z-index:2;">
+      <div style="display:flex; align-items:center; gap:16px;">
+        <div style="width:56px; height:56px; position:relative;">
+          <svg width="56" height="56" viewBox="0 0 56 56">
+            <polygon points="28,4 44,4 30,26 30,52 22,52 22,26" fill="#178C7E"></polygon>
+            <line x1="10" y1="36" x2="46" y2="36" stroke="#178C7E" stroke-width="4"></line>
+            <line x1="10" y1="46" x2="46" y2="46" stroke="#178C7E" stroke-width="4"></line>
+          </svg>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="font-size:32px; font-weight:800; color:#1a1a1a; letter-spacing:0.02em;">ヨミトク</div>
+          <div style="font-size:15px; font-weight:600; color:#3a3a3a; letter-spacing:0.15em;">介護保険最新情報</div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+        <div style="font-size:64px; font-weight:800; color:#1a1a1a; line-height:1.25; letter-spacing:0.01em;">介護保険最新情報</div>
+        <div style="font-size:64px; font-weight:800; color:#178C7E; line-height:1.25; letter-spacing:0.01em;">週刊ダイジェスト</div>
+      </div>
+
+      <div style="display:inline-flex; align-items:center; gap:12px; border:2px solid #178C7E; border-radius:999px; padding:14px 28px; width:fit-content; margin-top:8px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="5" width="18" height="16" rx="3" stroke="#178C7E" stroke-width="2"></rect>
+          <line x1="3" y1="10" x2="21" y2="10" stroke="#178C7E" stroke-width="2"></line>
+          <line x1="7" y1="2" x2="7" y2="6" stroke="#178C7E" stroke-width="2"></line>
+          <line x1="17" y1="2" x2="17" y2="6" stroke="#178C7E" stroke-width="2"></line>
+        </svg>
+        <div style="font-size:24px; font-weight:700; color:#178C7E;">対象期間：令和8年6月1日〜6月15日</div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:20px; background:#e8f4f2; border-radius:20px; padding:24px 32px; margin-top:8px;">
+        <div style="width:56px; height:56px; border-radius:50%; background:#178C7E; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+            <rect x="4" y="3" width="16" height="18" rx="2" stroke="#ffffff" stroke-width="2"></rect>
+            <line x1="8" y1="8" x2="16" y2="8" stroke="#ffffff" stroke-width="2"></line>
+            <line x1="8" y1="12" x2="16" y2="12" stroke="#ffffff" stroke-width="2"></line>
+            <line x1="8" y1="16" x2="13" y2="16" stroke="#ffffff" stroke-width="2"></line>
+          </svg>
+        </div>
+        <div style="font-size:26px; font-weight:700; color:#1a1a1a;">今回は<span style="color:#178C7E; font-size:30px;">5件</span>の通知をまとめました</div>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:flex-start; gap:10px; max-width:900px; z-index:2;">
+      <div style="width:22px; height:22px; border-radius:50%; border:2px solid #178C7E; color:#178C7E; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px;">i</div>
+      <div style="font-size:15px; color:#666666; line-height:1.7;">
+        ※ 厚生労働省「介護保険最新情報」ページをもとにした自動要約です。<br/>
+        正式な内容は原文でご確認ください。
+      </div>
+    </div>
+
+    <img src="assets/illustration.png" alt="" style="position:absolute; right:-20px; top:50%; transform:translateY(-50%); width:560px; height:560px; object-fit:contain; z-index:1;" />
+
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>

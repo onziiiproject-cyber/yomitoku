@@ -10,11 +10,11 @@
 
 .card {
   width: 100%;
-  max-width: 480px;
+  max-width: 720px;
   background: #ffffff;
   border-radius: 20px;
   box-shadow: 0 4px 24px rgba(31, 46, 42, 0.08);
-  padding: 36px 28px;
+  padding: 36px 40px;
 }
 
 .pageHeader {
@@ -48,6 +48,20 @@
   font-size: 13px;
   color: #666;
   line-height: 1.8;
+}
+
+.accountNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 6px 14px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary-dark);
 }
 
 /* ===== Form ===== */
@@ -98,9 +112,65 @@
   color: #888;
 }
 
+.passwordWrap {
+  position: relative;
+}
+
+.passwordWrap .input {
+  padding-right: 48px;
+}
+
+.eyeBtn {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #aaa;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.eyeBtn:hover {
+  color: #555;
+}
+
+.inputError {
+  border-color: #e05252 !important;
+}
+
+.fieldError {
+  font-size: 12px;
+  color: #e05252;
+}
+
+.tagCategorySection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tagCategorySection + .tagCategorySection {
+  margin-top: 16px;
+}
+
+.tagCategoryLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  margin: 0;
+}
+
 .tagGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import PortalButton from "./PortalButton";
 
 export default async function SettingsPage() {
   const session = await getSession();
@@ -31,8 +32,9 @@ export default async function SettingsPage() {
           <Row label="事業所名" value={company.name} />
           <Row label="担当者名" value={company.contactName} />
           <Row label="メールアドレス" value={company.email} />
-          <Row label="プランステータス" value={company.status} />
+          <Row label="プランステータス" value={{ ACTIVE: "有効", PENDING_PAYMENT: "お支払い待ち", PAST_DUE: "支払い延滞", CANCELED: "解約済み" }[company.status] ?? company.status} />
         </div>
+        {company.stripeCustomerId && <PortalButton />}
       </section>
 
       {/* Invite code */}

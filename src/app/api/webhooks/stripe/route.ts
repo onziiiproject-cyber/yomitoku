@@ -1,7 +1,9 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { nanoid } from "nanoid";
+import { customAlphabet } from "nanoid";
+
+const generateInviteCode = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 8);
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { sendWelcomeEmail } from "@/lib/resend";
@@ -50,11 +52,11 @@ export async function POST(req: Request) {
         data: {
           status: "ACTIVE",
           stripeSubscriptionId: session.subscription as string,
-          inviteCode: nanoid(10),
+          inviteCode: generateInviteCode(),
         },
       });
 
-      await sendWelcomeEmail(company.email, company.name).catch(console.error);
+      await sendWelcomeEmail(company.email, company.name, company.inviteCode!).catch(console.error);
     }
 
     if (event.type === "customer.subscription.deleted") {

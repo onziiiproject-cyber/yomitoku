@@ -181,7 +181,7 @@ export async function runWeeklyDigest(): Promise<DigestResult> {
       unfollowedAt: null,
       company: { status: "ACTIVE" },
     },
-    include: { company: { include: { tags: { include: { tag: true } } } } },
+    include: { recipientTags: { include: { tag: true } } },
   });
 
   if (recipients.length === 0) {
@@ -191,11 +191,11 @@ export async function runWeeklyDigest(): Promise<DigestResult> {
   // 9. Send LINE messages
   let sentTo = 0;
   for (const recipient of recipients) {
-    const companyTags = recipient.company.tags.map((ct) => ct.tag.key);
+    const recipientTagKeys = recipient.recipientTags.map((rt) => rt.tag.key);
     const relevantDocs =
-      companyTags.length === 0
+      recipientTagKeys.length === 0
         ? digestDocs
-        : digestDocs.filter((d) => d.tags.some((t) => companyTags.includes(t)));
+        : digestDocs.filter((d) => d.tags.some((t) => recipientTagKeys.includes(t)));
 
     const docsToSend = relevantDocs.length > 0 ? relevantDocs : digestDocs;
 

@@ -1,649 +1,526 @@
-"use client";
-import { useState } from "react";
-import styles from "./page.module.css";
+import Image from "next/image";
 
-const LIFF_URL = `https://liff.line.me/${process.env.NEXT_PUBLIC_LIFF_ID ?? "2010669020-VWbQJE9b"}`;
+const LINE_OA_URL = "https://line.me/R/ti/p/@324eesis";
 
-/* ──────── SVG / Icon components ──────── */
-const LogoMark = ({ size = 36 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
-    <path d="M6 5 L17 20 L17 35" stroke="#1B7A6D" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M32 5 L17 20" stroke="#1B7A6D" strokeWidth="4" strokeLinecap="round"/>
-    <line x1="9"  y1="10" x2="16" y2="10" stroke="#1B7A6D" strokeWidth="2.5" strokeLinecap="round"/>
-    <line x1="8"  y1="15" x2="16" y2="15" stroke="#1B7A6D" strokeWidth="2.5" strokeLinecap="round"/>
-    <line x1="7"  y1="20" x2="14" y2="20" stroke="#1B7A6D" strokeWidth="2.5" strokeLinecap="round"/>
-  </svg>
-);
+const P = {
+  teal: "#0D686E",
+  dark: "#0A4A50",
+  mid: "#158A82",
+  light: "#E6F4F2",
+  lighter: "#F0F9F8",
+  lightest: "#F8FCFC",
+  text: "#0F1A19",
+  muted: "#527672",
+  border: "#C8E2DE",
+  line: "#06C755",
+  white: "#ffffff",
+};
 
-const LineIcon = ({ size = 20, color = "currentColor" }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-    <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.105.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
-  </svg>
-);
-
-const Check = ({ color = "#1B7A6D" }: { color?: string }) => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0 }}>
-    <circle cx="10" cy="10" r="10" fill={color}/>
-    <path d="M5.5 10.5L8.5 13.5L14.5 7.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-const Shield = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0 }}>
-    <path d="M9 1.5L2.5 4.5v5c0 3.6 2.8 7 6.5 7.5 3.7-.5 6.5-3.9 6.5-7.5v-5L9 1.5z" fill="#1B7A6D" opacity="0.15" stroke="#1B7A6D" strokeWidth="1.4"/>
-    <path d="M6 9l2.5 2.5L13 7" stroke="#1B7A6D" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-/* ──────── Reusable CTA button ──────── */
-const LineBtn = ({ label = "今すぐLINEで登録する", size = "md" }: { label?: string; size?: "sm" | "md" | "lg" }) => (
-  <a href={LIFF_URL} className={size === "lg" ? styles.lineBtnLg : size === "sm" ? styles.lineBtnSm : styles.lineBtn}>
-    <LineIcon size={size === "lg" ? 24 : 20} color="#fff" />
-    {label}
-    <span>›</span>
-  </a>
-);
-
-/* ──────── Phone Mockup ──────── */
-const PhoneMock = ({ variant }: { variant: "digest" | "breaking" | "analysis" }) => {
-  const c = {
-    digest: { badge: "週刊ダイジェスト", badgeBg: "#2D9B8A", date: "6/18（水）",
-      title: "今週の介護保険最新情報をまとめました。",
-      items: ["高齢者虐待防止の推進について（通知）", "ケアプランデータ連携システムの運用状況について", "介護報酬に関するQ&A（Vol.○○）"],
-    },
-    breaking: { badge: "速報", badgeBg: "#E05A2B", date: "6/17（火）",
-      title: "介護保険最新情報（速報）最新の通知が発出されましたので、お知らせします。",
-      items: ["介護報酬改定に関する最新動向", "感染症対策に関する通知", "その他、重要なお知らせ"],
-    },
-    analysis: { badge: "分科会解説", badgeBg: "#6B5B9E", date: "6/16（月）",
-      title: "介護給付費分科会のポイント解説 複雑な議論の内容をわかりやすく解説します。",
-      items: ["第236回 介護給付費分科会", "・議題の概要", "・委員の主な意見", "・今後の動向とポイント"],
-    },
-  }[variant];
-
+function LineIcon({ size = 20 }: { size?: number }) {
   return (
-    <div className={styles.phoneMock}>
-      <div className={styles.phoneMockFrame}>
-        <div className={styles.phoneMockTop}>
-          <span className={styles.phoneMockBack}>＜ <span className={styles.phoneYLogo}>Y</span> ヨミトク</span>
-          <div className={styles.phoneMockIcons}><span>🔍</span><span>≡</span></div>
-        </div>
-        <div className={styles.phoneMockBody}>
-          <div className={styles.phoneMockDay}>今日</div>
-          <div className={styles.phoneMockMsg}>
-            <div className={styles.phoneMsgRow}>
-              <span className={styles.phoneMsgBadge} style={{ background: c.badgeBg }}>{c.badge}</span>
-              <span className={styles.phoneMsgDate}>{c.date}</span>
-            </div>
-            <p className={styles.phoneMsgTitle}>{c.title}</p>
-            {c.items.map((item, i) => (
-              <div key={i} className={styles.phoneMsgItem}>
-                {variant !== "breaking" && <Check color={c.badgeBg} />}
-                <span>{item}</span>
-              </div>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.105.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314" />
+    </svg>
+  );
+}
+
+function ArrowRight() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14M12 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+export default function LandingPage() {
+  return (
+    <div style={{ fontFamily: "'Noto Sans JP','Hiragino Kaku Gothic ProN','Hiragino Sans',Meiryo,sans-serif", color: P.text, overflowX: "hidden" }}>
+
+      {/* ─── NAV ─── */}
+      <nav style={{
+        position: "sticky", top: 0, zIndex: 100,
+        background: "rgba(255,255,255,0.95)", backdropFilter: "blur(8px)",
+        borderBottom: `1px solid ${P.border}`,
+      }}>
+        <div style={{ maxWidth: 1160, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", gap: 32 }}>
+          <a href="/" style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+            <Image src="/design/assets/08-brand/logos/logo-yomitoku-main.png" alt="ヨミトク" width={160} height={44} style={{ height: 36, width: "auto" }} priority />
+          </a>
+          <div style={{ display: "flex", gap: 28, marginLeft: 16 }}>
+            {([["機能紹介", "#features"], ["使い方", "#how"], ["料金", "#pricing"]] as const).map(([label, href]) => (
+              <a key={href} href={href} style={{ fontSize: 14, fontWeight: 600, color: P.muted, textDecoration: "none" }}>{label}</a>
             ))}
-            <p className={styles.phoneMsgMore}>続きはこちら ▶</p>
+          </div>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 12, alignItems: "center" }}>
+            <a href="/base/login" style={{ fontSize: 14, fontWeight: 600, color: P.teal, textDecoration: "none" }}>ログイン</a>
+            <a href="/register" style={{
+              display: "flex", alignItems: "center", gap: 7,
+              background: P.line, color: P.white,
+              padding: "9px 20px", borderRadius: 8, fontSize: 14, fontWeight: 700,
+              textDecoration: "none",
+            }}>
+              <LineIcon size={17} />無料登録
+            </a>
           </div>
         </div>
-      </div>
-    </div>
-  );
-};
+      </nav>
 
-/* ──────── FAQ item with state ──────── */
-const FaqItem = ({ q, a }: { q: string; a: string }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={styles.faqItem}>
-      <button className={styles.faqQ} onClick={() => setOpen(!open)}>
-        <span className={styles.faqLabel}>Q</span>
-        <span className={styles.faqQText}>{q}</span>
-        <span className={`${styles.faqChevron} ${open ? styles.open : ""}`}>▾</span>
-      </button>
-      {open && (
-        <div className={styles.faqA}>
-          <span className={styles.faqLabelA}>A</span>
-          <p>{a}</p>
-        </div>
-      )}
-    </div>
-  );
-};
-
-/* ══════════════════════════════════════════
-   PAGE
-══════════════════════════════════════════ */
-export default function Page() {
-  return (
-    <main className={styles.main}>
-
-      {/* ── HEADER ── */}
-      <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <div className={styles.logo}>
-            <LogoMark size={34} />
-            <span className={styles.logoName}>ヨミトク</span>
-            <span className={styles.logoDivider}>|</span>
-            <span className={styles.logoSub}>介護保険最新情報</span>
-          </div>
-          <LineBtn label="無料で始める" size="sm" />
-        </div>
-      </header>
-
-      {/* ═══ HERO ═══ */}
-      <section className={styles.hero}>
-        <div className={styles.heroInner}>
-          {/* Left */}
-          <div className={styles.heroLeft}>
-            <h1 className={styles.heroH1}>
-              制度を味方に、<br />経営をもっと前へ。
-            </h1>
-            <div className={styles.heroAiBanner}>
-              情報収集は、<strong>AI</strong>に任せる時代。
+      {/* ─── HERO ─── */}
+      <section style={{
+        background: `linear-gradient(135deg, ${P.lightest} 0%, #E3F4F2 60%, ${P.light} 100%)`,
+        position: "relative", overflow: "hidden", minHeight: 620,
+      }}>
+        {/* テキスト：左半分に固定 */}
+        <div style={{ maxWidth: 928, margin: "0 auto", padding: "80px 24px 80px", position: "relative", zIndex: 1 }}>
+          <div style={{ maxWidth: 500 }}>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: P.light, border: `1px solid ${P.border}`, color: P.teal,
+              padding: "5px 14px", borderRadius: 100, fontSize: 12, fontWeight: 700,
+              marginBottom: 28, letterSpacing: "0.05em",
+            }}>
+              <span style={{ width: 6, height: 6, background: P.teal, borderRadius: "50%" }} />
+              介護保険 × AI情報サービス
             </div>
-            <p className={styles.heroP}>
+
+            <h1 style={{ fontSize: "clamp(28px, 3.6vw, 44px)", fontWeight: 900, lineHeight: 1.45, letterSpacing: "-0.01em", margin: "0 0 20px" }}>
               経営者なら、<br />
-              国の動向は押さえておきたい。
-            </p>
-            <p className={styles.heroP}>
-              でも、<br />
-              全部読む<strong className={styles.heroBold}>時間がない。</strong>
-            </p>
-            <div className={styles.heroIcons}>
-              {[
-                { icon: "🤖", label: "毎日AIが\nチェック・要約" },
-                { icon: "line", label: "LINEで\nタイムリーに届く" },
-                { icon: "🏷️", label: "タグ機能で\n必要な情報だけ" },
-                { icon: "👥", label: "最大3アカウント\nまで登録可能" },
-              ].map((f) => (
-                <div key={f.label} className={styles.heroIconItem}>
-                  {f.icon === "line"
-                    ? <div className={styles.heroIconLine}><LineIcon size={26} color="#06C755" /></div>
-                    : <span className={styles.heroIconEmoji}>{f.icon}</span>}
-                  <p className={styles.heroIconLabel}>{f.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+              国の動向は<br />
+              押さえておきたい。
+            </h1>
 
-          {/* Right — phone */}
-          <div className={styles.heroRight}>
-            <div className={styles.heroBadgeCircle}>
-              <span>👑</span>
-              <span>介護事業の<br />経営者を<br /><strong>強力サポート</strong></span>
+            <p style={{ fontSize: "clamp(18px, 2.2vw, 24px)", fontWeight: 700, color: P.muted, lineHeight: 1.6, margin: "0 0 32px" }}>
+              でも、全部読む時間はない。
+            </p>
+
+            <p style={{ fontSize: 16, fontWeight: 800, color: P.teal, margin: "0 0 10px" }}>
+              情報収集は、AIに任せる時代。
+            </p>
+            <p style={{ fontSize: 15, color: P.muted, lineHeight: 1.85, margin: "0 0 40px", maxWidth: 420 }}>
+              ヨミトクは、介護保険に関する最新の制度・通知・分科会資料を
+              AIが整理し、LINEでお届けします。必要な情報はBASEでいつでも検索。
+              読む時間を減らし、考える時間を増やします。
+            </p>
+
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+              <a href="/register" style={{
+                display: "flex", alignItems: "center", gap: 10,
+                background: P.line, color: P.white,
+                padding: "15px 28px", borderRadius: 12, fontSize: 16, fontWeight: 800,
+                textDecoration: "none", boxShadow: "0 4px 20px rgba(6,199,85,0.3)",
+              }}>
+                <LineIcon size={20} />無料で登録する
+              </a>
+              <a href="/base" style={{
+                display: "flex", alignItems: "center", gap: 8,
+                background: P.white, color: P.teal, border: `2px solid ${P.teal}`,
+                padding: "15px 24px", borderRadius: 12, fontSize: 15, fontWeight: 700,
+                textDecoration: "none",
+              }}>
+                BASEを見る <ArrowRight />
+              </a>
             </div>
-            <div className={styles.heroPhoneWrap}>
-              <div className={styles.heroPhone}>
-                <div className={styles.heroPhoneTop}>
-                  <span>＜ <span style={{fontWeight:900}}>Y</span> ヨミトク</span>
-                  <span>🔍 ≡</span>
-                </div>
-                <div className={styles.heroPhoneBody}>
-                  <div className={styles.heroPhoneDay}>今日</div>
-                  <div className={styles.heroPhoneCard}>
-                    <div className={styles.heroPhoneRow}>
-                      <span className={styles.heroPhoneBadge} style={{ background: "#2D9B8A" }}>週刊ダイジェスト</span>
-                      <span className={styles.heroPhoneDate}>6/18（水）</span>
-                    </div>
-                    <p className={styles.heroPhoneTitle}>今週の介護保険最新情報をまとめました。</p>
-                    {["高齢者虐待防止の推進について（通知）", "ケアプランデータ連携システムの運用状況について", "介護報酬に関するQ&A（Vol.○○）"].map((item, i) => (
-                      <div key={i} className={styles.heroPhoneItem}><Check color="#2D9B8A" /><span>{item}</span></div>
-                    ))}
-                    <p className={styles.heroPhoneMore}>続きはこちら ▶</p>
-                    <p className={styles.heroPhoneTime}>10:00</p>
-                  </div>
-                  {/* Bottom tabs */}
-                  <div className={styles.heroPhoneTabs}>
-                    {[
-                      { icon: "📄", label: "週刊ダイジェスト" },
-                      { icon: "🔔", label: "速報", badge: "1" },
-                      { icon: "👥", label: "分科会解説" },
-                    ].map((tab) => (
-                      <div key={tab.label} className={styles.heroPhoneTab}>
-                        <span className={styles.heroPhoneTabIcon}>{tab.icon}</span>
-                        {tab.badge && <span className={styles.heroPhoneTabBadge}>{tab.badge}</span>}
-                        <span className={styles.heroPhoneTabLabel}>{tab.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+
+            <p style={{ fontSize: 13, color: P.muted, marginTop: 16 }}>月額300円（税抜）　1契約で最大3アカウント</p>
           </div>
         </div>
 
-        {/* Hero CTA bar */}
-        <div className={styles.heroCtaBar}>
-          <div className={styles.heroCtaLeft}>
-            <LineBtn label="LINEで今すぐ登録する" size="lg" />
-          </div>
-          <div className={styles.heroCtaRight}>
-            <span>月額 <strong>300円</strong>（税別）</span>
-            <span className={styles.heroCtaDivider}>/</span>
-            <span>最大3アカウントまで登録可能</span>
-            <span className={styles.heroCtaDivider}>/</span>
-            <span>いつでも解約可能</span>
-          </div>
-        </div>
+        {/* イラスト：右側にブリード */}
+        <Image
+          src="/design/assets/hero-characters/characters-couple-line-share.png"
+          alt="LINEで情報を共有するビジネスパーソン"
+          width={900}
+          height={900}
+          style={{
+            position: "absolute",
+            right: "4%",
+            top: "50%",
+            transform: "translateY(-50%)",
+            height: 400,
+            width: "auto",
+            objectFit: "contain",
+          }}
+          priority
+        />
       </section>
 
-      {/* ═══ PROBLEM + FLOW (2-col on PC) ═══ */}
-      <section className={styles.problemFlow}>
-        {/* Left — problems */}
-        <div className={styles.problemCol}>
-          <h2 className={styles.problemTitle}>
-            こんな<span>お悩み</span><br />ありませんか？
-          </h2>
-          <div className={styles.problemList}>
+      {/* ─── BRAND STRIP ─── */}
+      <section style={{ background: P.teal, padding: "32px 24px" }}>
+        <div style={{ maxWidth: 1160, margin: "0 auto", textAlign: "center" }}>
+          <p style={{ fontSize: "clamp(16px, 2vw, 24px)", fontWeight: 900, color: P.white, letterSpacing: "0.04em", margin: "0 0 20px" }}>
+            制度を味方に、経営をもっと前へ。
+          </p>
+          <div style={{ display: "flex", justifyContent: "center", gap: 0, flexWrap: "wrap" }}>
             {[
-              { icon: "🤔", title: "通知や制度改正まで手が回らない", desc: "日々の業務で精一杯で、情報収集に時間を割けない。" },
-              { icon: "📚", title: "分科会資料や通知が長くて読み切れない", desc: "ボリュームが多く、要点を把握するのに時間がかかる。" },
-              { icon: "⚠️", title: "補助金・助成金の情報を見逃してしまう", desc: "公募や申請期限を知らず、活用できるチャンスを逃してしまう。" },
-              { icon: "👥", title: "必要な情報をスタッフとスムーズに共有できない", desc: "情報の共有に手間がかかり、現場との認識のズレが生じる。" },
+              { num: "01", text: "読む時間を減らす" },
+              { num: "02", text: "探す時間を減らす" },
+              { num: "03", text: "考える時間を増やす" },
             ].map((item, i) => (
-              <div key={i} className={styles.problemItem}>
-                <Check />
-                <span className={styles.problemEmoji}>{item.icon}</span>
-                <div>
-                  <p className={styles.problemItemTitle}>{item.title}</p>
-                  <p className={styles.problemItemDesc}>{item.desc}</p>
+              <div key={i} style={{ display: "flex", alignItems: "center" }}>
+                <div style={{
+                  background: "rgba(255,255,255,0.12)", padding: "12px 28px", borderRadius: 10,
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+                }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.55)", letterSpacing: "0.1em" }}>{item.num}</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: P.white }}>{item.text}</span>
                 </div>
+                {i < 2 && (
+                  <svg width="32" height="16" viewBox="0 0 32 16" fill="none" style={{ margin: "0 4px" }}>
+                    <path d="M1 8h26M21 2l6 6-6 6" stroke="rgba(255,255,255,0.45)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
               </div>
             ))}
           </div>
         </div>
-
-        {/* Right — solution flow */}
-        <div className={styles.solutionCol}>
-          <h2 className={styles.solutionTitle}>
-            ヨミトクなら、<span>AI</span>が情報を整理して、<br />
-            <span className={styles.solutionUnder}>経営判断に役立つ形</span>でお届けします。
-          </h2>
-          <div className={styles.solutionSteps}>
-            {[
-              { badge: "AIが毎日チェック", badgeBg: "#2D9B8A", icon: "🤖",
-                desc: "国の公式情報をAIが毎日確認。重要な情報を自動で抽出・要約します。" },
-              { badge: "LINEでお届け", badgeBg: "#06C755", icon: "line",
-                desc: "必要な情報だけを、LINEでタイムリーにお届け。いつもどこでも確認できます。" },
-              { badge: "経営判断に活用", badgeBg: "#1B7A6D", icon: "📈",
-                desc: "最新情報をもとに、判断やサービス改善、経営戦略にすぐに活かせます。" },
-            ].map((step, i) => (
-              <div key={i} className={styles.solutionStep}>
-                <div>
-                  <span className={styles.solutionBadge} style={{ background: step.badgeBg }}>{step.badge}</span>
-                  <div className={styles.solutionIconWrap}>
-                    {step.icon === "line"
-                      ? <LineIcon size={40} color="#06C755" />
-                      : <span className={styles.solutionEmoji}>{step.icon}</span>}
-                  </div>
-                  <p className={styles.solutionDesc}>{step.desc}</p>
-                </div>
-                {i < 2 && <div className={styles.solutionArrow}>▶</div>}
-              </div>
-            ))}
-          </div>
-          <div className={styles.solutionCallout}>
-            <span className={styles.solutionCalloutIcon}>💡</span>
-            <div>
-              <p className={styles.solutionCalloutH}>情報収集の時間を削減し、<br />本来やるべきことに集中できる環境をつくります。</p>
-              <p className={styles.solutionCalloutSub}>制度を味方に、経営をもっと前へ。</p>
-            </div>
-          </div>
-        </div>
       </section>
 
-      {/* ═══ MESSAGES ═══ */}
-      <section className={styles.messages}>
-        <div className={styles.container}>
-          <h2 className={styles.messagesH2}>
-            必要な情報を、<span className={styles.lineGreen}>LINE</span>でわかりやすくお届けします。
-          </h2>
-          <p className={styles.messagesSub}>
-            国の最新情報を、AIが要約・整理。忙しい経営者のために、<strong>重要ポイント</strong>をギュッと凝縮してお届けします。
-          </p>
-          <div className={styles.messagesCols}>
-            {[
-              { variant: "digest" as const, badge: "週刊ダイジェスト", badgeBg: "#1B7A6D", icon: "📄",
-                subtitle: "週に1回、重要な情報をまとめてお届け",
-                desc: "1週間の動きをまとめて把握。重要ポイントを見逃しません。" },
-              { variant: "breaking" as const, badge: "速報", badgeBg: "#1B7A6D", icon: "🔔",
-                subtitle: "重要な情報をいち早くお知らせ",
-                desc: "新しい通知や制度の動きなど、速報性の高い情報をすぐにお届けします。" },
-              { variant: "analysis" as const, badge: "分科会解説", badgeBg: "#1B7A6D", icon: "👥",
-                subtitle: "分科会の議論をわかりやすく解説",
-                desc: "専門的で難しい内容も、要点を整理してわかりやすくお届けします。" },
-            ].map((col) => (
-              <div key={col.badge} className={styles.messagesCol}>
-                <div className={styles.messagesColHeader} style={{ background: col.badgeBg }}>{col.badge}</div>
-                <div className={styles.messagesColBody}>
-                  <div className={styles.messagesColLeft}>
-                    <div className={styles.messagesColIcon}>{col.icon}</div>
-                    <p className={styles.messagesColSubtitle}>{col.subtitle}</p>
-                    <p className={styles.messagesColDesc}>{col.desc}</p>
-                  </div>
-                  <PhoneMock variant={col.variant} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* AI summary strip */}
-          <div className={styles.messagesAiStrip}>
-            <div className={styles.messagesAiLeft}>
-              <span className={styles.messagesAiIcon}>💡</span>
-              <div>
-                <p className={styles.messagesAiTitle}>AIがポイントを要約・整理！</p>
-                <p className={styles.messagesAiDesc}>長文の通知や資料も、AIが重要ポイントを抽出して要約。「何が変わるのか？」「自社にどう影響するのか？」が一目でわかります。</p>
-              </div>
-            </div>
-            <div className={styles.messagesAiFlow}>
-              {[
-                { icon: "📄", label: "元の情報（例）", sub: "長文の通知や分科会資料" },
-                { icon: "🤖", label: "AIが要約・整理", sub: "重要ポイントを抽出・要約" },
-                { icon: "📋", label: "わかりやすくお届け", sub: "ポイントが整理された情報をLINEでお届け" },
-              ].map((step, i) => (
-                <div key={i} className={styles.messagesAiStep}>
-                  <div className={styles.messagesAiStepIcon}>{step.icon}</div>
-                  {i < 2 && <div className={styles.messagesAiArrow}>▶</div>}
-                  <p className={styles.messagesAiStepLabel}>{step.label}</p>
-                  <p className={styles.messagesAiStepSub}>{step.sub}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <p className={styles.messagesTagline}>
-            ╲ 毎日の情報収集を、もっとラクに、もっと確実に。<strong>ヨミトク</strong>があなたの経営をサポートします。 ╱
-          </p>
-        </div>
-      </section>
-
-      {/* ═══ TAGS ═══ */}
-      <section className={styles.tags}>
-        <div className={styles.container}>
-          <h2 className={styles.tagsH2}>
-            タグ機能で、自分に<span className={styles.teal}>必要な情報だけ</span>を受け取れる。
-          </h2>
-          <p className={styles.tagsSub}>
-            事業所の種類や関心のあるテーマをタグで登録するだけ。<br />
-            <span className={styles.teal}>AI</span>があなたに<strong>最適な情報</strong>を選別してお届けします。
-          </p>
-          <div className={styles.tagsLayout}>
-            {/* Left — phone */}
-            <div className={styles.tagsLeft}>
-              <div className={styles.tagsSimple}>
-                <div className={styles.tagsSimpleIcon}>🏷️</div>
-                <p className={styles.tagsSimpleTitle}>選ぶだけの簡単設定</p>
-                <p className={styles.tagsSimpleDesc}>タグはいつでも追加・変更可能。関心の変化にも柔軟に対応します。</p>
-              </div>
-              <div className={styles.tagsPhoneFrame}>
-                <div className={styles.tagsPhoneTop}>
-                  <span>＜ <span style={{fontWeight:900}}>Y</span> ヨミトク</span>
-                  <span>🔍 ≡</span>
-                </div>
-                <div className={styles.tagsPhoneBody}>
-                  <p className={styles.tagsPhoneLabel}>タグ設定</p>
-                  <p className={styles.tagsPhoneSubLabel}>興味のある分野を選択してください。<br />選択したタグに関連する情報をお届けします。</p>
-                  <p className={styles.tagsPhoneSec}>事業所の種類（複数選択可）</p>
-                  <div className={styles.tagsPhoneChips}>
-                    {["デイサービス", "訪問介護", "訪問看護", "居宅介護支援", "グループホーム", "有料老人ホーム", "その他"].map((t, i) => (
-                      <span key={t} className={`${styles.tagsPhoneChip} ${i < 6 ? styles.tagsPhipeChecked : ""}`}>{i < 6 ? "✓ " : ""}{t}</span>
-                    ))}
-                  </div>
-                  <p className={styles.tagsPhoneSec}>関心のあるテーマ（複数選択可）</p>
-                  <div className={styles.tagsPhoneChips}>
-                    {["制度改正・通知", "報酬改定", "運営・管理", "人材・採用", "IT・DX", "経営・財務", "補助金・助成金", "イベント・研修"].map((t, i) => (
-                      <span key={t} className={`${styles.tagsPhoneChip} ${i < 6 ? styles.tagsPhipeChecked : ""}`}>{i < 6 ? "✓ " : ""}{t}</span>
-                    ))}
-                  </div>
-                  <div className={styles.tagsPhoneSaveBtn}>保存する</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Center — tag table */}
-            <div className={styles.tagsCenterWrap}>
-              <div className={styles.tagsCenterLabel}>タグの一例</div>
-              <div className={styles.tagsTable}>
-                <div className={styles.tagsTableCol}>
-                  <div className={styles.tagsTableHeader}>事業所の種類</div>
-                  {["デイサービス", "訪問介護", "訪問看護", "居宅介護支援", "グループホーム", "有料老人ホーム", "その他"].map((t) => (
-                    <div key={t} className={styles.tagsTableRow}><span>👤</span>{t}</div>
-                  ))}
-                </div>
-                <div className={styles.tagsTableCol}>
-                  <div className={styles.tagsTableHeader}>関心のあるテーマ</div>
-                  {["制度改正・通知", "報酬改定", "運営・管理", "人材・採用", "IT・DX", "経営・財務", "補助金・助成金", "イベント・研修", "その他"].map((t) => (
-                    <div key={t} className={styles.tagsTableRow}><span>📋</span>{t}</div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Right — AI features */}
-            <div className={styles.tagsRight}>
-              <p className={styles.tagsRightTitle}>AIがあなたに最適な情報を選別！</p>
-              {[
-                { icon: "🤖", title: "AIが毎日チェック・分析", desc: "国の公式情報をAIが毎日確認し、あなたのタグに関連する情報を抽出。" },
-                { icon: "📋", title: "重要度を判定して整理", desc: "影響度や優先度をAIが判定。必要な情報をわかりやすく整理します。" },
-                { icon: "line", title: "LINEで必要な情報だけ届く", desc: "あなたに必要な情報だけを厳選して、LINEでタイムリーにお届けします。" },
-              ].map((f) => (
-                <div key={f.title} className={styles.tagsRightItem}>
-                  <div className={styles.tagsRightIcon}>
-                    {f.icon === "line" ? <LineIcon size={28} color="#06C755" /> : <span>{f.icon}</span>}
-                  </div>
-                  <div>
-                    <p className={styles.tagsRightItemTitle}>{f.title}</p>
-                    <p className={styles.tagsRightItemDesc}>{f.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Bottom strip */}
-          <div className={styles.tagsBottomStrip}>
-            <div className={styles.tagsBottomLeft}>
-              <span>💡</span>
-              <div>
-                <p className={styles.tagsBottomTitle}>情報のムダをなくし、<br />大事な情報を見逃さない。</p>
-                <p className={styles.tagsBottomDesc}>必要な情報を必要なタイミングで受け取ることで、経営判断のスピードと質を高めます。</p>
-              </div>
-            </div>
-            <div className={styles.tagsBottomFlow}>
-              {[
-                { icon: "👔", label: "タグを選んで登録" },
-                { icon: "🤖", label: "AIが情報を分析・選別" },
-                { icon: "line", label: "LINEでお届け" },
-                { icon: "📈", label: "経営判断・現場改善へ" },
-              ].map((step, i) => (
-                <div key={i} className={styles.tagsBottomStep}>
-                  <div className={styles.tagsBottomStepIcon}>
-                    {step.icon === "line" ? <LineIcon size={22} color="#06C755" /> : <span>{step.icon}</span>}
-                  </div>
-                  {i < 3 && <div className={styles.tagsBottomArr}>▶</div>}
-                  <p className={styles.tagsBottomStepLabel}>{step.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ TRUST + SOURCES ═══ */}
-      <section className={styles.trust}>
-        <div className={styles.trustGrid}>
-          {/* Left */}
-          <div className={styles.trustLeft}>
-            <div className={styles.trustPhoneWrap}>
-              <PhoneMock variant="digest" />
-            </div>
-            <h2 className={styles.trustH2}>
-              信頼できる情報源から、<br /><span className={styles.teal}>正確な情報</span>をお届けします。
+      {/* ─── HOW IT WORKS ─── */}
+      <section id="how" style={{ background: P.white, padding: "96px 24px" }}>
+        <div style={{ maxWidth: 1160, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 64 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: P.teal, letterSpacing: "0.2em", marginBottom: 12 }}>HOW IT WORKS</p>
+            <h2 style={{ fontSize: "clamp(22px, 2.8vw, 36px)", fontWeight: 900, lineHeight: 1.4, margin: "0 0 20px" }}>
+              読むための情報から、<br />判断するための情報へ。
             </h2>
-            <p className={styles.trustSub}>国の公式情報をもとに、AIが毎日チェック。<br />信頼できる情報だけを、わかりやすく整理してお届けします。</p>
-            <div className={styles.trustBullets}>
+            <p style={{ fontSize: 16, color: P.muted, lineHeight: 1.85, maxWidth: 560, margin: "0 auto" }}>
+              難しい制度情報を、AIが「読みやすく」「探しやすく」整理。<br />
+              読む時間を減らし、考える時間を増やします。
+            </p>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 56, alignItems: "center" }}>
+            <Image
+              src="/design/assets/06-flow-diagrams/flow-gov-ai-line-manager.png"
+              alt="情報の流れ"
+              width={520}
+              height={380}
+              style={{ width: "100%", height: "auto", borderRadius: 16 }}
+            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
               {[
-                { icon: "🛡️", title: "信頼できる情報源のみを使用", desc: "公的機関の公式情報を中心に収集。" },
-                { icon: "🤖", title: "AIが毎日チェック", desc: "重要な情報を見逃さず、素早く要約。" },
-                { icon: "❤️", title: "わかりやすく整理してお届け", desc: "難しい内容も、要点をまとめて配信。" },
-              ].map((b) => (
-                <div key={b.title} className={styles.trustBullet}>
-                  <span className={styles.trustBulletIcon}>{b.icon}</span>
+                {
+                  step: "STEP 1",
+                  img: "/design/assets/03-government/gov-building-shakaihoshou.png",
+                  title: "国が情報を発表",
+                  body: "厚生労働省から介護保険の最新情報・通知・分科会資料が随時公開されます。",
+                  color: "#6366F1",
+                },
+                {
+                  step: "STEP 2",
+                  img: "/design/assets/02-ai/ai-robot-color.png",
+                  title: "AIが整理・要約",
+                  body: "難しい制度文書をAIが読みやすく整理。重要なポイントを抽出し、わかりやすい言葉に変換します。",
+                  color: P.teal,
+                },
+                {
+                  step: "STEP 3",
+                  img: "/design/assets/04-line-base/mockup-line-notification-message.png",
+                  title: "LINEで届く・BASEで探せる",
+                  body: "整理された情報がLINEに届き、過去のものはBASEでいつでも検索できます。",
+                  color: P.line,
+                },
+              ].map((item) => (
+                <div key={item.step} style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
+                  <div style={{
+                    width: 56, height: 56, borderRadius: 14, flexShrink: 0,
+                    background: item.color + "14", overflow: "hidden",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <Image src={item.img} alt={item.title} width={56} height={56} style={{ width: 44, height: 44, objectFit: "contain" }} />
+                  </div>
                   <div>
-                    <p className={styles.trustBulletTitle}>{b.title}</p>
-                    <p className={styles.trustBulletDesc}>{b.desc}</p>
+                    <p style={{ fontSize: 11, fontWeight: 800, color: item.color, letterSpacing: "0.1em", margin: "0 0 5px" }}>{item.step}</p>
+                    <p style={{ fontSize: 17, fontWeight: 800, margin: "0 0 7px" }}>{item.title}</p>
+                    <p style={{ fontSize: 14, color: P.muted, lineHeight: 1.75, margin: 0 }}>{item.body}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
+        </div>
+      </section>
 
-          {/* Right */}
-          <div className={styles.trustRight}>
-            <div className={styles.trustSourcesBadge}>主な情報源</div>
-            <div className={styles.trustSourceCards}>
-              <div className={styles.trustSourceCard}>
-                <div className={styles.trustSourceNum}>1</div>
-                <div>
-                  <h3>社会保障審議会<br />（介護給付費分科会）</h3>
-                  <div className={styles.trustSourceImg}>🏛️ 政府審議会議室</div>
-                  <p>介護保険制度の見直しや報酬改定などを審議する会議の最新情報をお届けします。</p>
+      {/* ─── LINE + BASE ─── */}
+      <section id="features" style={{ background: P.lighter, padding: "96px 24px" }}>
+        <div style={{ maxWidth: 1160, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 64 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: P.teal, letterSpacing: "0.2em", marginBottom: 12 }}>FEATURES</p>
+            <h2 style={{ fontSize: "clamp(22px, 2.8vw, 36px)", fontWeight: 900, lineHeight: 1.4, margin: "0 0 16px" }}>
+              LINEで届く。BASEで探せる。
+            </h2>
+            <p style={{ fontSize: 16, color: P.muted, lineHeight: 1.85, maxWidth: 480, margin: "0 auto" }}>
+              2つのツールが連携して、制度情報の収集から活用まで完結します。
+            </p>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28 }}>
+            {/* LINE card */}
+            <div style={{ background: P.white, borderRadius: 20, overflow: "hidden", border: `1px solid ${P.border}`, boxShadow: "0 4px 24px rgba(13,104,110,0.07)" }}>
+              <div style={{ background: "linear-gradient(135deg, #00B900 0%, #06C755 100%)", padding: "32px 36px 24px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                  <div style={{ width: 42, height: 42, background: "rgba(255,255,255,0.2)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <LineIcon size={24} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", margin: "0 0 2px", fontWeight: 700, letterSpacing: "0.08em" }}>ヨミトクLINE</p>
+                    <p style={{ fontSize: 20, fontWeight: 900, color: P.white, margin: 0 }}>情報を届ける</p>
+                  </div>
                 </div>
+                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 1.75, margin: 0 }}>
+                  AIが要約した最新情報を、LINEでわかりやすくお届けします。
+                </p>
               </div>
-              <div className={styles.trustSourceCard}>
-                <div className={styles.trustSourceNum}>2</div>
-                <div>
-                  <h3>介護保険最新情報<br />（厚生労働省）</h3>
-                  <div className={styles.trustSourceImg}>🏢 厚生労働省</div>
-                  <p>厚生労働省が発出する通知やQ&Aなど、現場に直結する最新情報をお届けします。</p>
+              <div style={{ padding: "28px 36px 36px" }}>
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
+                  <Image
+                    src="/design/assets/line-mockups/line-mockup-subcommittee-explainer.png"
+                    alt="LINEの分科会解説メッセージ"
+                    width={300}
+                    height={280}
+                    style={{ width: "100%", maxWidth: 280, height: "auto", objectFit: "contain" }}
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {[
+                    { label: "AI要約", benefit: "難しい通知を、読まずに理解できる", detail: "100ページの文書が要点3行で届く" },
+                    { label: "速報配信", benefit: "重要な変更を、誰より早くキャッチ", detail: "厚労省の発表当日に速報として届く" },
+                    { label: "週刊ダイジェスト", benefit: "1週間の変化を月曜の朝に把握", detail: "チーム全員が同じ情報から始められる" },
+                    { label: "タグ配信", benefit: "自事業所に関係する情報だけを受信", detail: "余計なノイズなし、本当に必要な情報に集中" },
+                  ].map((f) => (
+                    <div key={f.label} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "12px 14px", background: P.lighter, borderRadius: 10 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#06C755", flexShrink: 0, marginTop: 7 }} />
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: "#05a044", margin: "0 0 3px", letterSpacing: "0.05em" }}>{f.label}</p>
+                        <p style={{ fontSize: 13, fontWeight: 800, margin: "0 0 2px", color: P.text }}>{f.benefit}</p>
+                        <p style={{ fontSize: 12, color: P.muted, margin: 0, lineHeight: 1.45 }}>{f.detail}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-            <div className={styles.trustAiFlow}>
-              <p className={styles.trustAiFlowTitle}>AIが毎日情報をチェック！</p>
-              <p className={styles.trustAiFlowSub}>あなたに関係のある重要な情報だけを、もれなくお届けします。</p>
-              <div className={styles.trustAiSteps}>
-                {[
-                  { icon: "🏛️", label: "国の公式情報" },
-                  { icon: "🤖", label: "AIが要約・整理" },
-                  { icon: "line", label: "でお届け" },
-                ].map((s, i) => (
-                  <div key={i} className={styles.trustAiStep}>
-                    <div className={styles.trustAiIcon}>
-                      {s.icon === "line" ? <LineIcon size={24} color="#06C755" /> : <span>{s.icon}</span>}
+
+            {/* BASE card */}
+            <div style={{ background: P.white, borderRadius: 20, overflow: "hidden", border: `1px solid ${P.border}`, boxShadow: "0 4px 24px rgba(13,104,110,0.07)" }}>
+              <div style={{ background: `linear-gradient(135deg, ${P.dark} 0%, ${P.teal} 100%)`, padding: "32px 36px 24px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                  <div style={{ width: 42, height: 42, background: "rgba(255,255,255,0.2)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", margin: "0 0 2px", fontWeight: 700, letterSpacing: "0.08em" }}>ヨミトクBASE</p>
+                    <p style={{ fontSize: 20, fontWeight: 900, color: P.white, margin: 0 }}>必要な時に探せる</p>
+                  </div>
+                </div>
+                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 1.75, margin: 0 }}>
+                  過去の通知も、分科会も、ガイドラインも。必要な情報をすぐ見つけ、経営判断に集中できます。
+                </p>
+              </div>
+              <div style={{ padding: "28px 36px 36px" }}>
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
+                  <Image
+                    src="/design/assets/04-line-base/mockup-base-pc-browser.png"
+                    alt="BASE画面"
+                    width={320}
+                    height={220}
+                    style={{ width: "100%", maxWidth: 320, height: "auto", objectFit: "contain" }}
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {[
+                    { label: "通知・最新情報", benefit: "「あの通知」を30秒で見つける", detail: "キーワード検索で過去の情報もすぐ取り出せる" },
+                    { label: "分科会資料", benefit: "分科会の審議を経営判断に変える", detail: "複雑な議論をわかりやすく解説、要点だけ読める" },
+                    { label: "カテゴリ検索", benefit: "介護保険のすべてが一箇所に", detail: "通知・ガイドライン・Q&Aを目的別に整理" },
+                    { label: "お気に入り保存", benefit: "重要な情報をチームでストック", detail: "後から見返せるブックマークで情報を資産化" },
+                  ].map((f) => (
+                    <div key={f.label} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "12px 14px", background: P.lighter, borderRadius: 10 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: P.teal, flexShrink: 0, marginTop: 7 }} />
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: P.teal, margin: "0 0 3px", letterSpacing: "0.05em" }}>{f.label}</p>
+                        <p style={{ fontSize: 13, fontWeight: 800, margin: "0 0 2px", color: P.text }}>{f.benefit}</p>
+                        <p style={{ fontSize: 12, color: P.muted, margin: 0, lineHeight: 1.45 }}>{f.detail}</p>
+                      </div>
                     </div>
-                    {i < 2 && <div className={styles.trustAiArr}>▶</div>}
-                    <p className={styles.trustAiLabel}>{s.label}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── ORGANIZATION ─── */}
+      <section style={{ background: P.white, padding: "96px 24px" }}>
+        <div style={{ maxWidth: 920, margin: "0 auto", display: "grid", gridTemplateColumns: "3fr 2fr", gap: 32, alignItems: "flex-start" }}>
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 700, color: P.teal, letterSpacing: "0.2em", marginBottom: 14 }}>FOR TEAMS</p>
+            <h2 style={{ fontSize: "clamp(28px, 3.6vw, 44px)", fontWeight: 900, lineHeight: 1.45, margin: "0 0 24px" }}>
+              組織で、<br />サキを読み解く。
+            </h2>
+            <p style={{ fontSize: 15, color: P.muted, lineHeight: 1.9, margin: "0 0 32px" }}>
+              経営者だけでなく、管理者や生活相談員とも同じ情報・同じ視点を共有。<br />
+              制度の変化をいち早くキャッチし、現場の判断や行動につなげます。
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 36 }}>
+              {[
+                "共通の情報で認識のズレを防ぐ",
+                "同じ視点で現場の判断を強化",
+                "先手の対応で事業運営を安定化",
+              ].map((item) => (
+                <div key={item} style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <div style={{ width: 22, height: 22, background: P.light, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2.5 6.5L5 9L9.5 4" stroke={P.teal} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <span style={{ fontSize: 15, fontWeight: 600 }}>{item}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ background: P.lighter, border: `1px solid ${P.border}`, borderRadius: 12, padding: "16px 20px", display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <span style={{ fontSize: 24, flexShrink: 0 }}>👥</span>
+              <p style={{ fontSize: 14, color: P.muted, margin: 0, lineHeight: 1.7 }}>
+                <strong style={{ color: P.text }}>1契約で最大3アカウントまで利用できます。</strong><br />
+                経営者・管理者・生活相談員で一緒に使えます。
+              </p>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "center" }}>
+            <Image
+              src="/design/assets/06-flow-diagrams/flow-line-share-3people.png"
+              alt="組織で共有"
+              width={572}
+              height={462}
+              style={{ width: "110%", height: "auto", borderRadius: 16 }}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ─── PRICING ─── */}
+      <section id="pricing" style={{ background: P.lighter, padding: "96px 24px" }}>
+        <div style={{ maxWidth: 1160, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 56 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: P.teal, letterSpacing: "0.2em", marginBottom: 12 }}>PRICING</p>
+            <h2 style={{ fontSize: "clamp(22px, 2.8vw, 36px)", fontWeight: 900, lineHeight: 1.4, margin: 0 }}>
+              シンプルな料金体系
+            </h2>
+          </div>
+          <div style={{ maxWidth: 480, margin: "0 auto" }}>
+            <div style={{
+              background: P.white, borderRadius: 20, padding: "48px 48px",
+              border: `2px solid ${P.teal}`, boxShadow: `0 8px 40px rgba(13,104,110,0.12)`,
+              textAlign: "center",
+            }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: P.light, padding: "4px 14px", borderRadius: 100, marginBottom: 24 }}>
+                <svg width="8" height="8" viewBox="0 0 8 8" fill={P.teal}><circle cx="4" cy="4" r="4" /></svg>
+                <span style={{ fontSize: 12, fontWeight: 700, color: P.teal }}>月額プラン</span>
+              </div>
+              <div style={{ marginBottom: 28 }}>
+                <span style={{ fontSize: 14, color: P.muted, fontWeight: 600 }}>月額</span>
+                <span style={{ fontSize: 72, fontWeight: 900, color: P.teal, lineHeight: 1 }}>300</span>
+                <span style={{ fontSize: 26, fontWeight: 700, color: P.teal }}>円</span>
+                <span style={{ fontSize: 13, color: P.muted, display: "block", marginTop: 6 }}>（税抜）　LINE + BASE セット</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 11, textAlign: "left", marginBottom: 32 }}>
+                {[
+                  "LINEで最新情報を受け取る",
+                  "BASEで過去情報を検索",
+                  "最大3アカウントで利用可能",
+                  "AI要約・速報・週刊ダイジェスト",
+                ].map((item) => (
+                  <div key={item} style={{ display: "flex", gap: 9, alignItems: "center" }}>
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                      <circle cx="9" cy="9" r="9" fill={P.light} />
+                      <path d="M5 9.5L7.5 12L13 6" stroke={P.teal} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>{item}</span>
                   </div>
                 ))}
               </div>
+              <a href="/register" style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                background: P.line, color: P.white,
+                padding: "16px", borderRadius: 12, fontSize: 16, fontWeight: 800,
+                textDecoration: "none", width: "100%",
+              }}>
+                <LineIcon size={20} />無料で登録する
+              </a>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ═══ PRICING + FAQ (2-col) ═══ */}
-      <section className={styles.pricingFaq}>
-        {/* Left — pricing */}
-        <div className={styles.pricingCol}>
-          <div className={styles.pricingCard}>
-            <div className={styles.pricingCardBadge}>ご利用料金</div>
-            <div className={styles.pricingCardBody}>
-              <div className={styles.priceNum}>
-                月額 <span className={styles.price300}>300</span>円
-                <span className={styles.priceTax}>（税別）</span>
-              </div>
-              <p className={styles.priceNote}>シンプルな料金で、<br />必要な情報をしっかりサポートします。</p>
-            </div>
-            <div className={styles.pricingFeatures}>
-              {["LINEでお届け", "最大3アカウントまで登録可能", "タグ機能で必要な情報だけ受信", "いつでも解約可能"].map((f) => (
-                <div key={f} className={styles.pricingFeatureRow}><Check /><span>{f}</span></div>
-              ))}
-            </div>
-            <div className={styles.pricingLinePhone}>
-              <div className={styles.pricingLinePhoneFrame}>
-                <LineIcon size={40} color="#06C755" />
-              </div>
-            </div>
+      {/* ─── FINAL CTA ─── */}
+      <section style={{
+        background: `linear-gradient(135deg, ${P.dark} 0%, ${P.teal} 60%, ${P.mid} 100%)`,
+        padding: "96px 24px", textAlign: "center",
+      }}>
+        <div style={{ maxWidth: 640, margin: "0 auto" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
+            <Image
+              src="/design/assets/hero-characters/character-yomibot-mascot-main.png"
+              alt="ヨミトク"
+              width={120}
+              height={120}
+              style={{ width: 100, height: "auto" }}
+            />
           </div>
-          <div className={styles.accountStrip}>
-            <span className={styles.accountStripIcon}>👥</span>
-            <div className={styles.accountStripText}>
-              <p className={styles.accountStripTitle}>最大3アカウントまで登録可能</p>
-              <p className={styles.accountStripDesc}>経営者・管理者・生活相談員など、必要な方に同じ情報を共有できます。</p>
-            </div>
-            <div className={styles.accountAvatars}>
-              {[{ e: "👔", l: "経営者" }, { e: "👩‍⚕️", l: "管理者" }, { e: "👨‍⚕️", l: "生活相談員" }].map((a) => (
-                <div key={a.l} className={styles.accountAvatar}>
-                  <span>{a.e}</span><p>{a.l}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Right — FAQ + Final CTA */}
-        <div className={styles.faqCol}>
-          <h2 className={styles.faqTitle}><span className={styles.faqQMark}>?</span> よくあるご質問</h2>
-          <div className={styles.faqList}>
-            {[
-              { q: "解約はできますか？", a: "はい、いつでも解約可能です。違約金はかかりません。" },
-              { q: "どんな情報が届きますか？", a: "介護保険制度の改定や通知、分科会の最新動向、補助金情報などをわかりやすく要約してお届けします。" },
-              { q: "どんな人が登録できますか？", a: "介護事業所の経営者・管理者・現場スタッフなど、どなたでもご登録いただけます。" },
-              { q: "速報はありますか？", a: "はい。重要な通知や法改正の情報は、いち早く「速報」としてお届けします。" },
-              { q: "LINEは何人まで登録できますか？", a: "最大3アカウントまでご登録いただけます。同じ情報を共有できます。" },
-            ].map((item) => (
-              <FaqItem key={item.q} q={item.q} a={item.a} />
-            ))}
-          </div>
-
-          {/* Final CTA (inside FAQ column) */}
-          <div className={styles.finalCta}>
-            <div className={styles.finalCtaBadge}>
-              <span>たった</span>
-              <strong>1分で</strong>
-              <span>登録完了！</span>
-            </div>
-            <div className={styles.finalCtaContent}>
-              <p className={styles.finalCtaTitle}>LINEで簡単登録！</p>
-              <LineBtn label="今すぐ始める！" size="lg" />
-              <p className={styles.finalCtaSub}>QRコードを読み取ってLINEで登録するだけ！</p>
-            </div>
-            <div className={styles.finalQrPlaceholder}>
-              <LineIcon size={32} color="#06C755" />
-              <p>QR</p>
-            </div>
-          </div>
+          <h2 style={{ fontSize: "clamp(24px, 3.2vw, 40px)", fontWeight: 900, color: P.white, lineHeight: 1.45, margin: "0 0 20px" }}>
+            まず、LINE登録から。
+          </h2>
+          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.78)", lineHeight: 1.85, margin: "0 0 40px" }}>
+            登録は無料。月額300円（税抜）で介護保険の最新情報が<br />
+            毎日LINEに届き、BASEでいつでも検索できます。
+          </p>
+          <a href="/register" style={{
+            display: "inline-flex", alignItems: "center", gap: 12,
+            background: P.line, color: P.white,
+            padding: "18px 40px", borderRadius: 14, fontSize: 18, fontWeight: 800,
+            textDecoration: "none", boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+          }}>
+            <LineIcon size={22} />無料で登録する
+          </a>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 18 }}>
+            月額300円（税抜）・クレジットカード決済
+          </p>
         </div>
       </section>
 
-      {/* ═══ FOOTER ═══ */}
-      <footer className={styles.footer}>
-        <div className={styles.footerInner}>
-          <div className={styles.footerLeft}>
-            <div className={styles.footerLogo}>
-              <LogoMark size={28} />
-              <div>
-                <div className={styles.footerLogoName}>株式会社ONZiii Act</div>
-              </div>
+      {/* ─── FOOTER ─── */}
+      <footer style={{ background: P.dark, padding: "48px 24px 32px" }}>
+        <div style={{ maxWidth: 1160, margin: "0 auto" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 32, marginBottom: 40 }}>
+            <div>
+              <Image
+                src="/design/assets/08-brand/logos/logo-yomitoku-main.png"
+                alt="ヨミトク"
+                width={140}
+                height={40}
+                style={{ height: 32, width: "auto", filter: "brightness(0) invert(1)", marginBottom: 14 }}
+              />
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.85, margin: 0, maxWidth: 360 }}>
+                介護保険に関する最新の制度・通知・分科会資料を<br />
+                AIが整理してLINEでお届けする情報サービスです。
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 32 }}>
+              {([["ヨミトクLINE", LINE_OA_URL], ["ヨミトクBASE", "/base"], ["ログイン", "/base/login"]] as const).map(([label, href]) => (
+                <a key={href} href={href} style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", textDecoration: "none", fontWeight: 600 }}>{label}</a>
+              ))}
             </div>
           </div>
-          <div className={styles.footerCenter}>
-            <p>📍 〒446-0076 愛知県安城市美園町1-23-1</p>
-            <p>📞 TEL：0566-91-0257</p>
-            <p>✉ Mail：onziii.project@gmail.com</p>
-          </div>
-          <div className={styles.footerRight}>
-            <p>ご不明な点がございましたら、<br />お気軽にお問い合わせください。</p>
-            <div className={styles.footerLinks}>
-              <a href="/legal/terms">利用規約</a>
-              <a href="/legal/privacy">プライバシーポリシー</a>
-              <a href="/legal/commercial">特定商取引法</a>
-            </div>
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 24, textAlign: "center" }}>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", margin: 0 }}>
+              © 2025 ヨミトク. All rights reserved.
+            </p>
           </div>
         </div>
-        <p className={styles.footerCopy}>© 2025 株式会社ONZiii Act</p>
       </footer>
-    </main>
+
+    </div>
   );
 }
