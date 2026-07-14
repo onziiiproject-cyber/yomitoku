@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import Link from "next/link";
 import ArticleList from "./_components/ArticleList";
-import GuestHeader from "./_components/GuestHeader";
 import Image from "next/image";
 
 // ─── Category definitions ───────────────────────────────────────────────────
@@ -93,18 +92,10 @@ export default async function BasePage({
   const totalPages = Math.ceil(total / take);
   const currentCat = CATEGORIES.find(c => c.key === cat);
 
-  // ─── Guest wrapper ─────────────────────────────────────────────────────────
-  const wrapGuest = (content: React.ReactNode) => !session ? (
-    <div style={{ minHeight: "100vh", background: "#F5F7F6", fontFamily: "sans-serif" }}>
-      <GuestHeader />
-      <main style={{ maxWidth: 860, margin: "0 auto", padding: "0 16px 80px" }}>{content}</main>
-    </div>
-  ) : content;
-
   // ─── SEARCH / CATEGORY VIEW ────────────────────────────────────────────────
   if (isSearch) {
     const label = currentCat?.label ?? (q ? `「${q}」` : "すべて");
-    return wrapGuest(
+    return (
       <div>
         {/* Breadcrumb / header */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
@@ -139,7 +130,7 @@ export default async function BasePage({
   }
 
   // ─── HOME VIEW ─────────────────────────────────────────────────────────────
-  return wrapGuest(
+  return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
 
       {/* Guest login CTA */}
