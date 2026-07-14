@@ -4,6 +4,7 @@ export interface ScrapedItem {
   publishedAt: Date | null;
   source: "mhlw_latest" | "shingi";
   rawText: string;
+  pdfBase64?: string; // PDF articles: base64 binary for Claude Document API
 }
 
 async function fetchPage(url: string): Promise<string> {
@@ -27,14 +28,20 @@ async function fetchPage(url: string): Promise<string> {
   }
 }
 
+function toHalfWidth(text: string): string {
+  // 全角数字（０-９）を半角に変換
+  return text.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+}
+
 function parseDate(text: string): Date | null {
-  // e.g. "令和7年7月10日" or "2025年7月10日"
-  const reiwa = text.match(/令和(\d+)年(\d+)月(\d+)日/);
+  const t = toHalfWidth(text);
+  // 令和N年M月D日（日の前にスペースが入ることがある）
+  const reiwa = t.match(/令和(\d+)年(\d+)月\s*(\d+)\s*日/);
   if (reiwa) {
     const year = 2018 + parseInt(reiwa[1]);
     return new Date(`${year}-${reiwa[2].padStart(2, "0")}-${reiwa[3].padStart(2, "0")}`);
   }
-  const western = text.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+  const western = t.match(/(\d{4})年(\d{1,2})月\s*(\d{1,2})\s*日/);
   if (western) {
     return new Date(
       `${western[1]}-${western[2].padStart(2, "0")}-${western[3].padStart(2, "0")}`
@@ -46,21 +53,39 @@ function parseDate(text: string): Date | null {
 function extractLinks(
   html: string,
   baseUrl: string
-): Array<{ href: string; text: string }> {
-  const results: Array<{ href: string; text: string }> = [];
-  // Match <a href="...">text</a> including multi-line
-  const re = /<a\s[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-  let m;
-  while ((m = re.exec(html)) !== null) {
-    const href = m[1].trim();
-    const text = m[2].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-    if (!text || text.length < 4) continue;
+): Array<{ href: string; text: string; context: string }> {
+  const results: Array<{ href: string; text: string; context: string }> = [];
+  // regexの遅延マッチングは大きなHTMLで問題があるため split で処理
+  const parts = html.split("<a ");
+  let pos = parts[0].length + 3; // 最初の "<a " の後の位置を追跡
+  for (let i = 1; i < parts.length; i++) {
+    const part = parts[i];
+    const hrefMatch = part.match(/href="([^"]+)"/);
+    const closeAngle = part.indexOf(">");
+    const closeTag = part.indexOf("</a>");
+    if (!hrefMatch || closeAngle === -1 || closeTag === -1) {
+      pos += part.length + 3;
+      continue;
+    }
+    const href = hrefMatch[1].trim();
+    const text = part.slice(closeAngle + 1, closeTag)
+      .replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    if (!text || text.length < 4) {
+      pos += part.length + 3;
+      continue;
+    }
+    // リンク直後（</a>の後）のコンテキストを次の <a タグの前まで取得
+    const afterEnd = pos + closeAngle + 1 + (closeTag - closeAngle - 1) + 4;
+    const afterLink = html.slice(afterEnd, afterEnd + 400);
+    const rawCtx = afterLink.split("<a ")[0];
+    const context = rawCtx.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     const full = href.startsWith("http")
       ? href
       : href.startsWith("/")
       ? `https://www.mhlw.go.jp${href}`
       : `${baseUrl}/${href}`;
-    results.push({ href: full, text });
+    results.push({ href: full, text, context });
+    pos += part.length + 3;
   }
   return results;
 }
@@ -78,13 +103,13 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-// 介護保険最新情報 list page
+// 介護保険最新情報掲載ページ（vol.XXXX の一覧）
 const MHLW_LIST_URL =
-  "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/hukushi_kaigo/kaigo_koureisha/index.html";
+  "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/hukushi_kaigo/kaigo_koureisha/index_00010.html";
 
-// 介護給付費分科会 list page
+// 介護給付費分科会 一覧ページ（現行回）
 const SHINGI_LIST_URL =
-  "https://www.mhlw.go.jp/stf/shingi/shingi-hosho_126698.html";
+  "https://www.mhlw.go.jp/stf/shingi/shingi-hosho_126698_00022.html";
 
 export async function scrapeMhlwLatest(
   since?: Date
@@ -92,37 +117,39 @@ export async function scrapeMhlwLatest(
   const html = await fetchPage(MHLW_LIST_URL);
   const links = extractLinks(html, "https://www.mhlw.go.jp");
 
-  // Filter to MHLW links that look like content pages
+  // 介護保険最新情報 vol.XXXX のリンク（PDFは /content/ 配下）
   const candidates = links.filter(
     (l) =>
-      l.href.includes("mhlw.go.jp") &&
-      (l.href.includes("/stf/") || l.href.includes("/content/")) &&
-      l.text.length > 8
+      (l.href.includes("/content/") || l.href.includes("/stf/")) &&
+      l.text.includes("介護保険最新情報") &&
+      l.text.length > 10
   );
 
   const items: ScrapedItem[] = [];
-  for (const link of candidates.slice(0, 15)) {
-    const publishedAt = parseDate(link.text);
+  for (const link of candidates.slice(0, 30)) {
+    // 日付はリンクテキスト内 or リンク直後のコンテキスト（令和N年M月D日...）
+    const publishedAt = parseDate(link.text) ?? parseDate(link.context);
     if (since && publishedAt && publishedAt < since) continue;
 
-    let rawText = link.text;
-    try {
-      const pageHtml = await fetchPage(link.href);
-      rawText = stripHtml(pageHtml).slice(0, 5000);
-    } catch {
-      // Use title as fallback
-    }
+    const fullUrl = link.href.startsWith("http")
+      ? link.href
+      : `https://www.mhlw.go.jp${link.href}`;
+    const cleanTitle = link.text
+      .replace(/\[.*?KB\]/g, "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const contextText = link.context.replace(/\s+/g, " ").trim();
+    const rawText = `${cleanTitle}\n${contextText}`;
 
+    // PDFダウンロードはここでは行わない（新記事判定後にダイジェスト側で実施）
     items.push({
-      url: link.href,
-      title: link.text,
+      url: fullUrl,
+      title: cleanTitle,
       publishedAt,
       source: "mhlw_latest",
       rawText,
     });
-
-    // Rate limit
-    await new Promise((r) => setTimeout(r, 500));
   }
 
   return items;
@@ -130,40 +157,51 @@ export async function scrapeMhlwLatest(
 
 export async function scrapeShingi(since?: Date): Promise<ScrapedItem[]> {
   const html = await fetchPage(SHINGI_LIST_URL);
-  const links = extractLinks(html, "https://www.mhlw.go.jp");
 
-  // 分科会 links: usually contain "第XX回" or meeting-related keywords
-  const candidates = links.filter(
-    (l) =>
-      l.href.includes("mhlw.go.jp") &&
-      l.text.length > 8 &&
-      (l.text.includes("第") ||
-        l.text.includes("回") ||
-        l.text.includes("分科会") ||
-        l.text.includes("議事"))
-  );
-
+  // <tr> ブロックを分割して 第XX回 の行を見つける
+  const rows = html.split("<tr");
   const items: ScrapedItem[] = [];
-  for (const link of candidates.slice(0, 8)) {
-    const publishedAt = parseDate(link.text);
+
+  for (const row of rows) {
+    const sessionMatch = row.match(/第(\d+)回/);
+    if (!sessionMatch) continue;
+    const sessionNo = parseInt(sessionMatch[1]);
+
+    // 日付を取得（西暦 / 令和両対応）
+    const dateText = row.replace(/<[^>]+>/g, " ");
+    const publishedAt = parseDate(dateText);
     if (since && publishedAt && publishedAt < since) continue;
 
-    let rawText = link.text;
+    // 資料リンクを取得
+    const resourceMatch = row.match(/href="([^"]+newpage_[^"]+)"[^>]*>\s*資料/);
+    if (!resourceMatch) continue;
+    const resourceHref = resourceMatch[1];
+    const resourceUrl = resourceHref.startsWith("http")
+      ? resourceHref
+      : `https://www.mhlw.go.jp${resourceHref}`;
+
+    // 議題テキスト（簡易抽出）
+    const agendaRaw = dateText.replace(/\s+/g, " ").match(/令和\d+年\d+月\d+日[）\s]+(.+?)(?:\s*－|\s*$)/)?.[1] ?? "";
+    const title = `社会保障審議会介護給付費分科会 第${sessionNo}回 ${agendaRaw.slice(0, 60)}`.trim();
+
+    // 資料ページの本文を取得
+    let rawText = title;
     try {
-      const pageHtml = await fetchPage(link.href);
+      const pageHtml = await fetchPage(resourceUrl);
       rawText = stripHtml(pageHtml).slice(0, 10000);
     } catch {
-      // Use title as fallback
+      // タイトルのみでフォールバック
     }
 
     items.push({
-      url: link.href,
-      title: link.text,
+      url: resourceUrl,
+      title,
       publishedAt,
       source: "shingi",
       rawText,
     });
 
+    if (items.length >= 3) break;
     await new Promise((r) => setTimeout(r, 500));
   }
 
