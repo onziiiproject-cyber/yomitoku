@@ -90,12 +90,13 @@ export async function runScrapeAndSave(since?: Date): Promise<ScrapeResult> {
 export async function runProcessPending(limit = 1): Promise<ProcessResult> {
   const errors: string[] = [];
 
-  const pending = await prisma.siteDocument.findMany({
-    where: { summary: null, rawText: { not: null } },
-    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-    take: limit,
-    select: { id: true, url: true, title: true, rawText: true },
-  });
+  const pending = await prisma.$queryRaw<{ id: string; url: string; title: string; rawText: string }[]>`
+    SELECT id, url, title, "rawText"
+    FROM "SiteDocument"
+    WHERE summary IS NULL AND "rawText" IS NOT NULL
+    ORDER BY "publishedAt" DESC NULLS LAST, "createdAt" DESC
+    LIMIT ${limit}
+  `;
 
   let processed = 0;
   for (const doc of pending) {
@@ -130,9 +131,10 @@ export async function runProcessPending(limit = 1): Promise<ProcessResult> {
     }
   }
 
-  const remaining = await prisma.siteDocument.count({
-    where: { summary: null, rawText: { not: null } },
-  });
+  const remainingResult = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(*) as count FROM "SiteDocument" WHERE summary IS NULL AND "rawText" IS NOT NULL
+  `;
+  const remaining = Number(remainingResult[0]?.count ?? 0);
 
   return { processed, remaining, errors };
 }
