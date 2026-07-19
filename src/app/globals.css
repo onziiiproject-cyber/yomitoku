@@ -44,6 +44,26 @@ a {
   text-decoration: none;
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes scroll-hint-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
+.scroll-hint-bounce {
+  animation: scroll-hint-bounce 1.6s ease-in-out infinite;
+}
+
+/* 右余白が十分に無い画面幅ではガター配置のスクロールヒントを隠す */
+@media (max-width: 1320px) {
+  .scroll-hint-gutter {
+    display: none;
+  }
+}
+
 img {
   max-width: 100%;
 }

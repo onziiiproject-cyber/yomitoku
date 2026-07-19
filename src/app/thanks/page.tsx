@@ -1,27 +1,59 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import { stripe } from "@/lib/stripe";
+import { prisma } from "@/lib/prisma";
 import styles from "./thanks.module.css";
 
 export const metadata: Metadata = {
-  title: "登録完了 | YOMITOKU",
+  title: "登録完了 | ヨミトク編集部",
 };
 
 const LINE_ADD_URL = "https://line.me/R/ti/p/@324eesis";
 
-export default function ThanksPage() {
+async function resolveInviteCode(sessionId?: string): Promise<string | null> {
+  if (!sessionId) return null;
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const companyId = session.metadata?.companyId;
+    if (!companyId) return null;
+
+    // Stripeのwebhook（招待コード発行）がこの画面の表示より少し遅れる場合があるため、短く再試行する
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { inviteCode: true },
+      });
+      if (company?.inviteCode) return company.inviteCode;
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export default async function ThanksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ session_id?: string }>;
+}) {
+  const { session_id } = await searchParams;
+  const inviteCode = await resolveInviteCode(session_id);
+
   return (
     <div className={styles.page}>
       <div className={styles.card}>
 
         {/* ロゴ */}
-        <div className={styles.logoWrap}>
+        <div className={styles.logoWrap} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
           <Image
-            src="/icons/logo-base-horizontal-trimmed.png"
-            alt="ヨミトク"
-            width={160}
-            height={45}
-            style={{ height: 28, width: "auto" }}
+            src="/icons/icon-gori-editor.jpg"
+            alt=""
+            width={200}
+            height={200}
+            style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }}
           />
+          <span style={{ fontSize: 15, fontWeight: 800, color: "#1F2E2A" }}>ヨミトク編集部</span>
         </div>
 
         {/* 完了アイコン */}
@@ -33,6 +65,19 @@ export default function ThanksPage() {
 
         <h1 className={styles.title}>お支払いが完了しました</h1>
         <p className={styles.subtitle}>ご登録ありがとうございます</p>
+
+        {/* 事業所コード */}
+        {inviteCode ? (
+          <div className={styles.inviteCodeBox}>
+            <p className={styles.inviteCodeLabel}>事業所コード</p>
+            <p className={styles.inviteCodeValue}>{inviteCode}</p>
+            <p className={styles.inviteCodeNote}>LINE登録時に必要になるのでお控えください</p>
+          </div>
+        ) : (
+          <div className={styles.inviteCodePending}>
+            事業所コードの発行に少し時間がかかっています。登録完了メールにも記載していますのでご確認ください。
+          </div>
+        )}
 
         {/* ステップ */}
         <div className={styles.steps}>
@@ -67,8 +112,8 @@ export default function ThanksPage() {
         <div className={styles.shareNote}>
           <p className={styles.shareNoteTitle}>法人内3名まで共有できます</p>
           <p className={styles.shareNoteDesc}>
-            上のボタンから追加した後、他のメンバーにも同じURLを共有してください。<br />
-            招待コードの発行方法は登録メールに記載しています。
+            上のボタンから追加した後、他のメンバーにも同じURLと上記の事業所コードを共有してください。<br />
+            LINEのチャットに事業所コードを送信すると登録されます。
           </p>
         </div>
 

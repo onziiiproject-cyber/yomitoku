@@ -1,16 +1,14 @@
 import { prisma } from "./prisma";
 import { scrapeMhlwLatest, scrapeShingi } from "./scraper";
-import { analyzeDocument, generateStructuredContent, buildWeeklyDigest, buildPDFAIComment, buildShingiPDFData } from "./anthropic";
-import { pushWeeklyDigest, pushBreakingNews, pushShingiCover, pushShingiTopics, pushShingiNoMatch, type DigestDoc } from "./line-message";
-import { generateDigestPDF, type PDFDigestDoc } from "./pdf-digest";
-import { generateShingiCoverPDF, generateShingiTopicPDF } from "./pdf-shingi";
+import { analyzeDocument, generateStructuredContent, buildWeeklyDigest, buildShingiPDFData, type StructuredContent } from "./anthropic";
+import { pushWeeklyDigestCards, pushBreakingNews, pushShingiCover, pushShingiTopics, pushShingiNoMatch, type DigestDoc, type WeeklyCardDoc } from "./line-message";
+import { generateShingiCoverPDF, generateShingiTopicPDF, type ShingiThemeDetail } from "./pdf-shingi";
 import { put } from "@vercel/blob";
 
 export interface DigestResult {
   newDocs: number;
   sentTo: number;
   batchId: string;
-  pdfUrl: string | null;
   errors: string[];
 }
 
@@ -35,6 +33,80 @@ function oneWeekAgo(): Date {
   const d = new Date();
   d.setDate(d.getDate() - 7);
   return d;
+}
+
+// 分科会のテーマ単位データを、既存のgenerateStructuredContent/analyzeDocumentに渡せる1本のテキストに変換
+function buildShingiThemeText(detail: ShingiThemeDetail): string {
+  const parts: string[] = [`概要: ${detail.overview}`];
+  if (detail.revision_points?.length) {
+    parts.push("改定ポイント:\n" + detail.revision_points.map((p) => `- ${p.title}: ${p.desc}`).join("\n"));
+  }
+  if (detail.issues?.length) {
+    parts.push("論点:\n" + detail.issues.map((i) => `- ${i.desc}${i.value ? `（${i.value}）` : ""}${i.note ? ` ${i.note}` : ""}`).join("\n"));
+  }
+  if (detail.opinions?.length) {
+    parts.push("委員の意見:\n" + detail.opinions.map((o) => `- ${o.title}: ${o.desc}`).join("\n"));
+  }
+  return parts.join("\n\n");
+}
+
+// 分科会1回の会合（1URL）を、buildShingiPDFDataで検出したトピック数ぶんのSiteDocumentに分割保存する。
+// pendingの元レコード（doc.id）は最初に成功したテーマで再利用し、残りは新規行として作成する。
+export async function processShingiSession(doc: {
+  id: string;
+  url: string;
+  title: string;
+  rawText: string;
+  publishedAt: Date | null;
+}): Promise<{ count: number; errors: string[] }> {
+  const errors: string[] = [];
+  const pdfData = await buildShingiPDFData(doc.title, doc.rawText, doc.url);
+
+  let count = 0;
+  for (const detail of pdfData.theme_details) {
+    try {
+      const themeText = buildShingiThemeText(detail);
+      const title = detail.name;
+      const result = await analyzeDocument(title, themeText);
+      const structured = await generateStructuredContent(title, themeText);
+
+      if (count === 0) {
+        await prisma.siteDocument.update({
+          where: { id: doc.id },
+          data: {
+            themeNo: detail.no,
+            title,
+            rawText: themeText,
+            summary: result.summary,
+            tags: result.tags,
+            importance: result.importance,
+            structuredContent: structured as object,
+            processedAt: new Date(),
+          },
+        });
+      } else {
+        await prisma.siteDocument.create({
+          data: {
+            url: doc.url,
+            themeNo: detail.no,
+            title,
+            source: "shingi",
+            publishedAt: doc.publishedAt,
+            rawText: themeText,
+            summary: result.summary,
+            tags: result.tags,
+            importance: result.importance,
+            structuredContent: structured as object,
+            processedAt: new Date(),
+          },
+        });
+      }
+      count++;
+    } catch (e) {
+      errors.push(`Shingi theme failed "${detail.name}": ${e}`);
+    }
+  }
+  return { count, errors };
 }
 
 // Phase 1: スクレイプしてDBに保存（Claudeなし）
@@ -90,8 +162,8 @@ export async function runScrapeAndSave(since?: Date): Promise<ScrapeResult> {
 export async function runProcessPending(limit = 1): Promise<ProcessResult> {
   const errors: string[] = [];
 
-  const pending = await prisma.$queryRaw<{ id: string; url: string; title: string; rawText: string }[]>`
-    SELECT id, url, title, "rawText"
+  const pending = await prisma.$queryRaw<{ id: string; url: string; title: string; source: string; rawText: string; publishedAt: Date | null }[]>`
+    SELECT id, url, title, source, "rawText", "publishedAt"
     FROM "SiteDocument"
     WHERE summary IS NULL AND "rawText" IS NOT NULL
     ORDER BY "publishedAt" DESC NULLS LAST, "createdAt" DESC
@@ -101,6 +173,13 @@ export async function runProcessPending(limit = 1): Promise<ProcessResult> {
   let processed = 0;
   for (const doc of pending) {
     try {
+      if (doc.source === "shingi") {
+        const { count, errors: themeErrors } = await processShingiSession(doc);
+        errors.push(...themeErrors);
+        if (count > 0) processed++;
+        continue;
+      }
+
       // PDF URLならダウンロードしてClaudeに渡す
       let pdfBase64: string | undefined;
       if (doc.url.endsWith(".pdf")) {
@@ -139,111 +218,43 @@ export async function runProcessPending(limit = 1): Promise<ProcessResult> {
   return { processed, remaining, errors };
 }
 
-export async function runWeeklyDigest(opts?: { force?: boolean; scrapeOnly?: boolean; limit?: number }): Promise<DigestResult> {
+export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<DigestResult> {
   const errors: string[] = [];
   const since = oneWeekAgo();
 
-  // 1. Scrape
-  const [mhlwItems, shingiItems] = await Promise.allSettled([
-    scrapeMhlwLatest(since),
-    scrapeShingi(since),
-  ]);
+  // 1. 今週分の記事は日次パイプライン（scrape→process）で処理済みのはずなので、
+  //    自前で再スクレイプせずDBから素直に集める（再スクレイプすると「既にDBにある」記事が
+  //    毎回除外され、その週たまたま処理漏れた1件だけが「新着」扱いになるバグがあった）
+  const weekDocs = await prisma.siteDocument.findMany({
+    where: { publishedAt: { gte: since }, summary: { not: null } },
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+  });
 
-  const allItems = [
-    ...(mhlwItems.status === "fulfilled" ? mhlwItems.value : []),
-    ...(shingiItems.status === "fulfilled" ? shingiItems.value : []),
-  ];
-
-  if (mhlwItems.status === "rejected") errors.push(`MHLW scrape: ${mhlwItems.reason}`);
-  if (shingiItems.status === "rejected") errors.push(`Shingi scrape: ${shingiItems.reason}`);
-
-  // 2. Deduplicate against DB（日付あり記事のみスキップ、日付なしは再処理）
-  const existingUrls = new Set(
-    (
-      await prisma.siteDocument.findMany({
-        where: { url: { in: allItems.map((i) => i.url) }, publishedAt: { not: null } },
-        select: { url: true },
-      })
-    ).map((d) => d.url)
-  );
-
-  const allNewItems = allItems.filter((i) => !existingUrls.has(i.url));
-  const newItems = opts?.limit ? allNewItems.slice(0, opts.limit) : allNewItems;
-  if (newItems.length === 0) {
-    return { newDocs: 0, sentTo: 0, batchId: "", pdfUrl: null, errors };
+  if (weekDocs.length === 0) {
+    return { newDocs: 0, sentTo: 0, batchId: "", errors };
   }
 
-  // 3. Analyze with Claude
-  const analyzed: Array<{
-    doc: (typeof newItems)[0];
-    result: Awaited<ReturnType<typeof analyzeDocument>>;
-    savedId: string;
-  }> = [];
-
-  for (const item of newItems) {
-    try {
-      const result = await analyzeDocument(item.title, item.rawText, item.pdfBase64);
-      const structured = await generateStructuredContent(item.title, item.rawText, item.pdfBase64);
-      const saved = await prisma.siteDocument.upsert({
-        where: { url: item.url },
-        create: {
-          url: item.url,
-          title: item.title,
-          source: item.source,
-          publishedAt: item.publishedAt,
-          rawText: item.rawText,
-          summary: result.summary,
-          tags: result.tags,
-          importance: result.importance,
-          structuredContent: structured as object,
-          processedAt: new Date(),
-        },
-        update: {
-          title: item.title,
-          publishedAt: item.publishedAt,
-          summary: result.summary,
-          tags: result.tags,
-          importance: result.importance,
-          structuredContent: structured as object,
-          processedAt: new Date(),
-        },
-      });
-      analyzed.push({ doc: item, result, savedId: saved.id });
-    } catch (e) {
-      errors.push(`Failed "${item.title}": ${e}`);
-    }
-  }
-
-  if (analyzed.length === 0) {
-    return { newDocs: 0, sentTo: 0, batchId: "", pdfUrl: null, errors };
-  }
-
-  // 4. Build digest text
-  const digestDocs: DigestDoc[] = analyzed.map(({ doc, result, savedId }) => ({
-    id: savedId,
-    title: doc.title,
-    summary: result.summary,
-    url: doc.url,
-    importance: result.importance,
-    tags: result.tags,
+  // 2. Build digest text
+  const digestDocs: DigestDoc[] = weekDocs.map((d) => ({
+    id: d.id,
+    title: d.title,
+    summary: d.summary ?? "",
+    url: d.url,
+    importance: d.importance,
+    tags: d.tags as string[],
   }));
 
   const digestText = await buildWeeklyDigest(digestDocs);
   const weekLabel = getWeekLabel();
 
-  // scrapeOnly: 記事保存のみ、LINE送信しない
-  if (opts?.scrapeOnly) {
-    return { newDocs: analyzed.length, sentTo: 0, batchId: "", pdfUrl: null, errors };
-  }
-
-  // 5. Skip if already sent today（force=true で上書き可）
+  // 3. Skip if already sent today（force=true で上書き可）
   const todayKey = `weekly-${new Date().toISOString().slice(0, 10)}`;
   const existing = await prisma.messageBatch.findUnique({ where: { idempotencyKey: todayKey } });
   if (existing && !opts?.force) {
-    return { newDocs: analyzed.length, sentTo: 0, batchId: existing.id, pdfUrl: null, errors: [...errors, "Already sent today"] };
+    return { newDocs: weekDocs.length, sentTo: 0, batchId: existing.id, errors: [...errors, "Already sent today"] };
   }
 
-  // 6. Create MessageBatch
+  // 4. Create MessageBatch
   const batch = await prisma.messageBatch.create({
     data: {
       kind: "WEEKLY_DIGEST",
@@ -253,86 +264,59 @@ export async function runWeeklyDigest(opts?: { force?: boolean; scrapeOnly?: boo
     },
   });
 
-  // 7. Link documents to batch
+  // 5. Link documents to batch
   await prisma.batchDocument.createMany({
-    data: analyzed.map(({ savedId }) => ({
+    data: weekDocs.map((d) => ({
       messageBatchId: batch.id,
-      siteDocumentId: savedId,
+      siteDocumentId: d.id,
     })),
     skipDuplicates: true,
   });
 
-  // 8. Generate PDF → Vercel Blob
-  let pdfUrl: string | null = null;
-  try {
-    const pdfDocs: PDFDigestDoc[] = analyzed.map(({ doc, result, savedId }) => ({
-      id: savedId,
-      title: doc.title,
-      summary: result.summary ?? "",
-      url: doc.url,
-      importance: result.importance,
-      tags: result.tags,
-      publishedAt: doc.publishedAt ?? null,
-      source: doc.source,
-    }));
-
-    const aiComment = await buildPDFAIComment(
-      pdfDocs.map(d => ({ title: d.title, summary: d.summary, tags: d.tags, importance: d.importance }))
-    );
-
-    const now = new Date();
-    const fmtJp = (d: Date) => `令和${d.getFullYear() - 2018}年${d.getMonth() + 1}月${d.getDate()}日`;
-
-    const pdfBuffer = await generateDigestPDF(
-      pdfDocs,
-      weekLabel,
-      { from: fmtJp(oneWeekAgo()), to: fmtJp(now) },
-      aiComment
-    );
-
-    const filename = `digest/weekly-${now.toISOString().slice(0, 10)}.pdf`;
-    const blob = await put(filename, pdfBuffer, {
-      access: "public",
-      contentType: "application/pdf",
-      addRandomSuffix: false,
-    });
-    pdfUrl = blob.url;
-  } catch (e) {
-    errors.push(`PDF generation failed: ${e}`);
-  }
-
-  // 9. Skip if already sent today
+  // 6. Send LINE messages（タグでパーソナライズしたカードカルーセル）
   const recipients = await prisma.lineRecipient.findMany({
     where: {
       unfollowedAt: null,
       company: { status: "ACTIVE" },
     },
-    include: { recipientTags: { include: { tag: true } } },
+    include: { user: { include: { tags: { include: { tag: true } } } } },
   });
 
   if (recipients.length === 0) {
-    return { newDocs: analyzed.length, sentTo: 0, batchId: batch.id, pdfUrl, errors };
+    return { newDocs: weekDocs.length, sentTo: 0, batchId: batch.id, errors };
   }
 
-  // 9. Send LINE messages
+  const cardDocs: WeeklyCardDoc[] = weekDocs.map((d) => {
+    const sc = d.structuredContent as unknown as StructuredContent | null;
+    return {
+      id: d.id,
+      title: d.title,
+      hookTitle: sc?.hookTitle ?? null,
+      source: d.source,
+      tags: d.tags as string[],
+      importanceStars: sc?.importanceStars ?? null,
+      urgencyStars: sc?.urgencyStars ?? null,
+      isNew: new Date().getTime() - new Date(d.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
+    };
+  });
+
   let sentTo = 0;
   for (const recipient of recipients) {
-    const recipientTagKeys = recipient.recipientTags.map((rt) => rt.tag.key);
-    const relevantDocs =
+    const recipientTagKeys = recipient.user?.tags.map((ut) => ut.tag.key) ?? [];
+    // タグ未設定なら全件、設定していて0件ヒットならその旨のカードをpushWeeklyDigestCards側で表示する
+    const cardsToSend =
       recipientTagKeys.length === 0
-        ? digestDocs
-        : digestDocs.filter((d) => d.tags.some((t) => recipientTagKeys.includes(t)));
-
-    const docsToSend = relevantDocs.length > 0 ? relevantDocs : digestDocs;
+        ? cardDocs
+        : cardDocs.filter((c) => c.tags.some((t) => recipientTagKeys.includes(t)));
 
     try {
-      const messageId = await pushWeeklyDigest(
+      const messageId = await pushWeeklyDigestCards(
         recipient.lineUserId,
-        digestText,
-        docsToSend,
         weekLabel,
-        batch.id,
-        pdfUrl
+        weekDocs.length,
+        digestText,
+        cardsToSend,
+        batch.id
       );
       await prisma.messageSend.create({
         data: {
@@ -359,7 +343,7 @@ export async function runWeeklyDigest(opts?: { force?: boolean; scrapeOnly?: boo
     }
   }
 
-  return { newDocs: analyzed.length, sentTo, batchId: batch.id, pdfUrl, errors };
+  return { newDocs: weekDocs.length, sentTo, batchId: batch.id, errors };
 }
 
 export interface BreakingNewsResult {
@@ -409,7 +393,7 @@ export async function runBreakingNewsCheck(): Promise<BreakingNewsResult> {
       const result = await analyzeDocument(item.title, item.rawText, pdfBase64);
       const structured = await generateStructuredContent(item.title, item.rawText, pdfBase64);
       const saved = await prisma.siteDocument.upsert({
-        where: { url: item.url },
+        where: { url_themeNo: { url: item.url, themeNo: 0 } },
         create: {
           url: item.url,
           title: item.title,
@@ -449,7 +433,7 @@ export async function runBreakingNewsCheck(): Promise<BreakingNewsResult> {
     return { checked: shingiItems.length, newDocs: analyzed.length, sentTo: 0, errors };
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoru-xi.vercel.app";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
 
   let sentTo = 0;
   for (const { doc, savedId } of analyzed) {

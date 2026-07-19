@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import HeaderLogo from "./HeaderLogo";
 
 export default function BaseHeader({ companyName }: { companyName: string }) {
   const router = useRouter();
@@ -29,16 +29,7 @@ export default function BaseHeader({ companyName }: { companyName: string }) {
     }}>
       <div style={{ height: "100%", display: "flex", alignItems: "center", gap: 16, padding: "0 20px" }}>
         {/* Logo */}
-        <a href="/base" style={{ display: "flex", alignItems: "center", textDecoration: "none", flexShrink: 0, width: 200 }}>
-          <Image
-            src="/icons/logo-base-horizontal-trimmed.png"
-            alt="ヨミトク BASE"
-            width={446}
-            height={125}
-            priority
-            style={{ height: 36, width: "auto" }}
-          />
-        </a>
+        <HeaderLogo />
 
         {/* Search bar */}
         <form onSubmit={handleSearch} style={{ flex: 1, position: "relative", maxWidth: 680 }}>

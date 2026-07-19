@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
   // LineRecipientからCompanyを検索
   const recipient = await prisma.lineRecipient.findUnique({
     where: { lineUserId },
-    include: { company: true },
+    include: { company: true, user: true },
   });
 
   if (!recipient) {
@@ -64,12 +64,24 @@ export async function GET(req: NextRequest) {
 
   await prisma.company.update({ where: { id: recipient.company.id }, data: { lastLoginAt: new Date() } });
 
+  // 通常はWebhook登録時にUserも作られているはずだが、念のためのフォールバック
+  const user =
+    recipient.user ??
+    (await prisma.user.create({
+      data: {
+        companyId: recipient.companyId,
+        name: recipient.nickname ?? recipient.displayName ?? "メンバー",
+        lineRecipientId: recipient.id,
+      },
+    }));
+
   const token = await createSession({
     companyId: recipient.company.id,
     email: recipient.company.email,
     companyName: recipient.company.name,
     lineRecipientId: recipient.id,
-    nickname: recipient.nickname ?? recipient.displayName ?? undefined,
+    userId: user.id,
+    nickname: user.name,
   });
 
   // NextResponse.redirect に直接クッキーをセット

@@ -11,7 +11,7 @@ async function fetchPage(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: {
       "User-Agent":
-        "Mozilla/5.0 (compatible; YomitokuBot/1.0; +https://yomitoru-xi.vercel.app)",
+        "Mozilla/5.0 (compatible; YomitokuBot/1.0; +https://yomitoku-base.com)",
       "Accept-Language": "ja,en;q=0.9",
     },
     cache: "no-store",

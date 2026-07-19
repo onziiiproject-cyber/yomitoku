@@ -11,7 +11,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await runWeeklyDigest();
+    const body = await req.json().catch(() => ({}));
+    const result = await runWeeklyDigest({ force: !!body.force });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     console.error("[digest] failed:", e);

@@ -10,15 +10,16 @@ export async function POST(req: NextRequest) {
   if (!docId || !body?.trim()) return NextResponse.json({ error: "docId and body required" }, { status: 400 });
   if (body.trim().length > 500) return NextResponse.json({ error: "500文字以内で入力してください" }, { status: 400 });
 
+  const authorName = session.nickname ?? session.companyName;
+
   const comment = await prisma.articleComment.create({
-    data: { companyId: session.companyId, siteDocumentId: docId, body: body.trim() },
-    include: { company: { select: { name: true } } },
+    data: { companyId: session.companyId, siteDocumentId: docId, authorName, body: body.trim() },
   });
 
   return NextResponse.json({
     id: comment.id,
     body: comment.body,
-    companyName: comment.company.name,
+    authorName: comment.authorName,
     createdAt: comment.createdAt,
   });
 }

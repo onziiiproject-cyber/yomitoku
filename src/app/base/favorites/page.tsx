@@ -11,7 +11,7 @@ export default async function FavoritesPage() {
     where: { companyId: session.companyId },
     include: {
       siteDocument: {
-        select: { id: true, title: true, summary: true, tags: true, source: true, publishedAt: true, importance: true, createdAt: true },
+        select: { id: true, title: true, summary: true, tags: true, source: true, publishedAt: true, importance: true, createdAt: true, structuredContent: true },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -24,7 +24,7 @@ export default async function FavoritesPage() {
     <div style={{ paddingTop: 24 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
         <a href="/base" style={{ fontSize: 13, color: "#1B7A6D", textDecoration: "none" }}>← 一覧に戻る</a>
-        <h1 style={{ fontSize: 20, fontWeight: 800, color: "#1B5E52", margin: 0 }}>お気に入り</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 800, color: "#1B5E52", margin: 0 }}>保存した記事</h1>
         <span style={{ fontSize: 13, color: "#888", marginLeft: "auto" }}>{docs.length}件</span>
       </div>
 

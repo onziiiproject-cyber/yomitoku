@@ -30,80 +30,66 @@ function tagChip(tag: string): messagingApi.FlexBox {
   };
 }
 
-function weeklyDigestFlex(
+export interface WeeklyCardDoc {
+  id: string;
+  title: string;
+  hookTitle: string | null;
+  source: string;
+  tags: string[];
+  importanceStars: number | null;
+  urgencyStars: number | null;
+  isNew: boolean;
+}
+
+const WEEKLY_SOURCE_BADGE: Record<string, { label: string; color: string }> = {
+  mhlw_latest: { label: "介護保険最新情報", color: "#0D686E" },
+  shingi: { label: "分科会かんたん解説", color: "#B45309" },
+};
+
+function starText(stars: number | null): string {
+  if (!stars) return "";
+  return "★".repeat(stars) + "☆".repeat(5 - stars);
+}
+
+function badgePill(text: string, bg: string, color = "#ffffff"): messagingApi.FlexBox {
+  return {
+    type: "box",
+    layout: "vertical",
+    paddingAll: "3px",
+    paddingStart: "8px",
+    paddingEnd: "8px",
+    backgroundColor: bg,
+    cornerRadius: "4px",
+    contents: [{ type: "text", text, size: "xxs", weight: "bold", color } as messagingApi.FlexText],
+  };
+}
+
+function weeklyLeadFlex(
   weekLabel: string,
   docCount: number,
   digestText: string,
-  allTags: string[],
-  digestUrl: string,
-  libraryUrl: string | null,
-  pdfUrl: string | null = null
+  digestUrl: string
 ): messagingApi.FlexMessage {
-  const uniqueTags = [...new Set(allTags)].slice(0, 6);
-
-  const footerContents: messagingApi.FlexComponent[] = [
-    {
-      type: "button",
-      action: { type: "uri", label: "詳細を見る →", uri: digestUrl },
-      style: "primary",
-      color: "#1B7A6D",
-      height: "md",
-    } as messagingApi.FlexButton,
-  ];
-
-  if (pdfUrl) {
-    footerContents.push({
-      type: "button",
-      action: { type: "uri", label: "📄 週刊ダイジェストPDFを見る", uri: pdfUrl },
-      style: "secondary",
-      height: "sm",
-      margin: "sm",
-    } as messagingApi.FlexButton);
-  }
-
-  if (libraryUrl) {
-    footerContents.push({
-      type: "button",
-      action: { type: "uri", label: "📚 過去の資料を検索", uri: libraryUrl },
-      style: "secondary",
-      height: "sm",
-      margin: "sm",
-    } as messagingApi.FlexButton);
-  }
-
   return {
     type: "flex",
-    altText: `【ヨミトク】週刊ダイジェスト ${weekLabel}`,
+    altText: `【週刊ヨミトク】${weekLabel}（${docCount}件のトピックス）`,
     contents: {
       type: "bubble",
       size: "mega",
       header: {
         type: "box",
         layout: "vertical",
-        backgroundColor: "#1B5E52",
+        backgroundColor: "#E6F1FB",
         paddingAll: "20px",
         contents: [
+          { type: "text", text: "📋  週刊ヨミトク", color: "#0C447C", size: "xl", weight: "bold" } as messagingApi.FlexText,
           {
             type: "text",
-            text: "📋  介護保険最新情報",
-            color: "#a8d5c8",
-            size: "xs",
-            weight: "bold",
-          } as messagingApi.FlexText,
-          {
-            type: "text",
-            text: "週刊ダイジェスト",
-            color: "#ffffff",
-            size: "xl",
-            weight: "bold",
-            margin: "sm",
-          } as messagingApi.FlexText,
-          {
-            type: "text",
-            text: `${weekLabel}  ·  ${docCount}件の通知`,
-            color: "#a8d5c8",
+            text: `${weekLabel}  ·  今週は${docCount}件のトピックスがありました`,
+            color: "#185FA5",
             size: "sm",
             margin: "sm",
+            wrap: true,
           } as messagingApi.FlexText,
         ],
       },
@@ -111,7 +97,6 @@ function weeklyDigestFlex(
         type: "box",
         layout: "vertical",
         paddingAll: "20px",
-        spacing: "md",
         contents: [
           {
             type: "text",
@@ -119,28 +104,136 @@ function weeklyDigestFlex(
             wrap: true,
             size: "sm",
             color: "#333333",
-            maxLines: 5,
           } as messagingApi.FlexText,
-          ...(uniqueTags.length > 0
-            ? [
-                {
-                  type: "text",
-                  text: uniqueTags.join("  ·  "),
-                  size: "xs",
-                  color: "#1B7A6D",
-                  wrap: true,
-                  margin: "md",
-                } as messagingApi.FlexText,
-              ]
-            : []),
         ],
       },
       footer: {
         type: "box",
         layout: "vertical",
         paddingAll: "16px",
-        spacing: "sm",
-        contents: footerContents,
+        contents: [
+          {
+            type: "button",
+            action: { type: "uri", label: "この後にカード一覧が届きます →", uri: digestUrl },
+            style: "primary",
+            color: "#0C447C",
+          } as messagingApi.FlexButton,
+        ],
+      },
+    } as messagingApi.FlexBubble,
+  };
+}
+
+function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string): messagingApi.FlexBubble {
+  const src = WEEKLY_SOURCE_BADGE[doc.source] ?? { label: doc.source, color: "#555555" };
+  const displayTitle = doc.hookTitle || doc.title;
+
+  const badges: messagingApi.FlexComponent[] = [];
+  if (doc.isNew) badges.push(badgePill("新着", "#F5A623"));
+  badges.push(badgePill(src.label, src.color));
+
+  const starLines: messagingApi.FlexComponent[] = [];
+  if (doc.importanceStars) {
+    starLines.push({ type: "text", text: `重要度 ${starText(doc.importanceStars)}`, size: "xs", color: "#888888", margin: "sm" } as messagingApi.FlexText);
+  }
+  if (doc.urgencyStars) {
+    starLines.push({ type: "text", text: `緊急度 ${starText(doc.urgencyStars)}`, size: "xs", color: "#888888" } as messagingApi.FlexText);
+  }
+
+  return {
+    type: "bubble",
+    size: "kilo",
+    body: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "16px",
+      contents: [
+        { type: "box", layout: "horizontal", spacing: "xs", contents: badges } as messagingApi.FlexBox,
+        {
+          type: "text",
+          text: displayTitle,
+          wrap: true,
+          weight: "bold",
+          size: "md",
+          color: "#1a1a1a",
+          margin: "sm",
+          maxLines: 3,
+        } as messagingApi.FlexText,
+        ...starLines,
+        ...(doc.tags.length > 0
+          ? [
+              {
+                type: "box",
+                layout: "horizontal",
+                spacing: "xs",
+                margin: "sm",
+                contents: doc.tags.slice(0, 2).map(tagChip),
+              } as messagingApi.FlexBox,
+            ]
+          : []),
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "12px",
+      contents: [
+        {
+          type: "button",
+          action: { type: "uri", label: "編集室で読む →", uri: `${appUrl}/base/articles/${doc.id}` },
+          style: "primary",
+          color: src.color,
+          height: "sm",
+        } as messagingApi.FlexButton,
+      ],
+    },
+  } as messagingApi.FlexBubble;
+}
+
+function weeklyCarouselFlex(docs: WeeklyCardDoc[], appUrl: string): messagingApi.FlexMessage {
+  const bubbles = docs.slice(0, 10).map((d) => weeklyCardBubble(d, appUrl));
+  return {
+    type: "flex",
+    altText: `【週刊ヨミトク】今週の記事一覧（${docs.length}件）`,
+    contents: { type: "carousel", contents: bubbles },
+  };
+}
+
+function weeklyNoMatchFlex(weekLabel: string, appUrl: string): messagingApi.FlexMessage {
+  return {
+    type: "flex",
+    altText: `【週刊ヨミトク】${weekLabel} 今回は登録タグに関連する記事はありませんでした`,
+    contents: {
+      type: "bubble",
+      size: "mega",
+      body: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "24px",
+        spacing: "md",
+        contents: [
+          { type: "text", text: "今週は登録タグにヒットする記事はありませんでした", size: "md", weight: "bold", color: "#1a1a1a", wrap: true } as messagingApi.FlexText,
+          {
+            type: "text",
+            text: "今週発行された記事は、すべてヨミトク編集室でご確認いただけます。",
+            size: "sm",
+            color: "#666666",
+            wrap: true,
+            margin: "md",
+          } as messagingApi.FlexText,
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "16px",
+        contents: [
+          {
+            type: "button",
+            action: { type: "uri", label: "編集室で全ての記事を見る →", uri: `${appUrl}/base` },
+            style: "secondary",
+          } as messagingApi.FlexButton,
+        ],
       },
     } as messagingApi.FlexBubble,
   };
@@ -156,7 +249,7 @@ function breakingNewsFlex(doc: DigestDoc, appUrl: string): messagingApi.FlexMess
       header: {
         type: "box",
         layout: "vertical",
-        backgroundColor: "#7B2D2D",
+        backgroundColor: "#FCEBEB",
         paddingAll: "16px",
         contents: [
           {
@@ -166,14 +259,14 @@ function breakingNewsFlex(doc: DigestDoc, appUrl: string): messagingApi.FlexMess
               {
                 type: "text",
                 text: "⚠️  速報",
-                color: "#ffffff",
+                color: "#A32D2D",
                 size: "sm",
                 weight: "bold",
               } as messagingApi.FlexText,
               {
                 type: "text",
                 text: "重要度の高い通知をお知らせします",
-                color: "#f5c0b0",
+                color: "#B85C5C",
                 size: "xxs",
                 align: "end",
                 gravity: "center",
@@ -232,7 +325,7 @@ function breakingNewsFlex(doc: DigestDoc, appUrl: string): messagingApi.FlexMess
         contents: [
           {
             type: "button",
-            action: { type: "uri", label: "BASEで記事を読む →", uri: `${appUrl}/base/articles/${doc.id}` },
+            action: { type: "uri", label: "編集室で記事を読む →", uri: `${appUrl}/base/articles/${doc.id}` },
             style: "primary",
             color: "#7B2D2D",
           } as messagingApi.FlexButton,
@@ -242,24 +335,22 @@ function breakingNewsFlex(doc: DigestDoc, appUrl: string): messagingApi.FlexMess
   };
 }
 
-export async function pushWeeklyDigest(
+export async function pushWeeklyDigestCards(
   lineUserId: string,
-  digestText: string,
-  docs: DigestDoc[],
   weekLabel: string,
-  batchId: string,
-  pdfUrl: string | null = null
+  docCount: number,
+  digestText: string,
+  docs: WeeklyCardDoc[],
+  batchId: string
 ): Promise<string> {
   const client = getClient();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
   const digestUrl = `${appUrl}/digest/${batchId}`;
-  const liffLibraryId = process.env.NEXT_PUBLIC_LIFF_LIBRARY_ID;
-  const libraryUrl = liffLibraryId ? `https://liff.line.me/${liffLibraryId}` : null;
 
-  const allTags = docs.flatMap((d) => d.tags);
-  const message = weeklyDigestFlex(weekLabel, docs.length, digestText, allTags, digestUrl, libraryUrl, pdfUrl);
+  const lead = weeklyLeadFlex(weekLabel, docCount, digestText, digestUrl);
+  const carousel = docs.length > 0 ? weeklyCarouselFlex(docs, appUrl) : weeklyNoMatchFlex(weekLabel, appUrl);
 
-  const res = await client.pushMessage({ to: lineUserId, messages: [message] });
+  const res = await client.pushMessage({ to: lineUserId, messages: [lead, carousel] });
   return res.sentMessages?.[0]?.id ?? "";
 }
 
@@ -293,12 +384,12 @@ function shingiCoverFlex(
       header: {
         type: "box",
         layout: "vertical",
-        backgroundColor: "#1B5E52",
+        backgroundColor: "#FEF3C7",
         paddingAll: "20px",
         contents: [
-          { type: "text", text: "📋  分科会かんたん解説", color: "#a8d5c8", size: "xs", weight: "bold" } as messagingApi.FlexText,
-          { type: "text", text: `第${sessionNo}回 ${councilShortName}`, color: "#ffffff", size: "lg", weight: "bold", wrap: true, margin: "sm" } as messagingApi.FlexText,
-          { type: "text", text: `${date}  ·  ${featureLabel}`, color: "#a8d5c8", size: "sm", margin: "sm", wrap: true } as messagingApi.FlexText,
+          { type: "text", text: "📋  分科会かんたん解説", color: "#B45309", size: "xs", weight: "bold" } as messagingApi.FlexText,
+          { type: "text", text: `第${sessionNo}回 ${councilShortName}`, color: "#78350F", size: "lg", weight: "bold", wrap: true, margin: "sm" } as messagingApi.FlexText,
+          { type: "text", text: `${date}  ·  ${featureLabel}`, color: "#B45309", size: "sm", margin: "sm", wrap: true } as messagingApi.FlexText,
         ],
       },
       body: {
@@ -327,7 +418,7 @@ function shingiCoverFlex(
             type: "button",
             action: { type: "uri", label: "📄 表紙＋全体サマリーPDFを見る", uri: coverPdfUrl },
             style: "primary",
-            color: "#1B7A6D",
+            color: "#B45309",
           } as messagingApi.FlexButton,
         ],
       },
@@ -357,10 +448,10 @@ function shingiTopicsFlex(
       header: {
         type: "box",
         layout: "vertical",
-        backgroundColor: "#2E7D8C",
+        backgroundColor: "#FEF3C7",
         paddingAll: "16px",
         contents: [
-          { type: "text", text: "📌  あなたの事業所に関係するテーマがあります", color: "#ffffff", size: "sm", weight: "bold", wrap: true } as messagingApi.FlexText,
+          { type: "text", text: "📌  あなたの事業所に関係するテーマがあります", color: "#B45309", size: "sm", weight: "bold", wrap: true } as messagingApi.FlexText,
         ],
       },
       body: {
@@ -407,7 +498,7 @@ function shingiNoMatchFlex(
           { type: "text", text: "今回は該当するトピックスはありませんでした", size: "md", weight: "bold", color: "#1a1a1a", wrap: true } as messagingApi.FlexText,
           {
             type: "text",
-            text: "登録タグに関連するテーマが今回はありませんでした。全テーマの解説はBASEからご確認いただけます。",
+            text: "登録タグに関連するテーマが今回はありませんでした。全テーマの解説はヨミトク編集室からご確認いただけます。",
             size: "sm",
             color: "#666666",
             wrap: true,
@@ -422,7 +513,7 @@ function shingiNoMatchFlex(
         contents: [
           {
             type: "button",
-            action: { type: "uri", label: "全テーマをBASEで見る →", uri: baseUrl },
+            action: { type: "uri", label: "全テーマを編集室で見る →", uri: baseUrl },
             style: "secondary",
           } as messagingApi.FlexButton,
         ],

@@ -10,6 +10,9 @@ export interface SessionPayload {
   companyId: string;
   email: string;
   companyName: string;
+  lineRecipientId?: string;
+  userId?: string;
+  nickname?: string;
 }
 
 export async function createSession(payload: SessionPayload): Promise<string> {

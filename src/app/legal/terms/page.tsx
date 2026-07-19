@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import styles from "../legal.module.css";
 
 export const metadata: Metadata = {
-  title: "利用規約 | YOMITOKU",
+  title: "利用規約 | ヨミトク編集部",
 };
 
 export default function TermsPage() {
@@ -11,7 +11,7 @@ export default function TermsPage() {
       <h1>利用規約</h1>
       <p className={styles.updated}>最終更新日：2025年7月11日</p>
 
-      <p>本利用規約（以下「本規約」）は、株式会社ONZiii Act（以下「当社」）が提供するYOMITOKU（ヨミトク）（以下「本サービス」）の利用条件を定めるものです。</p>
+      <p>本利用規約（以下「本規約」）は、株式会社ONZiii Act（以下「当社」）が提供するヨミトク編集部（以下「本サービス」）の利用条件を定めるものです。</p>
 
       <h2>第1条（適用）</h2>
       <p>本規約は、本サービスを利用するすべての事業者（以下「利用者」）に適用されます。本サービスを利用した時点で、本規約に同意したものとみなします。</p>

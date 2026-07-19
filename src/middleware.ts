@@ -7,6 +7,7 @@ const SECRET = new TextEncoder().encode(
 
 function isPublicBasePath(pathname: string): boolean {
   if (pathname === "/base" || pathname === "/base/") return true;
+  if (pathname.startsWith("/base/tags")) return true;
   if (pathname.startsWith("/base/login")) return true;
   if (pathname.startsWith("/base/forgot-password")) return true;
   if (pathname.startsWith("/base/reset-password")) return true;

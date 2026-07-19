@@ -1,5 +1,6 @@
 import Link from "next/link";
 import FavoriteButton from "./FavoriteButton";
+import type { StructuredContent } from "@/lib/anthropic";
 
 interface Doc {
   id: string;
@@ -10,11 +11,12 @@ interface Doc {
   publishedAt: Date | null;
   importance: string;
   createdAt: Date;
+  structuredContent?: unknown;
 }
 
 const SOURCE_LABEL: Record<string, { label: string; color: string; bg: string }> = {
   mhlw_latest: { label: "介護保険最新情報", color: "#1B7A6D", bg: "#E8F5F1" },
-  shingi: { label: "分科会解説", color: "#7B4F00", bg: "#FFF3E0" },
+  shingi: { label: "分科会かんたん解説", color: "#7B4F00", bg: "#FFF3E0" },
 };
 
 function formatDate(d: Date | null) {
@@ -45,8 +47,10 @@ export default function ArticleList({
       {docs.map((doc) => {
         const src = SOURCE_LABEL[doc.source] ?? { label: doc.source, color: "#555", bg: "#F3F4F6" };
         const date = formatDate(doc.publishedAt ?? doc.createdAt);
-        const isNew = Date.now() - new Date(doc.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000;
+        const isNew = new Date().getTime() - new Date(doc.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000;
         const isFav = favoritedIds.includes(doc.id);
+        const sc = doc.structuredContent as unknown as StructuredContent | null;
+        const displayTitle = sc?.hookTitle || doc.title;
 
         return (
           <div key={doc.id} style={{ position: "relative" }}>
@@ -63,14 +67,9 @@ export default function ArticleList({
                 cursor: "pointer",
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-                  {doc.importance === "high" && (
-                    <span style={{ background: "#F5A623", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4 }}>
-                      速報
-                    </span>
-                  )}
                   {isNew && (
-                    <span style={{ background: "#EF4444", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4 }}>
-                      NEW
+                    <span style={{ background: "#F5A623", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4 }}>
+                      新着
                     </span>
                   )}
                   <span style={{ background: src.bg, color: src.color, fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 4 }}>
@@ -80,7 +79,7 @@ export default function ArticleList({
                 </div>
 
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a", margin: "0 0 8px", lineHeight: 1.4 }}>
-                  {doc.title}
+                  {displayTitle}
                 </h3>
 
                 {doc.summary && (

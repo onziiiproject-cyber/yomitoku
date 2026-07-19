@@ -1,13 +1,6 @@
 "use client";
 import { usePathname, useSearchParams } from "next/navigation";
-
-function isAuthPage(pathname: string) {
-  return (
-    pathname.startsWith("/base/login") ||
-    pathname.startsWith("/base/forgot-password") ||
-    pathname.startsWith("/base/reset-password")
-  );
-}
+import { isAuthPage } from "./authPaths";
 
 const NAV_ITEMS = [
   {
@@ -100,7 +93,7 @@ export default function LayoutShell({
           {leftSidebar}
         </div>
 
-        <main className="base-main-content" style={{ flex: 1, minWidth: 0, padding: "24px 20px", overflowX: "hidden" }}>
+        <main className="base-main-content" style={{ flex: 1, minWidth: 0, padding: "24px 20px" }}>
           {children}
         </main>
 

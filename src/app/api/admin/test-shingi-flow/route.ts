@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     let lineSent = 0;
     if (sendLine) {
       log.push("⑤ LINE送信...");
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoru-xi.vercel.app";
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
       const recipients = await prisma.lineRecipient.findMany({
         where: { unfollowedAt: null, company: { status: "ACTIVE" } },
         include: { company: { include: { tags: { include: { tag: true } } } } },

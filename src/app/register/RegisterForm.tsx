@@ -77,6 +77,23 @@ export default function RegisterForm({ tags }: { tags: Tag[] }) {
         />
       </div>
 
+      {/* 事業所名 */}
+      <div className={styles.field}>
+        <label className={styles.label} htmlFor="facilityName">
+          事業所名 <span className={styles.required}>必須</span>
+        </label>
+        <input
+          id="facilityName"
+          name="facilityName"
+          type="text"
+          className={styles.input}
+          placeholder="例：さくら訪問介護ステーション"
+          required
+          maxLength={100}
+        />
+        <p className={styles.hint}>事業所コードは事業所ごとに発行されます。複数の事業所がある場合は事業所ごとにご登録ください</p>
+      </div>
+
       {/* 担当者名 */}
       <div className={styles.field}>
         <label className={styles.label} htmlFor="contactName">

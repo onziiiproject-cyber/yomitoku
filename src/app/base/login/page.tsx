@@ -33,7 +33,7 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-    router.push("/base");
+    router.push(data.needsProfileSelect ? "/base/whoami" : "/base");
   }
 
   const features = [
@@ -45,7 +45,7 @@ export default function LoginPage() {
         </svg>
       ),
       title: "最新情報を受け取る",
-      desc: "介護保険の最新情報を\nLINEでお知らせ",
+      desc: "介護保険の最新ニュースを\nLINEでお知らせ",
     },
     {
       icon: (
@@ -55,7 +55,7 @@ export default function LoginPage() {
         </svg>
       ),
       title: "探して見つかる",
-      desc: "過去の情報も簡単検索で\nすぐに見つかる",
+      desc: "必要な情報を\nすぐに見つけられる",
     },
     {
       icon: (
@@ -63,7 +63,7 @@ export default function LoginPage() {
           <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
         </svg>
       ),
-      title: "保存して活用",
+      title: "保存して整理",
       desc: "気になる情報を保存して\nあとで確認できる",
     },
   ];
@@ -90,7 +90,7 @@ export default function LoginPage() {
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
           <div className="login-main-grid" style={{
             display: "grid",
-            gridTemplateColumns: "1.15fr 1fr",
+            gridTemplateColumns: "1.15fr minmax(380px, 1fr)",
             gap: "48px",
             alignItems: "center",
           }}>
@@ -98,77 +98,73 @@ export default function LoginPage() {
             {/* ── Left ── */}
             <div className="login-left-panel">
 
-              {/* Logo block */}
-              <div style={{ marginBottom: "28px" }}>
-                <Image
-                  src="/icons/logo-base-horizontal-trimmed.png"
-                  alt="ヨミトクBASE"
-                  width={446}
-                  height={125}
-                  priority
-                  style={{ height: "auto", width: "204px" }}
-                />
-                <p style={{
-                  color: "#5F8F91",
-                  fontSize: "14px",
-                  fontWeight: 500,
-                  marginTop: "9px",
-                  letterSpacing: "0.08em",
-                  lineHeight: 1.5,
-                }}>
-                  介護保険情報の知識基地
-                </p>
-              </div>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "16px", marginBottom: "36px" }}>
+                <div style={{ flex: "1 1 auto", minWidth: 0 }}>
 
-              {/* Hero copy */}
-              <h1 style={{
-                fontWeight: 800,
-                lineHeight: 1.18,
-                marginBottom: "26px",
-                letterSpacing: "-0.015em",
-                maxWidth: "560px",
-              }}>
-                <span style={{ display: "block", fontSize: "clamp(52px, 4.2vw, 68px)", color: "#222222", whiteSpace: "nowrap" }}>探す時間を、</span>
-                <span style={{ display: "block", fontSize: "clamp(52px, 4.2vw, 68px)", color: "#0D686E", whiteSpace: "nowrap" }}>考える時間へ。</span>
-              </h1>
+                  {/* Logo block */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "28px" }}>
+                    <Image
+                      src="/icons/icon-gori-editor.jpg"
+                      alt=""
+                      width={200}
+                      height={200}
+                      priority
+                      style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: "22px", fontWeight: 800, color: "#1F2E2A", letterSpacing: "0.01em", lineHeight: 1.2, whiteSpace: "nowrap" }}>
+                        ヨミトク編集部
+                      </div>
+                      <p style={{
+                        color: "#5F8F91",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        marginTop: "3px",
+                        letterSpacing: "0.05em",
+                        lineHeight: 1.5,
+                        whiteSpace: "nowrap",
+                      }}>
+                        制度を、読むから、わかるへ。
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Hero copy */}
+                  <h1 style={{
+                    fontWeight: 800,
+                    lineHeight: 1.25,
+                    marginBottom: "24px",
+                    letterSpacing: "-0.02em",
+                  }}>
+                    <span style={{ display: "block", fontSize: "clamp(38px, 3.2vw, 52px)", color: "#222222", whiteSpace: "nowrap" }}>読むのは、</span>
+                    <span style={{ display: "block", fontSize: "clamp(38px, 3.2vw, 52px)", color: "#0D686E", whiteSpace: "nowrap" }}>編集部。</span>
+                    <span style={{ display: "block", fontSize: "clamp(38px, 3.2vw, 52px)", color: "#222222", whiteSpace: "nowrap" }}>考えるのは、</span>
+                    <span style={{ display: "block", fontSize: "clamp(38px, 3.2vw, 52px)", color: "#0D686E", whiteSpace: "nowrap" }}>あなた。</span>
+                  </h1>
+                </div>
+
+                {/* Mascot */}
+                <Image
+                  src="/LP_sozai/assets/mascot/gori-writing-notebook.png"
+                  alt=""
+                  width={194}
+                  height={206}
+                  style={{ width: "320px", height: "auto", flexShrink: 0 }}
+                />
+              </div>
 
               {/* Sub copy */}
               <p style={{
-                fontSize: "19px",
+                fontSize: "16px",
                 fontWeight: 500,
                 lineHeight: 1.8,
                 letterSpacing: "0.01em",
                 color: "#2A5A5D",
-                marginBottom: "0px",
-                position: "relative",
-                zIndex: 1,
+                marginBottom: "36px",
               }}>
-                過去の通知も、分科会も、ガイドラインも。<br />
-                必要な情報をすぐ見つけ、<br />
-                経営判断に集中できます。
+                バックナンバーも、分科会も、ガイドラインも、<br />
+                必要な情報は、ヨミトク編集部にあります。
               </p>
-
-              {/* Illustration */}
-              <div style={{ position: "relative", marginTop: "-32px", marginBottom: "8px", width: "92%", maxWidth: "660px" }}>
-                <span style={{ position: "absolute", top: 8, left: 8, color: "#9DCFC8", fontSize: 18, fontWeight: "bold", userSelect: "none", zIndex: 1 }}>＋</span>
-                <span style={{ position: "absolute", top: 28, left: 56, color: "#9DCFC8", fontSize: 12, fontWeight: "bold", userSelect: "none", zIndex: 1 }}>＋</span>
-                <span style={{ position: "absolute", bottom: 20, left: 16, color: "#9DCFC8", fontSize: 12, fontWeight: "bold", userSelect: "none", zIndex: 1 }}>＋</span>
-                <span style={{ position: "absolute", top: 10, right: "12%", color: "#9DCFC8", fontSize: 18, fontWeight: "bold", userSelect: "none", zIndex: 1 }}>＋</span>
-                <Image
-                  src="/design/team-illustration.png"
-                  alt="ヨミトクBASEを活用するチーム"
-                  width={660}
-                  height={440}
-                  style={{
-                    width: "100%",
-                    height: "auto",
-                    maxHeight: "240px",
-                    objectFit: "contain",
-                    objectPosition: "left bottom",
-                    display: "block",
-                  }}
-                />
-              </div>
 
               {/* Feature cards */}
               <div style={{ background: "white", borderRadius: "16px", overflow: "hidden" }}>
@@ -192,19 +188,6 @@ export default function LoginPage() {
                   ))}
                 </div>
               </div>
-
-              {/* Brand copy */}
-              <p style={{
-                color: "#0D686E",
-                fontSize: "16px",
-                fontWeight: 700,
-                textAlign: "center",
-                marginTop: "9px",
-                letterSpacing: "0.03em",
-                lineHeight: 1.5,
-              }}>
-                制度を味方に、経営をもっと前へ。
-              </p>
             </div>
 
             {/* ── Right: Login card ── */}
@@ -235,7 +218,7 @@ export default function LoginPage() {
                 marginTop: "12px",
                 marginBottom: "36px",
               }}>
-                ヨミトクBASEにログインします
+                ヨミトク編集室にログインします
               </p>
 
               <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column" }}>

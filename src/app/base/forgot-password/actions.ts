@@ -22,7 +22,7 @@ export async function requestPasswordReset(_: unknown, formData: FormData) {
     });
 
     const headersList = await headers();
-    const host = headersList.get("host") ?? "yomitoru-xi.vercel.app";
+    const host = headersList.get("host") ?? "yomitoku-base.com";
     const proto = headersList.get("x-forwarded-proto") ?? "https";
     const resetUrl = `${proto}://${host}/base/reset-password?token=${token}`;
     await sendPasswordResetEmail(email, resetUrl).catch(console.error);

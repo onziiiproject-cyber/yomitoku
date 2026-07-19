@@ -14,8 +14,9 @@ export default function ForgotPasswordPage() {
     <div style={{ minHeight: "100vh", background: P.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", fontFamily: font }}>
       <div style={{ width: "100%", maxWidth: 440, background: "#fff", borderRadius: 20, boxShadow: "0 4px 24px rgba(13,104,110,0.08)", padding: "44px 40px" }}>
 
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <Image src="/icons/logo-base-horizontal-trimmed.png" alt="ヨミトク" width={160} height={45} style={{ height: 28, width: "auto" }} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 32 }}>
+          <Image src="/icons/icon-gori-editor.jpg" alt="" width={200} height={200} style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
+          <span style={{ fontSize: 15, fontWeight: 800, color: "#1F2E2A" }}>ヨミトク編集部</span>
         </div>
 
         <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1F2E2A", marginBottom: 10 }}>パスワードをお忘れの方</h1>

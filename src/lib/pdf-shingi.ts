@@ -101,12 +101,13 @@ function icon(name: string, color = "#1B9C8E", size = 28): string {
 // ─── Common components ────────────────────────────────────────────────────────
 
 function headerLogo(logoB64: string): string {
-  if (logoB64) {
-    return `<img src="${logoB64}" style="height:52px;width:auto;object-fit:contain;" />`;
-  }
-  return `<div style="display:flex;align-items:center;gap:10px;">
-    <div style="font-size:22px;font-weight:800;color:#1B9C8E;">ヨミトク</div>
-    <div style="font-size:11px;color:#5A6266;">介護保険最新情報</div>
+  const icon = logoB64 ? `<img src="${logoB64}" style="height:44px;width:44px;border-radius:50%;object-fit:cover;flex-shrink:0;" />` : "";
+  return `<div style="display:flex;align-items:center;gap:12px;">
+    ${icon}
+    <div style="display:flex;flex-direction:column;">
+      <div style="font-size:20px;font-weight:800;color:#1B9C8E;">ヨミトク編集部</div>
+      <div style="font-size:11px;color:#5A6266;">介護保険最新情報</div>
+    </div>
   </div>`;
 }
 
@@ -146,7 +147,10 @@ function pageA(data: ShingiPDFData, illustB64: string, logoB64: string): string 
 
     <div style="width:1120px;flex-shrink:0;padding:72px 80px;display:flex;flex-direction:column;justify-content:space-between;z-index:1;">
 
-      <img src="${logoB64}" style="height:64px;width:auto;object-fit:contain;align-self:flex-start;" />
+      <div style="display:flex;align-items:center;gap:14px;align-self:flex-start;">
+        ${logoB64 ? `<img src="${logoB64}" style="height:64px;width:64px;border-radius:50%;object-fit:cover;" />` : ""}
+        <span style="font-size:32px;font-weight:800;color:#1A1A1A;">ヨミトク編集部</span>
+      </div>
 
       <div style="display:inline-flex;align-items:center;gap:14px;background:#1B9C8E;color:#ffffff;padding:16px 32px;border-radius:999px;font-size:24px;font-weight:700;width:fit-content;">
         ${icon("building", "#ffffff", 24)}
@@ -499,13 +503,13 @@ async function renderPDF(html: string): Promise<Buffer> {
 
 export async function generateShingiCoverPDF(data: ShingiPDFData): Promise<Buffer> {
   const illustB64 = assetBase64("design/かんたん解説表紙イラスト.jpg", "image/jpeg");
-  const logoB64 = assetBase64("public/icons/logo-line-compact.png", "image/png");
+  const logoB64 = assetBase64("public/icons/icon-gori-editor.jpg", "image/jpeg");
   return renderPDF(wrapHTML([pageA(data, illustB64, logoB64), pageB(data, logoB64)]));
 }
 
 export async function generateShingiTopicPDF(data: ShingiPDFData, themeNo: number): Promise<Buffer> {
   const detail = data.theme_details.find(d => d.no === themeNo);
   if (!detail) throw new Error(`Theme ${themeNo} not found`);
-  const logoB64 = assetBase64("public/icons/logo-line-compact.png", "image/png");
+  const logoB64 = assetBase64("public/icons/icon-gori-editor.jpg", "image/jpeg");
   return renderPDF(wrapHTML([pageC(data, detail, logoB64), pageD(data, detail, logoB64)]));
 }

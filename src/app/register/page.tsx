@@ -5,7 +5,7 @@ import styles from "./register.module.css";
 import Image from "next/image";
 
 export const metadata: Metadata = {
-  title: "ユーザー登録 | YOMITOKU",
+  title: "ユーザー登録 | ヨミトク編集部",
 };
 
 export default async function RegisterPage() {
@@ -18,13 +18,16 @@ export default async function RegisterPage() {
     <div className={styles.page}>
       <div className={styles.card}>
         <header className={styles.pageHeader}>
-          <Image
-            src="/icons/logo-base-horizontal-trimmed.png"
-            alt="ヨミトク"
-            width={200}
-            height={56}
-            style={{ height: 36, width: "auto", marginBottom: 20 }}
-          />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 20 }}>
+            <Image
+              src="/icons/icon-gori-editor.jpg"
+              alt=""
+              width={200}
+              height={200}
+              style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }}
+            />
+            <span style={{ fontSize: 17, fontWeight: 800, color: "#1F2E2A" }}>ヨミトク編集部</span>
+          </div>
           <h1 className={styles.pageTitle}>ユーザー登録</h1>
           <p className={styles.pageDesc}>
             情報を入力してお支払いに進んでください。<br />

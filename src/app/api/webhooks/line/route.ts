@@ -60,7 +60,7 @@ export async function POST(req: Request) {
           replyToken: ev.replyToken,
           messages: [{
             type: "text",
-            text: "ヨミトクへようこそ！🎉\n\nLINE通知を受け取るには、事業所の「会社コード」をこのチャットに送ってください。\n\n会社コードはヨミトクBASEの設定ページで確認できます。",
+            text: "ヨミトク編集部へようこそ！🎉\n\nLINE通知を受け取るには、あなたの「事業所コード」をこのチャットに送ってください。\n\n事業所コードは登録時のメールに記載しています。設定ページでも確認できます。",
           }],
         });
       }
@@ -73,12 +73,12 @@ export async function POST(req: Request) {
       });
     }
 
-    // Handle text messages: company code or info
+    // Handle text messages: facility invite code or info
     if (ev.type === "message" && ev.message?.type === "text" && ev.replyToken && userId) {
       const text = ev.message.text?.trim() ?? "";
       const existingRecipient = await prisma.lineRecipient.findUnique({ where: { lineUserId: userId } });
 
-      // Check if the message looks like a company invite code (8 uppercase alphanumeric chars)
+      // Check if the message looks like a facility invite code (8 uppercase alphanumeric chars)
       const codeMatch = text.match(/^[A-Z2-9]{8}$/);
       if (codeMatch && !existingRecipient) {
         const company = await prisma.company.findFirst({
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
         if (!company) {
           await client.replyMessage({
             replyToken: ev.replyToken,
-            messages: [{ type: "text", text: `「${text}」は有効な会社コードではありません。\n登録済みの会社コードを確認してください。` }],
+            messages: [{ type: "text", text: `「${text}」は有効な事業所コードではありません。\n登録済みの事業所コードを確認してください。` }],
           });
         } else if (company.lineRecipients.length >= company.maxRecipients) {
           await client.replyMessage({
@@ -108,33 +108,69 @@ export async function POST(req: Request) {
             data: { lineUserId: userId, companyId: company.id, displayName },
           });
 
+          // 個人（User）を新規作成。BASEでの表示名・タグの好みはこの単位で管理する
+          const newUser = await prisma.user.create({
+            data: { companyId: company.id, name: displayName, lineRecipientId: newRecipient.id },
+          });
+
           // 法人タグを個人の初期タグとしてコピー
           const companyTags = await prisma.companyTag.findMany({ where: { companyId: company.id } });
           if (companyTags.length > 0) {
-            await prisma.lineRecipientTag.createMany({
-              data: companyTags.map((ct) => ({ lineRecipientId: newRecipient.id, tagId: ct.tagId })),
+            await prisma.userTag.createMany({
+              data: companyTags.map((ct) => ({ userId: newUser.id, tagId: ct.tagId })),
               skipDuplicates: true,
             });
           }
 
+          const memberOfName = company.facilityName ?? company.name;
           await client.replyMessage({
             replyToken: ev.replyToken,
             messages: [{
               type: "text",
-              text: `✅ 登録完了！\n\n${company.name}のメンバーとして登録されました。\n毎週水曜日に介護保険最新情報をお届けします。\n\nヨミトク BASE でいつでも過去の情報を検索できます。`,
+              text: `✅ 登録完了！\n\n${memberOfName}のメンバーとして登録されました🎉\n\n続いて、ヨミトク編集室で使うニックネームを教えてください。\n（例：たなか、田中さん）\n\nログイン情報として必ず必要となるため返信をお願いします🙇‍♂️`,
             }],
           });
         }
         continue;
       }
 
-      // 登録済みユーザーからのメッセージは無視（リッチメニューのmessageアクション等）
+      // ニックネームがまだ未設定の場合は次のメッセージをニックネームとして保存
+      if (existingRecipient && !existingRecipient.nickname) {
+        if (text.length > 0 && text.length <= 20) {
+          await prisma.lineRecipient.update({
+            where: { lineUserId: userId },
+            data: { nickname: text },
+          });
+          await prisma.user.updateMany({
+            where: { lineRecipientId: existingRecipient.id },
+            data: { name: text },
+          });
+          await client.replyMessage({
+            replyToken: ev.replyToken,
+            messages: [{
+              type: "text",
+              text: `✅ ニックネーム登録完了！\n\n${text}さん、よろしくお願いします✨\n\nこのLINEアカウントでは、毎週水曜日に週刊ヨミトク🦍という形であなたのタグ設定に合わせて1週間の新着情報をまとめてお送りしていきます。\nタグ設定はリッチメニューからいつでも変更できます。\n\nまた、すべての情報や過去の記事はヨミトク編集室（WEBページ）から検索・閲覧🔍できます。このLINEアカウントでログインが可能🉑です。\n編集室へはリッチメニューから飛ぶことができます🫡`,
+            }],
+          });
+        } else {
+          await client.replyMessage({
+            replyToken: ev.replyToken,
+            messages: [{
+              type: "text",
+              text: `ヨミトク編集室で使うニックネームを教えてください。\n（20文字以内でお願いします）`,
+            }],
+          });
+        }
+        continue;
+      }
+
+      // 登録済み・ニックネーム設定済みユーザーからのメッセージは無視
       if (existingRecipient) {
         continue;
       } else {
         await client.replyMessage({
           replyToken: ev.replyToken,
-          messages: [{ type: "text", text: `ヨミトクへようこそ！\n\n事業所の会社コードをこのチャットに送ると、LINE通知を受け取れるようになります。\n\n会社コードはヨミトクBASE（設定ページ）で確認できます。` }],
+          messages: [{ type: "text", text: `ヨミトク編集部へようこそ！\n\n事業所コードをこのチャットに送ると、LINE通知を受け取れるようになります。\n\n事業所コードは登録時のメールに記載しています。設定ページでも確認できます。` }],
         });
       }
     }

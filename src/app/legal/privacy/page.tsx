@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import styles from "../legal.module.css";
 
 export const metadata: Metadata = {
-  title: "プライバシーポリシー | YOMITOKU",
+  title: "プライバシーポリシー | ヨミトク編集部",
 };
 
 export default function PrivacyPage() {
@@ -11,7 +11,7 @@ export default function PrivacyPage() {
       <h1>プライバシーポリシー</h1>
       <p className={styles.updated}>最終更新日：2025年7月11日</p>
 
-      <p>株式会社ONZiii Act（以下「当社」）は、YOMITOKU（ヨミトク）（以下「本サービス」）において取得する個人情報を以下のとおり取り扱います。</p>
+      <p>株式会社ONZiii Act（以下「当社」）は、ヨミトク編集部（以下「本サービス」）において取得する個人情報を以下のとおり取り扱います。</p>
 
       <h2>1. 取得する情報</h2>
       <ul>

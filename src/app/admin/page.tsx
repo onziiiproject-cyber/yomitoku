@@ -110,7 +110,7 @@ export default async function AdminPage() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "#F5F7F6", borderBottom: "1.5px solid #E8F0EE" }}>
-              {["法人名", "担当者", "役職", "都道府県", "メール", "タグ", "LINE人数", "ステータス", "登録日"].map((h) => (
+              {["法人名", "事業所名", "担当者", "役職", "都道府県", "メール", "タグ", "LINE人数", "ステータス", "登録日"].map((h) => (
                 <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontSize: 12, fontWeight: 700, color: "#555", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>
@@ -118,7 +118,7 @@ export default async function AdminPage() {
           <tbody>
             {companies.length === 0 ? (
               <tr>
-                <td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "#aaa" }}>登録企業がありません</td>
+                <td colSpan={10} style={{ padding: "48px", textAlign: "center", color: "#aaa" }}>登録企業がありません</td>
               </tr>
             ) : (
               companies.map((c, i) => {
@@ -126,6 +126,7 @@ export default async function AdminPage() {
                 return (
                   <tr key={c.id} style={{ borderBottom: i < companies.length - 1 ? "1px solid #F0F0F0" : "none" }}>
                     <td style={{ padding: "14px", fontWeight: 600, color: "#1a1a1a" }}>{c.name}</td>
+                    <td style={{ padding: "14px", color: "#333" }}>{c.facilityName ?? "—"}</td>
                     <td style={{ padding: "14px", color: "#333" }}>{c.contactName}</td>
                     <td style={{ padding: "14px", color: "#555" }}>{c.contactRole ?? "—"}</td>
                     <td style={{ padding: "14px", color: "#555" }}>{c.prefecture ?? "—"}</td>

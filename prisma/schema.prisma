@@ -19,7 +19,8 @@ enum CompanyStatus {
 
 model Company {
   id           String        @id @default(cuid())
-  name         String
+  name         String // 法人名
+  facilityName String? // 事業所名
   contactName  String
   contactRole  String?
   phone        String?
@@ -45,12 +46,14 @@ model Company {
 
   tags            CompanyTag[]
   lineRecipients  LineRecipient[]
+  users           User[]
   messageSends    MessageSend[]
   favorites       Favorite[]
   articleReads    ArticleRead[]
   articleLikes    ArticleLike[]
   articleComments ArticleComment[]
   commentLikes    CommentLike[]
+  articleReports  ArticleReport[]
 }
 
 model Tag {
@@ -59,8 +62,8 @@ model Tag {
   label     String
   sortOrder Int    @default(0)
 
-  companies  CompanyTag[]
-  recipients LineRecipientTag[]
+  companies CompanyTag[]
+  users     UserTag[]
 }
 
 model CompanyTag {
@@ -78,22 +81,37 @@ model LineRecipient {
   companyId    String
   lineUserId   String    @unique
   displayName  String?
+  nickname     String?
   followedAt   DateTime  @default(now())
   unfollowedAt DateTime?
 
-  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  messageSends  MessageSend[]
-  recipientTags LineRecipientTag[]
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messageSends MessageSend[]
+  user         User?
 }
 
-model LineRecipientTag {
-  lineRecipientId String
-  tagId           String
+// 会社に紐づく「個人」。人数制限なし（LINE連携は任意でLineRecipientと1:1）。
+// BASEでの表示名・タグの好み（UserTag）の単位で、LINEリッチメニューとWEBの両方から同じデータを編集できる。
+model User {
+  id              String   @id @default(cuid())
+  companyId       String
+  name            String
+  lineRecipientId String?  @unique
+  createdAt       DateTime @default(now())
 
-  lineRecipient LineRecipient @relation(fields: [lineRecipientId], references: [id], onDelete: Cascade)
-  tag           Tag           @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lineRecipient LineRecipient? @relation(fields: [lineRecipientId], references: [id], onDelete: SetNull)
+  tags          UserTag[]
+}
 
-  @@id([lineRecipientId, tagId])
+model UserTag {
+  userId String
+  tagId  String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([userId, tagId])
 }
 
 enum WebhookSource {
@@ -133,7 +151,10 @@ model MessageBatch {
 
 model SiteDocument {
   id          String    @id @default(cuid())
-  url         String    @unique
+  url         String
+  // 分科会は1URL（1回の会合）から複数トピックの記事を作るため、themeNoで区別する。
+  // mhlw_latestは常に0（実質1URL=1記事のまま）。
+  themeNo     Int       @default(0)
   title       String
   source      String // "mhlw_latest" | "shingi"
   publishedAt DateTime?
@@ -144,11 +165,16 @@ model SiteDocument {
   processedAt DateTime?
   createdAt   DateTime  @default(now())
 
+  structuredContent Json?
+
   batches   BatchDocument[]
   favorites Favorite[]
   reads     ArticleRead[]
   likes     ArticleLike[]
   comments  ArticleComment[]
+  reports   ArticleReport[]
+
+  @@unique([url, themeNo])
 }
 
 model BatchDocument {
@@ -224,21 +250,35 @@ model ArticleComment {
   id             String   @id @default(cuid())
   companyId      String
   siteDocumentId String
+  authorName     String
   body           String   @db.Text
   createdAt      DateTime @default(now())
 
-  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  siteDocument SiteDocument @relation(fields: [siteDocumentId], references: [id], onDelete: Cascade)
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  siteDocument SiteDocument  @relation(fields: [siteDocumentId], references: [id], onDelete: Cascade)
   commentLikes CommentLike[]
 }
 
 model CommentLike {
-  companyId  String
-  commentId  String
-  createdAt  DateTime @default(now())
+  companyId String
+  commentId String
+  createdAt DateTime @default(now())
 
   company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   comment ArticleComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@id([companyId, commentId])
+}
+
+// 記事の内容についての誤り・わかりにくさの報告（ユーザーによる分散QA）
+model ArticleReport {
+  id             String   @id @default(cuid())
+  companyId      String
+  siteDocumentId String
+  category       String
+  body           String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  siteDocument SiteDocument @relation(fields: [siteDocumentId], references: [id], onDelete: Cascade)
 }

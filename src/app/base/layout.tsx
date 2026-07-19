@@ -1,6 +1,5 @@
 import { getSession } from "@/lib/auth";
-import BaseHeader from "./_components/BaseHeader";
-import GuestHeader from "./_components/GuestHeader";
+import HeaderGate from "./_components/HeaderGate";
 import LeftSidebar from "./_components/LeftSidebar";
 import RightSidebar from "./_components/RightSidebar";
 import LayoutShell from "./_components/LayoutShell";
@@ -11,7 +10,7 @@ export default async function BaseLayout({ children }: { children: React.ReactNo
 
   return (
     <div style={{ minHeight: "100vh", background: "#F5F7F6", fontFamily: "sans-serif" }}>
-      {session ? <BaseHeader companyName={session.companyName} /> : <GuestHeader />}
+      <HeaderGate companyName={session?.companyName ?? null} />
       <LayoutShell
         leftSidebar={
           <Suspense fallback={<div style={{ width: 210, flexShrink: 0 }} />}>

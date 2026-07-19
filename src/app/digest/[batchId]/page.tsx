@@ -1,9 +1,14 @@
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import type { Metadata } from "next";
+import type { StructuredContent } from "@/lib/anthropic";
+import BaseHeader from "../../base/_components/BaseHeader";
+import GuestHeader from "../../base/_components/GuestHeader";
 import styles from "./page.module.css";
 
-export const metadata: Metadata = { title: "週刊ダイジェスト | ヨミトク" };
+export const metadata: Metadata = { title: "週刊ヨミトク | ヨミトク編集部" };
 
 function formatDate(date: Date | null): string {
   if (!date) return "";
@@ -14,12 +19,14 @@ function formatDate(date: Date | null): string {
   }).format(new Date(date));
 }
 
-function sourceLabel(source: string) {
-  return source === "shingi" ? "介護給付費分科会" : "介護保険最新情報";
-}
+const SOURCE_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  mhlw_latest: { label: "介護保険最新情報", color: "#0D686E", bg: "#E8F5F1" },
+  shingi: { label: "分科会かんたん解説", color: "#B45309", bg: "#FEF3C7" },
+};
 
-function sourceIcon(source: string) {
-  return source === "shingi" ? "🏛️" : "📋";
+function starText(stars: number | null | undefined): string {
+  if (!stars) return "";
+  return "★".repeat(stars) + "☆".repeat(5 - stars);
 }
 
 export default async function DigestPage({
@@ -27,7 +34,7 @@ export default async function DigestPage({
 }: {
   params: Promise<{ batchId: string }>;
 }) {
-  const { batchId } = await params;
+  const [session, { batchId }] = await Promise.all([getSession(), params]);
 
   const batch = await prisma.messageBatch.findUnique({
     where: { id: batchId },
@@ -40,33 +47,29 @@ export default async function DigestPage({
 
   if (!batch) return notFound();
 
-  const docs = batch.documents
-    .map((bd) => bd.siteDocument)
-    .sort((a, b) => {
-      if (a.importance === "high" && b.importance !== "high") return -1;
-      if (b.importance === "high" && a.importance !== "high") return 1;
-      return 0;
-    });
-
-  const highDocs = docs.filter((d) => d.importance === "high");
-  const normalDocs = docs.filter((d) => d.importance !== "high");
-
+  const docs = batch.documents.map((bd) => bd.siteDocument);
   const batchDate = formatDate(batch.createdAt);
 
   return (
     <div className={styles.page}>
+      {session ? <BaseHeader companyName={session.companyName} /> : <GuestHeader />}
+
       {/* Cover */}
       <div className={styles.cover}>
-        <div className={styles.coverIcon}>📋</div>
-        <p className={styles.coverLabel}>介護保険最新情報</p>
-        <h1 className={styles.coverTitle}>{batch.title}</h1>
-        <p className={styles.coverDate}>{batchDate}</p>
-        <div className={styles.coverBadge}>
-          今回は {docs.length} 件の通知をまとめました
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/covers/digest-bg.png" alt="" className={styles.coverBgImg} />
+        <div className={styles.coverText}>
+          <div className={styles.coverIcon}>📋</div>
+          <p className={styles.coverLabel}>介護保険最新情報</p>
+          <h1 className={styles.coverTitle}>{batch.title}</h1>
+          <p className={styles.coverDate}>{batchDate}</p>
+          <div className={styles.coverBadge}>
+            今回は {docs.length} 件のトピックスをまとめました
+          </div>
+          <p className={styles.disclaimer}>
+            ※ 厚生労働省「介護保険最新情報」をもとにしたAI自動要約です。正式な内容は原文でご確認ください。
+          </p>
         </div>
-        <p className={styles.disclaimer}>
-          ※ 厚生労働省「介護保険最新情報」をもとにしたAI自動要約です。正式な内容は原文でご確認ください。
-        </p>
       </div>
 
       {/* Digest summary */}
@@ -76,84 +79,51 @@ export default async function DigestPage({
         </div>
       )}
 
-      {/* High priority docs */}
-      {highDocs.length > 0 && (
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>
-            <span className={styles.sectionIcon}>⚠️</span>重要な通知
-          </h2>
-          {highDocs.map((doc) => (
-            <div key={doc.id} className={`${styles.card} ${styles.cardHigh}`}>
-              <div className={styles.cardHeader}>
-                <span className={styles.sourceIcon}>{sourceIcon(doc.source)}</span>
-                <h3 className={styles.cardTitle}>{doc.title}</h3>
-              </div>
-              {doc.summary && (
-                <p className={styles.cardSummary}>{doc.summary}</p>
-              )}
-              <div className={styles.cardMeta}>
-                <div className={styles.tags}>
-                  {doc.tags.slice(0, 3).map((tag) => (
-                    <span key={tag} className={styles.tag}>
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <span className={styles.metaDate}>{formatDate(doc.publishedAt)}</span>
-                <a
-                  href={doc.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.sourceLink}
-                >
-                  資料を見る →
-                </a>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
+      {/* Card thumbnails */}
+      {docs.length > 0 && (
+        <div className={styles.cardGrid}>
+          {docs.map((doc) => {
+            const sc = doc.structuredContent as unknown as StructuredContent | null;
+            const src = SOURCE_BADGE[doc.source] ?? { label: doc.source, color: "#555", bg: "#F3F4F6" };
+            const displayTitle = sc?.hookTitle || doc.title;
+            const isNew = new Date().getTime() - new Date(doc.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000;
 
-      {/* Normal docs */}
-      {normalDocs.length > 0 && (
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>
-            <span className={styles.sectionIcon}>📋</span>今週の通知一覧
-          </h2>
-          {normalDocs.map((doc) => (
-            <div key={doc.id} className={styles.card}>
-              <div className={styles.cardHeader}>
-                <span className={styles.sourceIcon}>{sourceIcon(doc.source)}</span>
-                <h3 className={styles.cardTitle}>{doc.title}</h3>
-              </div>
-              {doc.summary && (
-                <p className={styles.cardSummary}>{doc.summary}</p>
-              )}
-              <div className={styles.cardMeta}>
-                <div className={styles.tags}>
-                  {doc.tags.slice(0, 3).map((tag) => (
-                    <span key={tag} className={styles.tag}>
-                      {tag}
-                    </span>
-                  ))}
+            return (
+              <Link key={doc.id} href={`/base/articles/${doc.id}`} className={styles.thumbCard}>
+                <div className={styles.thumbBadgeRow}>
+                  {isNew && <span className={styles.thumbBadgeNew}>新着</span>}
+                  <span className={styles.thumbBadgeSource} style={{ color: src.color, background: src.bg }}>
+                    {src.label}
+                  </span>
                 </div>
-                <span className={styles.metaDate}>{formatDate(doc.publishedAt)}</span>
-                <a
-                  href={doc.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.sourceLink}
-                >
-                  資料を見る →
-                </a>
-              </div>
-            </div>
-          ))}
-        </section>
+                <h3 className={styles.thumbTitle}>{displayTitle}</h3>
+                {(sc?.importanceStars || sc?.urgencyStars) && (
+                  <div className={styles.thumbStars}>
+                    {sc?.importanceStars && <span>重要度 {starText(sc.importanceStars)}</span>}
+                    {sc?.urgencyStars && <span>緊急度 {starText(sc.urgencyStars)}</span>}
+                  </div>
+                )}
+                {doc.tags.length > 0 && (
+                  <div className={styles.thumbTags}>
+                    {doc.tags.slice(0, 3).map((tag) => (
+                      <span key={tag} className={styles.tag}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className={styles.thumbMascotBadge} style={{ border: `2px solid ${src.color}` }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/mascot/gori-base-face.png" alt="" className={styles.thumbMascot} />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       )}
 
       <footer className={styles.footer}>
-        <p>ヨミトク | 介護保険最新情報</p>
+        <p>ヨミトク編集部 | 介護保険最新情報</p>
         <p className={styles.footerNote}>
           情報は{batchDate}時点のものです。最新情報は原文でご確認ください。
         </p>

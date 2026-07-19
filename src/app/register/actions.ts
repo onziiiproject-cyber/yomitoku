@@ -9,6 +9,7 @@ import { stripe } from "@/lib/stripe";
 
 const schema = z.object({
   companyName:  z.string().min(1).max(100),
+  facilityName: z.string().min(1).max(100),
   contactName:  z.string().min(1).max(50),
   contactRole:  z.string().min(1),
   email:        z.string().email(),
@@ -21,6 +22,7 @@ const schema = z.object({
 export async function startRegistration(_: unknown, formData: FormData) {
   const raw = {
     companyName:  formData.get("companyName"),
+    facilityName: formData.get("facilityName"),
     contactName:  formData.get("contactName"),
     contactRole:  formData.get("contactRole"),
     email:        formData.get("email"),
@@ -35,7 +37,7 @@ export async function startRegistration(_: unknown, formData: FormData) {
     return { error: "入力内容を確認してください。" };
   }
 
-  const { companyName, contactName, contactRole, email, password, phone, prefecture, tagKeys } = parsed.data;
+  const { companyName, facilityName, contactName, contactRole, email, password, phone, prefecture, tagKeys } = parsed.data;
 
   const tags = await prisma.tag.findMany({ where: { key: { in: tagKeys } } });
   if (tags.length === 0) {
@@ -58,6 +60,7 @@ export async function startRegistration(_: unknown, formData: FormData) {
   const company = await prisma.company.create({
     data: {
       name:         companyName,
+      facilityName,
       contactName,
       contactRole,
       email,
@@ -70,7 +73,7 @@ export async function startRegistration(_: unknown, formData: FormData) {
   });
 
   const headersList = await headers();
-  const host = headersList.get("host") ?? "yomitoru-xi.vercel.app";
+  const host = headersList.get("host") ?? "yomitoku-base.com";
   const proto = headersList.get("x-forwarded-proto") ?? "https";
   const baseUrl = `${proto}://${host}`;
 

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Stripeカスタマー情報が見つかりません" }, { status: 400 });
   }
 
-  const host = req.headers.get("host") ?? "yomitoru-xi.vercel.app";
+  const host = req.headers.get("host") ?? "yomitoku-base.com";
   const proto = req.headers.get("x-forwarded-proto") ?? "https";
   const returnUrl = `${proto}://${host}/base/settings`;
 

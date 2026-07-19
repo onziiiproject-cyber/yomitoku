@@ -28,12 +28,24 @@ export async function POST(req: NextRequest) {
 
   await prisma.company.update({ where: { id: company.id }, data: { lastLoginAt: new Date() } });
 
-  const token = await createSession({
+  // ID/PASSログインは会社単位の認証のため、登録済みの個人（User）が複数いる場合は
+  // このあと「あなたは誰ですか」で選んでもらう（0人なら新規作成、1人なら自動的に本人とみなす）
+  const users = await prisma.user.findMany({
+    where: { companyId: company.id },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const sessionPayload = {
     companyId: company.id,
     email: company.email,
     companyName: company.name,
-  });
+    ...(users.length === 1
+      ? { userId: users[0].id, nickname: users[0].name }
+      : {}),
+  };
+
+  const token = await createSession(sessionPayload);
   await setSessionCookie(token, rememberMe === true);
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, needsProfileSelect: users.length !== 1 });
 }

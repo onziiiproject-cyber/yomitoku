@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { buildPDFAIComment } from "@/lib/anthropic";
-import { pushWeeklyDigest, type DigestDoc } from "@/lib/line-message";
-import { generateDigestPDF, type PDFDigestDoc } from "@/lib/pdf-digest";
-import { put } from "@vercel/blob";
+import { pushWeeklyDigestCards, type WeeklyCardDoc } from "@/lib/line-message";
+import type { StructuredContent } from "@/lib/anthropic";
 
 export const maxDuration = 120;
 
@@ -24,53 +22,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No documents in DB yet" }, { status: 400 });
   }
 
-  const digestDocs: DigestDoc[] = docs.map((d) => ({
-    id: d.id,
-    title: d.title,
-    summary: d.summary ?? "",
-    url: d.url,
-    importance: d.importance,
-    tags: d.tags as string[],
-  }));
-
-  // PDF生成 → Blob
-  let pdfUrl: string | null = null;
-  try {
-    const pdfDocs: PDFDigestDoc[] = docs.map((d) => ({
+  const cardDocs: WeeklyCardDoc[] = docs.map((d) => {
+    const sc = d.structuredContent as unknown as StructuredContent | null;
+    return {
       id: d.id,
       title: d.title,
-      summary: d.summary ?? "",
-      url: d.url,
-      importance: d.importance,
+      hookTitle: sc?.hookTitle ?? null,
+      source: d.source,
       tags: (d.tags as string[]) ?? [],
-      publishedAt: d.publishedAt,
-      source: d.source ?? "",
-    }));
-
-    const aiComment = await buildPDFAIComment(
-      pdfDocs.map((d) => ({ title: d.title, summary: d.summary, tags: d.tags, importance: d.importance }))
-    );
-
-    const now = new Date();
-    const fmtJp = (d: Date) => `令和${d.getFullYear() - 2018}年${d.getMonth() + 1}月${d.getDate()}日`;
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-    const pdfBuffer = await generateDigestPDF(
-      pdfDocs,
-      "テスト号",
-      { from: fmtJp(weekAgo), to: fmtJp(now) },
-      aiComment
-    );
-
-    const blob = await put(
-      `digest/test-${now.toISOString().slice(0, 10)}.pdf`,
-      pdfBuffer,
-      { access: "public", contentType: "application/pdf", addRandomSuffix: false, allowOverwrite: true }
-    );
-    pdfUrl = blob.url;
-  } catch (e) {
-    console.error("[test-send] PDF generation failed:", e);
-  }
+      importanceStars: sc?.importanceStars ?? null,
+      urgencyStars: sc?.urgencyStars ?? null,
+      isNew: new Date().getTime() - new Date(d.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
+    };
+  });
 
   // LINE送信
   const recipients = await prisma.lineRecipient.findMany({
@@ -82,13 +46,13 @@ export async function POST(req: NextRequest) {
 
   for (const r of recipients) {
     try {
-      await pushWeeklyDigest(
+      await pushWeeklyDigestCards(
         r.lineUserId,
-        "【テスト送信】今週の介護保険最新情報をお届けします。これはヨミトクのFlex Messageテストです。",
-        digestDocs,
         "テスト",
-        testBatchId,
-        pdfUrl
+        cardDocs.length,
+        "【テスト送信】今週の介護保険最新情報をお届けします。これは週刊ヨミトクのFlex Message（カード形式）のテストです。",
+        cardDocs,
+        testBatchId
       );
       results.push(`✅ ${r.lineUserId}`);
     } catch (e) {
@@ -96,5 +60,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, sent: results.length, pdfUrl, results });
+  return NextResponse.json({ ok: true, sent: results.length, results });
 }

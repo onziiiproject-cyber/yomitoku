@@ -178,7 +178,7 @@ async function buildHTML(
   docs: PDFDigestDoc[],
   aiComment: string
 ): Promise<string> {
-  const logo = assetBase64("public/icons/logo-base-horizontal-trimmed.png");
+  const logo = assetBase64("public/icons/icon-gori-editor.jpg");
   const illustration = assetBase64("public/design/clipboard-illustration.png");
   const highCount = docs.filter(d => d.importance === "high").length;
 
@@ -198,15 +198,18 @@ async function buildHTML(
       <div style="display:flex;flex-direction:column;gap:28px;max-width:900px;z-index:2;">
 
         <!-- logo -->
-        <div style="display:flex;flex-direction:column;gap:5px;">
-          <img src="${logo}" style="height:38px;width:auto;object-fit:contain;object-position:left center;" alt="ヨミトク">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <img src="${logo}" style="height:38px;width:38px;border-radius:50%;object-fit:cover;" alt="">
+            <span style="font-size:22px;font-weight:800;color:${T.textPrimary};">ヨミトク編集部</span>
+          </div>
           <div style="font-size:15px;font-weight:600;color:${T.textSub};letter-spacing:0.15em;">介護保険最新情報</div>
         </div>
 
         <!-- title -->
         <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">
           <div style="font-size:64px;font-weight:800;color:${T.textPrimary};line-height:1.25;letter-spacing:0.01em;">介護保険最新情報</div>
-          <div style="font-size:64px;font-weight:800;color:${T.primary};line-height:1.25;letter-spacing:0.01em;">週刊ダイジェスト</div>
+          <div style="font-size:64px;font-weight:800;color:${T.primary};line-height:1.25;letter-spacing:0.01em;">週刊ヨミトク</div>
         </div>
 
         <!-- date pill -->
@@ -267,8 +270,9 @@ async function buildHTML(
           <div style="font-size:36px;font-weight:800;color:${T.textPrimary};">今週の通知一覧（${ci + 1}/${chunks.length}）</div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
-          <img src="${logo}" style="height:32px;width:auto;" alt="ヨミトク">
+          <img src="${logo}" style="height:32px;width:32px;border-radius:50%;object-fit:cover;" alt="">
           <div style="display:flex;flex-direction:column;gap:2px;">
+            <div style="font-size:14px;font-weight:800;color:${T.textPrimary};">ヨミトク編集部</div>
             <div style="font-size:12px;font-weight:600;color:${T.textSub};letter-spacing:0.1em;">介護保険最新情報</div>
           </div>
         </div>
@@ -329,7 +333,7 @@ async function buildHTML(
   <div style="width:1600px;height:900px;background:linear-gradient(135deg,${T.primary} 0%,#0A6B5F 100%);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;font-family:var(--font);">
     <div style="position:absolute;top:-120px;right:-120px;width:480px;height:480px;border-radius:50%;background:rgba(255,255,255,0.05);"></div>
     <div style="position:absolute;bottom:-90px;left:-90px;width:360px;height:360px;border-radius:50%;background:rgba(255,255,255,0.04);"></div>
-    <img src="${logo}" alt="ヨミトク" style="position:absolute;top:36px;right:52px;height:32px;width:auto;filter:brightness(0) invert(1);opacity:0.6;">
+    <div style="position:absolute;top:36px;right:52px;font-size:20px;font-weight:800;color:white;opacity:0.6;">ヨミトク編集部</div>
     <div style="max-width:860px;text-align:center;position:relative;z-index:1;padding:0 64px;">
       <div style="display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:100px;padding:10px 28px;margin-bottom:32px;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>

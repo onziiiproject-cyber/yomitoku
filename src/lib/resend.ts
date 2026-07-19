@@ -8,9 +8,9 @@ const LINE_ADD_URL = "https://line.me/R/ti/p/@324eesis";
 
 export async function sendWelcomeEmail(to: string, companyName: string, inviteCode: string) {
   await getResend().emails.send({
-    from: "YOMITOKU（送信専用） <noreply@yomitoku-base.com>",
+    from: "ヨミトク編集部（送信専用） <noreply@yomitoku-base.com>",
     to,
-    subject: "【YOMITOKU】ご登録ありがとうございます｜次のステップをご確認ください",
+    subject: "【ヨミトク編集部】ご登録ありがとうございます｜次のステップをご確認ください",
     html: `
 <!DOCTYPE html>
 <html lang="ja">
@@ -27,7 +27,7 @@ export async function sendWelcomeEmail(to: string, companyName: string, inviteCo
         <!-- ロゴ -->
         <tr>
           <td style="padding:32px 32px 20px;text-align:center;">
-            <span style="font-size:22px;font-weight:bold;color:#0D686E;">YOMITOKU</span>
+            <span style="font-size:22px;font-weight:bold;color:#0D686E;">ヨミトク編集部</span>
           </td>
         </tr>
 
@@ -94,18 +94,18 @@ export async function sendWelcomeEmail(to: string, companyName: string, inviteCo
           </td>
         </tr>
 
-        <!-- 招待コード -->
+        <!-- 事業所コード -->
         <tr>
           <td style="padding:0 32px 28px;">
             <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5FBF8;border-radius:12px;">
               <tr>
                 <td style="padding:20px;">
-                  <p style="margin:0 0 6px;font-size:14px;font-weight:bold;color:#0D686E;">法人内メンバーへの共有方法</p>
+                  <p style="margin:0 0 6px;font-size:14px;font-weight:bold;color:#0D686E;">事業所内メンバーへの共有方法</p>
                   <p style="margin:0 0 16px;font-size:13px;color:#555;line-height:1.85;">
                     1アカウントで3名まで共有できます。<br>
                     他のメンバーも同じURLから友だち追加してください。
                   </p>
-                  <p style="margin:0 0 8px;font-size:13px;color:#555;">招待コード（ご自身の確認用）</p>
+                  <p style="margin:0 0 8px;font-size:13px;color:#555;">事業所コード（LINE登録時に必要です）</p>
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td align="center" style="border:2px dashed #0D686E;border-radius:8px;padding:14px;">
@@ -126,8 +126,8 @@ export async function sendWelcomeEmail(to: string, companyName: string, inviteCo
               <tr>
                 <td style="padding:16px;">
                   <p style="margin:0;font-size:13px;color:#888;line-height:2.0;">
-                    ■ 配信開始：LINE友だち追加後、翌朝より<br>
-                    ■ 配信頻度：新着情報があり次第（原則毎日）<br>
+                    ■ 配信開始：LINE友だち追加後、翌週の配信より<br>
+                    ■ 配信頻度：毎週水曜日「週刊ヨミトク」<br>
                     ■ 料金：月額300円（税抜）・自動更新
                   </p>
                 </td>
@@ -149,7 +149,7 @@ export async function sendWelcomeEmail(to: string, companyName: string, inviteCo
         <!-- フッター -->
         <tr>
           <td style="padding:20px 32px;border-top:1px solid #D0E8DC;text-align:center;">
-            <p style="margin:0;font-size:11px;color:#bbb;">© 2026 YOMITOKU / 株式会社ONZiii Act</p>
+            <p style="margin:0;font-size:11px;color:#bbb;">© 2026 ヨミトク編集部 / 株式会社ONZiii Act</p>
           </td>
         </tr>
 
@@ -170,9 +170,9 @@ export async function sendFeatureRequestNotification(opts: {
   body: string;
 }) {
   await getResend().emails.send({
-    from: "YOMITOKU（送信専用） <noreply@yomitoku-base.com>",
+    from: "ヨミトク編集部（送信専用） <noreply@yomitoku-base.com>",
     to: "onziii.project@gmail.com",
-    subject: `【YOMITOKU】機能要望｜${opts.title}`,
+    subject: `【ヨミトク編集部】機能要望｜${opts.title}`,
     html: `
 <!DOCTYPE html>
 <html lang="ja">
@@ -184,7 +184,7 @@ export async function sendFeatureRequestNotification(opts: {
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:16px;">
         <tr>
           <td style="padding:28px 32px 16px;">
-            <span style="font-size:18px;font-weight:bold;color:#0D686E;">YOMITOKU</span>
+            <span style="font-size:18px;font-weight:bold;color:#0D686E;">ヨミトク編集部</span>
             <span style="margin-left:8px;font-size:12px;color:#888;">機能要望通知</span>
           </td>
         </tr>
@@ -208,7 +208,7 @@ export async function sendFeatureRequestNotification(opts: {
         </tr>
         <tr>
           <td style="padding:16px 32px;border-top:1px solid #E8F0EE;text-align:center;">
-            <p style="margin:0;font-size:11px;color:#bbb;">© 2026 YOMITOKU / 株式会社ONZiii Act</p>
+            <p style="margin:0;font-size:11px;color:#bbb;">© 2026 ヨミトク編集部 / 株式会社ONZiii Act</p>
           </td>
         </tr>
       </table>
@@ -222,9 +222,9 @@ export async function sendFeatureRequestNotification(opts: {
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   await getResend().emails.send({
-    from: "YOMITOKU（送信専用） <noreply@yomitoku-base.com>",
+    from: "ヨミトク編集部（送信専用） <noreply@yomitoku-base.com>",
     to,
-    subject: "【YOMITOKU】パスワードのリセット",
+    subject: "【ヨミトク編集部】パスワードのリセット",
     html: `
 <!DOCTYPE html>
 <html lang="ja">
@@ -240,7 +240,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
 
         <tr>
           <td style="padding:32px 32px 20px;text-align:center;">
-            <span style="font-size:22px;font-weight:bold;color:#0D686E;">YOMITOKU</span>
+            <span style="font-size:22px;font-weight:bold;color:#0D686E;">ヨミトク編集部</span>
           </td>
         </tr>
 
@@ -288,7 +288,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
 
         <tr>
           <td style="padding:20px 32px;border-top:1px solid #D0E8DC;text-align:center;">
-            <p style="margin:0;font-size:11px;color:#bbb;">© 2026 YOMITOKU / 株式会社ONZiii Act</p>
+            <p style="margin:0;font-size:11px;color:#bbb;">© 2026 ヨミトク編集部 / 株式会社ONZiii Act</p>
           </td>
         </tr>
 

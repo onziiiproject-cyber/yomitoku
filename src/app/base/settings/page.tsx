@@ -29,7 +29,8 @@ export default async function SettingsPage() {
       <section style={{ background: "#fff", borderRadius: 14, padding: "20px", border: "1.5px solid #E8F0EE", marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1B5E52", marginBottom: 16 }}>事業所情報</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <Row label="事業所名" value={company.name} />
+          <Row label="法人名" value={company.name} />
+          <Row label="事業所名" value={company.facilityName ?? "—"} />
           <Row label="担当者名" value={company.contactName} />
           <Row label="メールアドレス" value={company.email} />
           <Row label="プランステータス" value={{ ACTIVE: "有効", PENDING_PAYMENT: "お支払い待ち", PAST_DUE: "支払い延滞", CANCELED: "解約済み" }[company.status] ?? company.status} />
@@ -39,15 +40,15 @@ export default async function SettingsPage() {
 
       {/* Invite code */}
       <section style={{ background: "#fff", borderRadius: 14, padding: "20px", border: "1.5px solid #E8F0EE", marginBottom: 20 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1B5E52", marginBottom: 8 }}>会社コード</h2>
+        <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1B5E52", marginBottom: 8 }}>事業所コード</h2>
         <p style={{ fontSize: 13, color: "#666", marginBottom: 16, lineHeight: 1.6 }}>
-          LINEで通知を受け取るメンバーを追加するには、下記の会社コードをLINEのチャットで送信してもらってください。
+          LINEで通知を受け取るメンバーを追加するには、下記の事業所コードをLINEのチャットで送信してもらってください。
           （最大{maxRecipients}名まで）
         </p>
 
         {company.inviteCode ? (
           <div style={{ background: "#F7FAF9", border: "2px dashed #1B7A6D", borderRadius: 12, padding: "20px", textAlign: "center" }}>
-            <div style={{ fontSize: 13, color: "#6B9E96", marginBottom: 8 }}>会社コード</div>
+            <div style={{ fontSize: 13, color: "#6B9E96", marginBottom: 8 }}>事業所コード</div>
             <div style={{ fontSize: 32, fontWeight: 900, color: "#1B5E52", letterSpacing: "0.2em", fontFamily: "monospace" }}>
               {company.inviteCode}
             </div>
@@ -57,7 +58,7 @@ export default async function SettingsPage() {
           </div>
         ) : (
           <div style={{ background: "#FEF9EC", border: "1px solid #F5A623", borderRadius: 10, padding: "16px", fontSize: 13, color: "#7B4F00" }}>
-            会社コードはお支払い完了後に発行されます
+            事業所コードはお支払い完了後に発行されます
           </div>
         )}
       </section>

@@ -1,42 +1,21 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState } from "react";
+import CommentModal from "./CommentModal";
+import ReportModal from "./ReportModal";
+import type { ArticleContext } from "./ArticleContextCard";
 
 interface Comment {
   id: string;
   body: string;
-  companyName: string;
+  authorName: string;
   createdAt: string;
   likeCount: number;
   likedByMe: boolean;
 }
 
-function Avatar({ name }: { name: string }) {
-  return (
-    <div style={{
-      width: 38, height: 38, borderRadius: "50%",
-      background: "linear-gradient(135deg, #0D686E, #1B9C8E)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      flexShrink: 0, fontWeight: 800, fontSize: 15, color: "#fff",
-    }}>
-      {name?.[0] ?? "?"}
-    </div>
-  );
-}
-
-function relativeTime(d: string) {
-  const diff = Date.now() - new Date(d).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "たった今";
-  if (mins < 60) return `${mins}分前`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}時間前`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}日前`;
-  return new Date(d).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
-}
-
 export default function LikeCommentSection({
   docId,
+  article,
   initialRead, initialReadCount,
   initialLiked, initialLikeCount,
   initialFavorited,
@@ -44,6 +23,7 @@ export default function LikeCommentSection({
   isLoggedIn,
 }: {
   docId: string;
+  article: ArticleContext;
   initialRead: boolean; initialReadCount: number;
   initialLiked: boolean; initialLikeCount: number;
   initialFavorited: boolean;
@@ -56,11 +36,16 @@ export default function LikeCommentSection({
   const [likeCount, setLikeCount] = useState(initialLikeCount);
   const [favorited, setFavorited] = useState(initialFavorited);
   const [comments, setComments] = useState<Comment[]>(initialComments);
-  const [showCommentInput, setShowCommentInput] = useState(false);
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
   const [body, setBody] = useState("");
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportCategory, setReportCategory] = useState("");
+  const [reportBody, setReportBody] = useState("");
+  const [reportPosting, setReportPosting] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [reportSent, setReportSent] = useState(false);
 
   function requireLogin() { window.location.href = "/base/login"; }
 
@@ -93,8 +78,38 @@ export default function LikeCommentSection({
 
   function handleCommentBtn() {
     if (!isLoggedIn) { requireLogin(); return; }
-    setShowCommentInput((v) => !v);
-    setTimeout(() => textareaRef.current?.focus(), 50);
+    setCommentModalOpen(true);
+  }
+
+  function handleReportBtn() {
+    if (!isLoggedIn) { requireLogin(); return; }
+    setReportModalOpen(true);
+  }
+
+  async function handleReportSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reportCategory) return;
+    setReportPosting(true); setReportError("");
+    const res = await fetch("/api/base/reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ docId, category: reportCategory, body: reportBody }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setReportError(data.error ?? "エラーが発生しました"); }
+    else { setReportSent(true); }
+    setReportPosting(false);
+  }
+
+  function closeReportModal() {
+    setReportModalOpen(false);
+    // 少し待ってからリセット（閉じるアニメーション中に文言が変わらないように）
+    setTimeout(() => {
+      setReportSent(false);
+      setReportCategory("");
+      setReportBody("");
+      setReportError("");
+    }, 200);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -109,8 +124,8 @@ export default function LikeCommentSection({
     const data = await res.json();
     if (!res.ok) { setError(data.error ?? "エラーが発生しました"); }
     else {
-      setComments((prev) => [{ ...data, likeCount: 0, likedByMe: false }, ...prev]);
-      setBody(""); setShowCommentInput(false);
+      setComments((prev) => [{ id: data.id, body: data.body, authorName: data.authorName, createdAt: data.createdAt, likeCount: 0, likedByMe: false }, ...prev]);
+      setBody("");
     }
     setPosting(false);
   }
@@ -139,35 +154,32 @@ export default function LikeCommentSection({
     <button
       onClick={onClick}
       style={{
-        display: "flex", alignItems: "center", gap: 6,
-        background: active ? `${activeColor}18` : "transparent",
-        border: `1.5px solid ${active ? activeColor : "#E2EDEB"}`,
-        borderRadius: 20, padding: "7px 14px",
+        display: "flex", alignItems: "center", gap: 5,
+        background: "transparent",
+        border: "none", padding: "4px 2px",
         fontSize: 13, fontWeight: active ? 700 : 500,
         color: active ? activeColor : "#666",
-        cursor: "pointer", transition: "all 0.15s",
+        cursor: "pointer", transition: "color 0.15s",
         whiteSpace: "nowrap",
       }}
     >
       {icon}
       <span>{label}</span>
-      {count !== null && count > 0 && (
+      {count !== null && (
         <span style={{
-          background: active ? activeColor : "#E5E7EB",
-          color: active ? "#fff" : "#666",
-          borderRadius: 10, padding: "0 6px", fontSize: 11, fontWeight: 700,
+          color: active ? activeColor : "#999",
+          fontSize: 12, fontWeight: 700,
         }}>{count}</span>
       )}
     </button>
   );
 
   return (
-    <div style={{ marginTop: 28 }}>
+    <div>
       {/* Action bar */}
       <div style={{
-        display: "flex", gap: 8, flexWrap: "wrap",
-        paddingBottom: 16, borderBottom: "1px solid #E8F0EE",
-        marginBottom: 20,
+        display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center",
+        paddingBottom: 12, borderBottom: "1px solid #E8F0EE",
       }}>
         {actionBtn(handleRead,
           <svg width="15" height="15" viewBox="0 0 24 24" fill={read ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
@@ -179,86 +191,45 @@ export default function LikeCommentSection({
         )}
         {actionBtn(handleCommentBtn,
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
-          "コメント", comments.length, showCommentInput, "#6366F1"
+          "コメント", comments.length, commentModalOpen, "#6366F1"
         )}
         {actionBtn(handleFavorite,
           <svg width="15" height="15" viewBox="0 0 24 24" fill={favorited ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>,
           "保存", null, favorited, "#D97706"
         )}
+        {actionBtn(handleReportBtn,
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>,
+          "報告", null, reportModalOpen, "#888888"
+        )}
       </div>
 
-      {/* Comment input */}
-      {showCommentInput && isLoggedIn && (
-        <form onSubmit={handleSubmit} style={{ marginBottom: 20 }}>
-          <textarea
-            ref={textareaRef}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="コメントを追加..."
-            maxLength={500}
-            rows={3}
-            style={{
-              width: "100%", borderRadius: 12,
-              border: "1.5px solid #0D686E",
-              padding: "12px 14px", fontSize: 14, color: "#1a1a1a",
-              resize: "vertical", fontFamily: "inherit", boxSizing: "border-box",
-              outline: "none", background: "#F7FAF9",
-            }}
-          />
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-            <span style={{ fontSize: 12, color: "#aaa" }}>{body.length} / 500</span>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button type="button" onClick={() => setShowCommentInput(false)}
-                style={{ background: "transparent", border: "1.5px solid #D1D5DB", borderRadius: 8, padding: "7px 14px", fontSize: 13, color: "#666", cursor: "pointer" }}>
-                キャンセル
-              </button>
-              <button type="submit" disabled={posting || !body.trim()}
-                style={{ background: posting || !body.trim() ? "#ccc" : "#0D686E", color: "#fff", border: "none", borderRadius: 8, padding: "7px 18px", fontSize: 13, fontWeight: 700, cursor: posting || !body.trim() ? "not-allowed" : "pointer" }}>
-                {posting ? "送信中..." : "投稿する"}
-              </button>
-            </div>
-          </div>
-          {error && <p style={{ fontSize: 13, color: "#DC2626", marginTop: 6 }}>{error}</p>}
-        </form>
-      )}
+      <CommentModal
+        open={commentModalOpen}
+        onClose={() => setCommentModalOpen(false)}
+        article={article}
+        comments={comments}
+        isLoggedIn={isLoggedIn}
+        body={body}
+        onBodyChange={setBody}
+        onSubmit={handleSubmit}
+        posting={posting}
+        error={error}
+        onCommentLike={handleCommentLike}
+      />
 
-      {/* Comments feed */}
-      {comments.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {comments.map((c) => (
-            <div key={c.id} style={{ display: "flex", gap: 12 }}>
-              <Avatar name={c.companyName} />
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a" }}>{c.companyName}</span>
-                  <span style={{ fontSize: 11, color: "#aaa" }}>{relativeTime(c.createdAt)}</span>
-                </div>
-                <p style={{ fontSize: 14, color: "#333", margin: 0, lineHeight: 1.7, whiteSpace: "pre-wrap", marginBottom: 8 }}>{c.body}</p>
-                <button
-                  onClick={() => handleCommentLike(c.id)}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 4,
-                    background: "transparent", border: "none", padding: "2px 0",
-                    fontSize: 12, color: c.likedByMe ? "#E53E3E" : "#aaa",
-                    cursor: "pointer", fontWeight: c.likedByMe ? 700 : 400,
-                  }}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill={c.likedByMe ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                  </svg>
-                  {c.likeCount > 0 ? `${c.likeCount}` : "いいね"}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {comments.length === 0 && !showCommentInput && (
-        <p style={{ fontSize: 13, color: "#bbb", textAlign: "center", padding: "12px 0" }}>
-          最初のコメントを書いてみましょう
-        </p>
-      )}
+      <ReportModal
+        open={reportModalOpen}
+        onClose={closeReportModal}
+        article={article}
+        category={reportCategory}
+        onCategoryChange={setReportCategory}
+        body={reportBody}
+        onBodyChange={setReportBody}
+        onSubmit={handleReportSubmit}
+        posting={reportPosting}
+        error={reportError}
+        sent={reportSent}
+      />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import styles from "../legal.module.css";
 
 export const metadata: Metadata = {
-  title: "特定商取引法に基づく表記 | YOMITOKU",
+  title: "特定商取引法に基づく表記 | ヨミトク編集部",
 };
 
 const rows = [
@@ -11,7 +11,7 @@ const rows = [
   { label: "所在地", value: "愛知県安城市美園町1-23-1" },
   { label: "電話番号", value: "0566-91-0257（受付：平日10:00〜17:00）" },
   { label: "メールアドレス", value: "onziii.project@gmail.com" },
-  { label: "サービス名", value: "YOMITOKU（ヨミトク）｜介護保険最新情報" },
+  { label: "サービス名", value: "ヨミトク編集部｜介護保険最新情報" },
   { label: "サービスの内容", value: "介護保険に関する公的機関の最新情報をAIで要約し、LINEメッセージで配信するSaaS型情報サービス" },
   { label: "料金", value: "月額300円（税抜）／年額3,000円（税抜）\n※別途消費税がかかります" },
   { label: "支払方法", value: "クレジットカード（Visa・Mastercard・American Express・JCB）" },
