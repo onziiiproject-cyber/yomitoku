@@ -176,8 +176,8 @@ async function lineApi(method, endpoint, body) {
 // 3. リッチメニュー作成・設定
 // ────────────────────────────────────────────────────────
 async function setupRichMenu(imagePath) {
-  // 画像: 1200×809  上60%=495px  下3等分=400px
-  const W = 1200, H = 809, splitY = 495, colW = 400;
+  // 画像: 1536×1024  上部=655px（編集室へ）  下3等分=512px（タグ設定・機能要望・個別相談）
+  const W = 1536, H = 1024, splitY = 655, colW = Math.round(W / 3);
   const isJpeg = imagePath.endsWith(".jpg") || imagePath.endsWith(".jpeg");
 
   // 3-1. 既存削除
@@ -194,12 +194,12 @@ async function setupRichMenu(imagePath) {
   const { richMenuId } = await lineApi("POST", "/richmenu", {
     size:        { width: W, height: H },
     selected:    true,
-    name:        "ヨミトクメニュー",
-    chatBarText: "メニューを開く",
+    name:        "ヨミトク編集部メニュー",
+    chatBarText: "編集室を開く",
     areas: [
       {
         bounds: { x: 0, y: 0, width: W, height: splitY },
-        action: { type: "uri", label: "過去の記事を検索・閲覧", uri: BASE_URL },
+        action: { type: "uri", label: "ヨミトク編集室へ", uri: BASE_URL },
       },
       {
         bounds: { x: 0, y: splitY, width: colW, height: H - splitY },
