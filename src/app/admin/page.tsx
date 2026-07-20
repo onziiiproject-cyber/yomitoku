@@ -8,6 +8,17 @@ const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }>
   CANCELED:        { label: "解約済み",     color: "#888",    bg: "#F3F4F6" },
 };
 
+function isInTrial(c: { status: string; trialEndsAt: Date | null }) {
+  return c.status === "ACTIVE" && !!c.trialEndsAt && new Date(c.trialEndsAt) > new Date();
+}
+
+function getDisplayStatus(c: { status: string; trialEndsAt: Date | null }) {
+  if (isInTrial(c)) {
+    return { label: `無料期間中（〜${formatDate(c.trialEndsAt!)}）`, color: "#7C3AED", bg: "#F3E8FF" };
+  }
+  return STATUS_LABEL[c.status] ?? { label: c.status, color: "#555", bg: "#eee" };
+}
+
 function formatDate(d: Date) {
   return new Date(d).toLocaleDateString("ja-JP", { year: "numeric", month: "numeric", day: "numeric" });
 }
@@ -62,9 +73,10 @@ export default async function AdminPage() {
     },
   });
 
-  const total   = companies.length;
-  const active  = companies.filter((c) => c.status === "ACTIVE").length;
-  const pending = companies.filter((c) => c.status === "PENDING_PAYMENT").length;
+  const total    = companies.length;
+  const active   = companies.filter((c) => c.status === "ACTIVE" && !isInTrial(c)).length;
+  const trialing = companies.filter(isInTrial).length;
+  const pending  = companies.filter((c) => c.status === "PENDING_PAYMENT").length;
   const totalLine = companies.reduce((sum, c) => sum + c.lineRecipients.length, 0);
 
   const registrationData = buildWeeklyRegistrations(companies);
@@ -77,10 +89,11 @@ export default async function AdminPage() {
       <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1F2E2A", margin: 0 }}>登録企業一覧</h1>
 
       {/* 統計カード */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }}>
         {[
           { label: "総登録数",        value: total,     color: "#0D686E" },
           { label: "有効（課金中）",  value: active,    color: "#059669" },
+          { label: "無料期間中",      value: trialing,  color: "#7C3AED" },
           { label: "お支払い待ち",    value: pending,   color: "#D97706" },
           { label: "LINE登録人数",    value: totalLine, color: "#2563EB" },
         ].map((s) => (
@@ -122,7 +135,7 @@ export default async function AdminPage() {
               </tr>
             ) : (
               companies.map((c, i) => {
-                const st = STATUS_LABEL[c.status] ?? { label: c.status, color: "#555", bg: "#eee" };
+                const st = getDisplayStatus(c);
                 return (
                   <tr key={c.id} style={{ borderBottom: i < companies.length - 1 ? "1px solid #F0F0F0" : "none" }}>
                     <td style={{ padding: "14px", fontWeight: 600, color: "#1a1a1a" }}>{c.name}</td>
