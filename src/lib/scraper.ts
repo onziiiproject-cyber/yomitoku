@@ -125,8 +125,10 @@ export async function scrapeMhlwLatest(
       l.text.length > 10
   );
 
+  // 一覧ページ自体に数年分（2020年〜）が掲載されているため、直近30件に絞らず
+  // 全候補をsinceで絞り込む（日次cronはsince=1週間前を渡すので通常運用への影響はない）
   const items: ScrapedItem[] = [];
-  for (const link of candidates.slice(0, 30)) {
+  for (const link of candidates) {
     // 日付はリンクテキスト内 or リンク直後のコンテキスト（令和N年M月D日...）
     const publishedAt = parseDate(link.text) ?? parseDate(link.context);
     if (since && publishedAt && publishedAt < since) continue;
