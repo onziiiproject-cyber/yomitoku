@@ -103,7 +103,7 @@ async function setupBeforeRichMenu(imagePath) {
   console.log(`✅ リッチメニュー作成: ${richMenuId}`);
 
   const jpegPath = path.join(ROOT, "public/rich-menu-before.jpg");
-  await sharp(imagePath).resize(1200, null).jpeg({ quality: 85 }).toFile(jpegPath);
+  await sharp(imagePath).resize(W, H, { fit: "cover" }).jpeg({ quality: 90 }).toFile(jpegPath);
   const imageBuffer = readFileSync(jpegPath);
 
   const uploadRes = await fetch(`https://api-data.line.me/v2/bot/richmenu/${richMenuId}/content`, {
@@ -127,8 +127,16 @@ async function setupBeforeRichMenu(imagePath) {
 
 (async () => {
   try {
-    console.log("🎨 リッチメニュー画像を生成中...");
-    const imagePath = await buildImage();
+    const sourcePath = path.join(ROOT, "public/rich-menu-assets/before-source.png");
+    let imagePath;
+    try {
+      readFileSync(sourcePath);
+      imagePath = sourcePath;
+      console.log("📁 既存のデザイン画像を使用: public/rich-menu-assets/before-source.png");
+    } catch {
+      console.log("🎨 リッチメニュー画像を生成中...");
+      imagePath = await buildImage();
+    }
 
     console.log("📡 LINE APIに登録中...");
     const id = await setupBeforeRichMenu(imagePath);
