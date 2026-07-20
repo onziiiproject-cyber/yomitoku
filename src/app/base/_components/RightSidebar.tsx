@@ -16,7 +16,7 @@ export default async function RightSidebar() {
   const [breakingDocs, latestBatch] = await Promise.all([
     prisma.siteDocument.findMany({
       where: { importance: "high", summary: { not: null }, publishedAt: { not: null } },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
       take: 4,
       select: { id: true, title: true, source: true, publishedAt: true, createdAt: true, structuredContent: true },
     }),

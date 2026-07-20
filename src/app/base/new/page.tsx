@@ -17,7 +17,7 @@ export default async function NewArticlesPage({
   const [docs, total, favorites] = await Promise.all([
     prisma.siteDocument.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
       take,
       skip,
       select: {
