@@ -102,11 +102,13 @@ async function handleEvent(ev: LineEvent, client: messagingApi.MessagingApiClien
     const text = ev.message.text?.trim() ?? "";
     const normalizedCode = normalizeInviteCode(text);
     const existingRecipient = await prisma.lineRecipient.findUnique({ where: { lineUserId: userId } });
+    // ブロック解除後の再登録を許可するため、unfollowedAtが立っている行は「未登録」として扱う
+    const activeRecipient = existingRecipient?.unfollowedAt ? null : existingRecipient;
 
     // Check if the message looks like a facility invite code (8 uppercase alphanumeric chars)
     // 全角入力・小文字はnormalizeInviteCodeで吸収する
     const codeMatch = normalizedCode.match(/^[A-Z2-9]{8}$/);
-    if (codeMatch && !existingRecipient) {
+    if (codeMatch && !activeRecipient) {
       const company = await prisma.company.findFirst({
         where: { inviteCode: normalizedCode, status: "ACTIVE" },
         include: { lineRecipients: { where: { unfollowedAt: null } } },
@@ -130,14 +132,24 @@ async function handleEvent(ev: LineEvent, client: messagingApi.MessagingApiClien
           displayName = profile.displayName;
         } catch { /* ignore */ }
 
-        const newRecipient = await prisma.lineRecipient.create({
-          data: { lineUserId: userId, companyId: company.id, displayName },
+        // lineUserIdはunique制約があるため、ブロック解除後の再登録は
+        // 既存行を復活させる（unfollowedAtをクリアし、新しい事業所に付け替える）
+        const newRecipient = await prisma.lineRecipient.upsert({
+          where: { lineUserId: userId },
+          create: { lineUserId: userId, companyId: company.id, displayName },
+          update: { companyId: company.id, displayName, unfollowedAt: null, nickname: null },
         });
 
         // 個人（User）を新規作成。BASEでの表示名・タグの好みはこの単位で管理する
-        const newUser = await prisma.user.create({
-          data: { companyId: company.id, name: displayName, lineRecipientId: newRecipient.id },
-        });
+        const existingUser = await prisma.user.findUnique({ where: { lineRecipientId: newRecipient.id } });
+        const newUser = existingUser
+          ? await prisma.user.update({
+              where: { id: existingUser.id },
+              data: { companyId: company.id, name: displayName },
+            })
+          : await prisma.user.create({
+              data: { companyId: company.id, name: displayName, lineRecipientId: newRecipient.id },
+            });
 
         // 法人タグを個人の初期タグとしてコピー
         const companyTags = await prisma.companyTag.findMany({ where: { companyId: company.id } });
@@ -161,14 +173,14 @@ async function handleEvent(ev: LineEvent, client: messagingApi.MessagingApiClien
     }
 
     // ニックネームがまだ未設定の場合は次のメッセージをニックネームとして保存
-    if (existingRecipient && !existingRecipient.nickname) {
+    if (activeRecipient && !activeRecipient.nickname) {
       if (text.length > 0 && text.length <= 20) {
         await prisma.lineRecipient.update({
           where: { lineUserId: userId },
           data: { nickname: text },
         });
         await prisma.user.updateMany({
-          where: { lineRecipientId: existingRecipient.id },
+          where: { lineRecipientId: activeRecipient.id },
           data: { name: text },
         });
         await client.replyMessage({
@@ -191,7 +203,7 @@ async function handleEvent(ev: LineEvent, client: messagingApi.MessagingApiClien
     }
 
     // 登録済み・ニックネーム設定済みユーザーからのメッセージは無視
-    if (existingRecipient) {
+    if (activeRecipient) {
       return;
     }
 
