@@ -4,8 +4,12 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { customAlphabet } from "nanoid";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
+import { sendWelcomeEmail, sendSignupNotification } from "@/lib/resend";
+
+const generateInviteCode = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 8);
 
 const schema = z.object({
   companyName:  z.string().min(1).max(100),
@@ -90,6 +94,17 @@ export async function startRegistration(_: unknown, formData: FormData) {
     : await prisma.company.create({
         data: { ...companyData, email, tags: { create: tags.map((t) => ({ tagId: t.id })) } },
       });
+
+  // アンバサダー登録：決済を挟まず即アクティブ化する
+  if (referral?.isAmbassador) {
+    const activated = await prisma.company.update({
+      where: { id: company.id },
+      data: { status: "ACTIVE", inviteCode: generateInviteCode() },
+    });
+    await sendWelcomeEmail(activated.email, activated.name, activated.inviteCode!).catch(console.error);
+    await sendSignupNotification({ companyName: activated.name, email: activated.email }).catch(console.error);
+    redirect(`/thanks?code=${activated.inviteCode}`);
+  }
 
   const headersList = await headers();
   const host = headersList.get("host") ?? "yomitoku-base.com";

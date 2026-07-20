@@ -41,7 +41,7 @@ const PREFECTURES = [
 
 type Tag = { key: string; label: string };
 
-export default function RegisterForm({ tags, referralCode }: { tags: Tag[]; referralCode: string | null }) {
+export default function RegisterForm({ tags, referralCode, isAmbassador = false }: { tags: Tag[]; referralCode: string | null; isAmbassador?: boolean }) {
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [agreed, setAgreed] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -299,17 +299,24 @@ export default function RegisterForm({ tags, referralCode }: { tags: Tag[]; refe
         <p className={styles.errorMsg}>{state.error}</p>
       )}
 
-      <div className={styles.summary}>
-        <p>月額 <strong>¥300（税抜）</strong></p>
-        <p className={styles.summaryNote}>クレジットカードで安全に決済（Stripe）</p>
-      </div>
+      {isAmbassador ? (
+        <div className={styles.summary}>
+          <p><strong>アンバサダー登録</strong></p>
+          <p className={styles.summaryNote}>お支払い情報の入力は不要です</p>
+        </div>
+      ) : (
+        <div className={styles.summary}>
+          <p>月額 <strong>¥300（税抜）</strong></p>
+          <p className={styles.summaryNote}>クレジットカードで安全に決済（Stripe）</p>
+        </div>
+      )}
 
       <button
         type="submit"
         className={styles.submitBtn}
         disabled={pending || selectedKeys.length === 0 || !agreed || passwordMismatch || password.length < 8}
       >
-        {pending ? "処理中..." : "お支払いに進む →"}
+        {pending ? "処理中..." : isAmbassador ? "登録する →" : "お支払いに進む →"}
       </button>
 
     </form>

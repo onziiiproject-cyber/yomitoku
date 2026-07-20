@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { label, expiresAt } = await req.json().catch(() => ({ label: undefined, expiresAt: undefined }));
+  const { label, expiresAt, isAmbassador } = await req.json().catch(() => ({ label: undefined, expiresAt: undefined, isAmbassador: false }));
   const trimmedLabel = typeof label === "string" ? label.trim() : "";
   if (!trimmedLabel) {
     return NextResponse.json({ error: "キャンペーン名を入力してください" }, { status: 400 });
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   }
 
   const referralCode = await prisma.referralCode.create({
-    data: { code: generateCode(), label: trimmedLabel, expiresAt: expiresAtDate },
+    data: { code: generateCode(), label: trimmedLabel, expiresAt: expiresAtDate, isAmbassador: isAmbassador === true },
   });
 
   return NextResponse.json({
@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     code: referralCode.code,
     label: referralCode.label,
     expiresAt: referralCode.expiresAt,
+    isAmbassador: referralCode.isAmbassador,
     createdAt: referralCode.createdAt,
   });
 }

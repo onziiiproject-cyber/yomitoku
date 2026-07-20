@@ -6,6 +6,7 @@ interface ReferralCodeRow {
   code: string;
   label: string;
   expiresAt: string | null;
+  isAmbassador: boolean;
   createdAt: string;
   signupCount: number;
   conversionCount: number;
@@ -25,6 +26,7 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
   const [codes, setCodes] = useState(initialCodes);
   const [label, setLabel] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+  const [isAmbassador, setIsAmbassador] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
       const res = await fetch("/api/admin/referral-codes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: label.trim(), expiresAt: expiresAt || undefined }),
+        body: JSON.stringify({ label: label.trim(), expiresAt: expiresAt || undefined, isAmbassador }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) {
@@ -57,6 +59,7 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
       setCodes((prev) => [{ ...data, signupCount: 0, conversionCount: 0 }, ...prev]);
       setLabel("");
       setExpiresAt("");
+      setIsAmbassador(false);
     } catch {
       setError("エラーが発生しました");
     } finally {
@@ -102,6 +105,10 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
             {creating ? "発行中..." : "発行する"}
           </button>
         </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 12, color: "#555", cursor: "pointer" }}>
+          <input type="checkbox" checked={isAmbassador} onChange={(e) => setIsAmbassador(e.target.checked)} />
+          アンバサダー用登録（決済不要・即アクティブ化）
+        </label>
         {error && <p style={{ fontSize: 12, color: "#DC2626", marginTop: 8, marginBottom: 0 }}>{error}</p>}
       </div>
 
@@ -129,7 +136,14 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
                       <img src={qrSrc(c.code)} alt="" width={48} height={48} style={{ display: "block", borderRadius: 4, border: "1px solid #E8F0EE" }} />
                     </td>
                     <td style={{ padding: "14px", color: "#888", whiteSpace: "nowrap" }}>{formatDate(c.createdAt)}</td>
-                    <td style={{ padding: "14px", color: "#333" }}>{c.label}</td>
+                    <td style={{ padding: "14px", color: "#333" }}>
+                      {c.label}
+                      {c.isAmbassador && (
+                        <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: "#7C3AED", background: "#F3E8FF", padding: "2px 7px", borderRadius: 10 }}>
+                          アンバサダー
+                        </span>
+                      )}
+                    </td>
                     <td style={{ padding: "14px", color: "#1a1a1a", fontFamily: "monospace", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {linkFor(c.code)}
                     </td>

@@ -72,6 +72,8 @@ model ReferralCode {
   code      String    @unique
   label     String
   expiresAt DateTime?
+  // trueの場合、このコードでの登録はStripe決済をスキップし即アクティブ化する（アンバサダー登録用）
+  isAmbassador Boolean @default(false)
   createdAt DateTime  @default(now())
 
   referredCompanies Company[] @relation("ReferredByCode")

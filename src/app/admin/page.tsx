@@ -12,7 +12,10 @@ function isInTrial(c: { status: string; trialEndsAt: Date | null }) {
   return c.status === "ACTIVE" && !!c.trialEndsAt && new Date(c.trialEndsAt) > new Date();
 }
 
-function getDisplayStatus(c: { status: string; trialEndsAt: Date | null }) {
+function getDisplayStatus(c: { status: string; trialEndsAt: Date | null; referredByCode?: { isAmbassador: boolean } | null }) {
+  if (c.status === "ACTIVE" && c.referredByCode?.isAmbassador) {
+    return { label: "アンバサダー", color: "#7C3AED", bg: "#F3E8FF" };
+  }
   if (isInTrial(c)) {
     return { label: `無料期間中（〜${formatDate(c.trialEndsAt!)}）`, color: "#7C3AED", bg: "#F3E8FF" };
   }
@@ -70,6 +73,7 @@ export default async function AdminPage() {
     include: {
       tags: { include: { tag: true } },
       lineRecipients: { where: { unfollowedAt: null } },
+      referredByCode: { select: { isAmbassador: true } },
     },
   });
 

@@ -20,6 +20,7 @@ export default async function AdminReferralsPage() {
     code: c.code,
     label: c.label,
     expiresAt: c.expiresAt ? c.expiresAt.toISOString() : null,
+    isAmbassador: c.isAmbassador,
     createdAt: c.createdAt.toISOString(),
     signupCount: c.referredCompanies.length,
     conversionCount: c.referredCompanies.filter((r) => r.status === "ACTIVE").length,

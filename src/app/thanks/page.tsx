@@ -35,10 +35,12 @@ async function resolveInviteCode(sessionId?: string): Promise<string | null> {
 export default async function ThanksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ session_id?: string }>;
+  searchParams: Promise<{ session_id?: string; code?: string }>;
 }) {
-  const { session_id } = await searchParams;
-  const inviteCode = await resolveInviteCode(session_id);
+  const { session_id, code } = await searchParams;
+  // アンバサダー登録はStripe Checkoutを経由しないため、
+  // 決済完了を待つ必要がなく発行済みの事業所コードをそのまま表示する
+  const inviteCode = code ?? (await resolveInviteCode(session_id));
 
   return (
     <div className={styles.page}>
@@ -63,7 +65,7 @@ export default async function ThanksPage({
           </svg>
         </div>
 
-        <h1 className={styles.title}>お支払いが完了しました</h1>
+        <h1 className={styles.title}>{code ? "登録が完了しました" : "お支払いが完了しました"}</h1>
         <p className={styles.subtitle}>ご登録ありがとうございます</p>
 
         {/* 事業所コード */}
