@@ -59,17 +59,14 @@ export async function startRegistration(_: unknown, formData: FormData) {
     ? referralRaw
     : null;
 
-  const stripeCustomer = existing?.stripeCustomerId
-    ? await stripe.customers.update(existing.stripeCustomerId, {
-        name: companyName,
-        email,
-        metadata: { contactName, contactRole, prefecture: prefecture ?? "" },
-      })
-    : await stripe.customers.create({
-        name: companyName,
-        email,
-        metadata: { contactName, contactRole, prefecture: prefecture ?? "" },
-      });
+  // 既存のstripeCustomerIdは再利用しない。以前の登録時と異なるStripeモード
+  // （test/live）で作られていた場合、そのIDは現在のキーでは存在せずエラーになるため、
+  // リトライ時も常に新規のCustomerを作成する
+  const stripeCustomer = await stripe.customers.create({
+    name: companyName,
+    email,
+    metadata: { contactName, contactRole, prefecture: prefecture ?? "" },
+  });
 
   const passwordHash = await bcrypt.hash(password, 12);
 
