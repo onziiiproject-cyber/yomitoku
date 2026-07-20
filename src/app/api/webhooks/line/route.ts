@@ -13,6 +13,15 @@ function verifySignature(body: string, sig: string, secret: string): boolean {
   return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
 }
 
+// 全角英数字→半角、小文字→大文字、空白除去。日本語キーボードでの全角変換や
+// 大文字小文字の揺れで事業所コードが一致しない、という事象を防ぐ。
+function normalizeInviteCode(input: string): string {
+  return input
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+    .toUpperCase()
+    .replace(/\s+/g, "");
+}
+
 function getClient() {
   return new messagingApi.MessagingApiClient({
     channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN!,
@@ -91,13 +100,15 @@ async function handleEvent(ev: LineEvent, client: messagingApi.MessagingApiClien
   // Handle text messages: facility invite code or info
   if (ev.type === "message" && ev.message?.type === "text" && ev.replyToken && userId) {
     const text = ev.message.text?.trim() ?? "";
+    const normalizedCode = normalizeInviteCode(text);
     const existingRecipient = await prisma.lineRecipient.findUnique({ where: { lineUserId: userId } });
 
     // Check if the message looks like a facility invite code (8 uppercase alphanumeric chars)
-    const codeMatch = text.match(/^[A-Z2-9]{8}$/);
+    // 全角入力・小文字はnormalizeInviteCodeで吸収する
+    const codeMatch = normalizedCode.match(/^[A-Z2-9]{8}$/);
     if (codeMatch && !existingRecipient) {
       const company = await prisma.company.findFirst({
-        where: { inviteCode: text, status: "ACTIVE" },
+        where: { inviteCode: normalizedCode, status: "ACTIVE" },
         include: { lineRecipients: { where: { unfollowedAt: null } } },
       });
 
@@ -184,9 +195,14 @@ async function handleEvent(ev: LineEvent, client: messagingApi.MessagingApiClien
       return;
     }
 
+    // 未登録ユーザーが送ってきたメッセージは基本的に事業所コードの送信を試みたものと考え、
+    // 定型文をただ繰り返すのではなく「なぜ通らなかったか」が分かるようにする
     await client.replyMessage({
       replyToken: ev.replyToken,
-      messages: [{ type: "text", text: `ヨミトク編集部へようこそ！\n\n事業所コードをこのチャットに送ると、LINE通知を受け取れるようになります。\n\n事業所コードは登録時のメールに記載しています。設定ページでも確認できます。` }],
+      messages: [{
+        type: "text",
+        text: `「${text}」は事業所コードの形式ではないようです。\n\n事業所コードは英数字8桁です（例：AB3DEFGH）。\n登録時のメールまたは設定ページに記載のコードを、そのままコピー＆ペーストして送ってみてください。`,
+      }],
     });
   }
 }
