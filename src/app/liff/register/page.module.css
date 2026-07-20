@@ -1,0 +1,167 @@
+.page {
+  min-height: 100dvh;
+  background: #F5F7F6;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  background: #fff;
+  padding: 28px 20px 20px;
+  border-bottom: 1px solid #E8F0EE;
+  text-align: center;
+}
+
+.iconBadge {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #0D686E;
+  color: #fff;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+}
+
+.iconBadgeOrange {
+  background: #E8730D;
+}
+
+.title {
+  font-size: 19px;
+  font-weight: 800;
+  color: #1F2E2A;
+  margin: 0 0 4px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: #666;
+  margin: 0;
+}
+
+.body {
+  flex: 1;
+  padding: 24px 20px;
+}
+
+.explain {
+  font-size: 13px;
+  color: #444;
+  line-height: 1.7;
+  margin: 0 0 20px;
+}
+
+.codeInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16px 14px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  border: 1.5px solid #D0E8E4;
+  border-radius: 12px;
+  outline: none;
+  color: #1a1a1a;
+}
+
+.codeInput:focus {
+  border-color: #0D686E;
+}
+
+.errorInline {
+  font-size: 12px;
+  color: #DC2626;
+  margin: 10px 0 0;
+  line-height: 1.6;
+}
+
+.footer {
+  padding: 12px 20px max(20px, env(safe-area-inset-bottom));
+}
+
+.submitBtn {
+  width: 100%;
+  padding: 15px;
+  border-radius: 12px;
+  border: none;
+  background: #0D686E;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.submitBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.submitBtnOrange {
+  background: #E8730D;
+}
+
+/* Loading / error / done states */
+.center {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #E8F0EE;
+  border-top-color: #0D686E;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loadingText {
+  font-size: 14px;
+  color: #888;
+  margin: 0;
+}
+
+.errorText {
+  font-size: 14px;
+  font-weight: 700;
+  color: #DC2626;
+  margin: 0;
+}
+
+.errorDetail {
+  font-size: 12px;
+  color: #888;
+  margin: 0;
+}
+
+.doneIcon {
+  font-size: 40px;
+}
+
+.doneTitle {
+  font-size: 19px;
+  font-weight: 800;
+  color: #1F2E2A;
+  margin: 0;
+}
+
+.doneText {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  line-height: 1.7;
+}

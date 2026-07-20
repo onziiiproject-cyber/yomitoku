@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { messagingApi } from "@line/bot-sdk";
+import { normalizeInviteCode, INVITE_CODE_PATTERN, registerRecipientByCode, setNicknameAndActivate } from "@/lib/line-registration";
 
 export const dynamic = "force-dynamic";
 
@@ -11,15 +12,6 @@ function verifySignature(body: string, sig: string, secret: string): boolean {
   hmac.update(body);
   const expected = hmac.digest("base64");
   return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
-}
-
-// 全角英数字→半角、小文字→大文字、空白除去。日本語キーボードでの全角変換や
-// 大文字小文字の揺れで事業所コードが一致しない、という事象を防ぐ。
-function normalizeInviteCode(input: string): string {
-  return input
-    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
-    .toUpperCase()
-    .replace(/\s+/g, "");
 }
 
 function getClient() {
@@ -82,7 +74,7 @@ async function handleEvent(ev: LineEvent, client: messagingApi.MessagingApiClien
         replyToken: ev.replyToken,
         messages: [{
           type: "text",
-          text: "ヨミトク編集部へようこそ！🎉\n\nLINE通知を受け取るには、あなたの「事業所コード」をこのチャットに送ってください。\n\n事業所コードは登録時のメールに記載しています。設定ページでも確認できます。",
+          text: "ヨミトク編集部へようこそ！🎉\n\n下のメニューの「事業所コードを登録する」をタップして、事業所コードを入力してください。\n\n（このチャットに直接コードを送っていただいても登録できます）\n\n事業所コードは登録時のメールに記載しています。設定ページでも確認できます。",
         }],
       });
     }
@@ -107,65 +99,33 @@ async function handleEvent(ev: LineEvent, client: messagingApi.MessagingApiClien
 
     // Check if the message looks like a facility invite code (8 uppercase alphanumeric chars)
     // 全角入力・小文字はnormalizeInviteCodeで吸収する
-    const codeMatch = normalizedCode.match(/^[A-Z2-9]{8}$/);
+    const codeMatch = normalizedCode.match(INVITE_CODE_PATTERN);
     if (codeMatch && !activeRecipient) {
-      const company = await prisma.company.findFirst({
-        where: { inviteCode: normalizedCode, status: "ACTIVE" },
-        include: { lineRecipients: { where: { unfollowedAt: null } } },
-      });
+      // Get display name from LINE
+      let displayName = "メンバー";
+      try {
+        const profile = await client.getProfile(userId);
+        displayName = profile.displayName;
+      } catch { /* ignore */ }
 
-      if (!company) {
+      const result = await registerRecipientByCode(userId, normalizedCode, displayName);
+
+      if (!result.ok && result.reason === "invalid") {
         await client.replyMessage({
           replyToken: ev.replyToken,
           messages: [{ type: "text", text: `「${text}」は有効な事業所コードではありません。\n登録済みの事業所コードを確認してください。` }],
         });
-      } else if (company.lineRecipients.length >= company.maxRecipients) {
+      } else if (!result.ok) {
         await client.replyMessage({
           replyToken: ev.replyToken,
-          messages: [{ type: "text", text: `${company.name}のLINE登録人数が上限（${company.maxRecipients}名）に達しています。\n管理者にお問い合わせください。` }],
+          messages: [{ type: "text", text: `LINE登録人数が上限に達しています。\n管理者にお問い合わせください。` }],
         });
       } else {
-        // Get display name from LINE
-        let displayName = "メンバー";
-        try {
-          const profile = await client.getProfile(userId);
-          displayName = profile.displayName;
-        } catch { /* ignore */ }
-
-        // lineUserIdはunique制約があるため、ブロック解除後の再登録は
-        // 既存行を復活させる（unfollowedAtをクリアし、新しい事業所に付け替える）
-        const newRecipient = await prisma.lineRecipient.upsert({
-          where: { lineUserId: userId },
-          create: { lineUserId: userId, companyId: company.id, displayName },
-          update: { companyId: company.id, displayName, unfollowedAt: null, nickname: null },
-        });
-
-        // 個人（User）を新規作成。BASEでの表示名・タグの好みはこの単位で管理する
-        const existingUser = await prisma.user.findUnique({ where: { lineRecipientId: newRecipient.id } });
-        const newUser = existingUser
-          ? await prisma.user.update({
-              where: { id: existingUser.id },
-              data: { companyId: company.id, name: displayName },
-            })
-          : await prisma.user.create({
-              data: { companyId: company.id, name: displayName, lineRecipientId: newRecipient.id },
-            });
-
-        // 法人タグを個人の初期タグとしてコピー
-        const companyTags = await prisma.companyTag.findMany({ where: { companyId: company.id } });
-        if (companyTags.length > 0) {
-          await prisma.userTag.createMany({
-            data: companyTags.map((ct) => ({ userId: newUser.id, tagId: ct.tagId })),
-            skipDuplicates: true,
-          });
-        }
-
-        const memberOfName = company.facilityName ?? company.name;
         await client.replyMessage({
           replyToken: ev.replyToken,
           messages: [{
             type: "text",
-            text: `✅ 登録完了！\n\n${memberOfName}のメンバーとして登録されました🎉\n\n続いて、ヨミトク編集室で使うニックネームを教えてください。\n（例：たなか、田中さん）\n\nログイン情報として必ず必要となるため返信をお願いします🙇‍♂️`,
+            text: `✅ 登録完了！\n\n${result.memberOfName}のメンバーとして登録されました🎉\n\n続いて、ヨミトク編集室で使うニックネームを教えてください。\n（例：たなか、田中さん）\n\nログイン情報として必ず必要となるため返信をお願いします🙇‍♂️`,
           }],
         });
       }
@@ -174,15 +134,9 @@ async function handleEvent(ev: LineEvent, client: messagingApi.MessagingApiClien
 
     // ニックネームがまだ未設定の場合は次のメッセージをニックネームとして保存
     if (activeRecipient && !activeRecipient.nickname) {
-      if (text.length > 0 && text.length <= 20) {
-        await prisma.lineRecipient.update({
-          where: { lineUserId: userId },
-          data: { nickname: text },
-        });
-        await prisma.user.updateMany({
-          where: { lineRecipientId: activeRecipient.id },
-          data: { name: text },
-        });
+      const result = await setNicknameAndActivate(userId, text);
+
+      if (result.ok) {
         await client.replyMessage({
           replyToken: ev.replyToken,
           messages: [{
