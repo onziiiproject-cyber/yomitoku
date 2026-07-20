@@ -34,6 +34,7 @@ export default function AdminHeader() {
         <nav style={{ display: "flex", gap: 20 }}>
           {navLink("/admin", "登録企業一覧")}
           {navLink("/admin/reports", "報告一覧")}
+          {navLink("/admin/referrals", "紹介実績")}
         </nav>
       </div>
       <button

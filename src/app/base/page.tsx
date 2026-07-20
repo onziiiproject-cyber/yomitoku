@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import Link from "next/link";
 import FeedArticleCard from "./_components/FeedArticleCard";
 import FeedTabs from "./_components/FeedTabs";
+import MobileSearchBar from "./_components/MobileSearchBar";
 import { loadFeedExtras } from "@/lib/feedData";
 import type { StructuredContent } from "@/lib/anthropic";
 
@@ -18,8 +19,11 @@ const CATEGORY_LABELS: Record<string, string> = {
   breaking: "速報・重要情報",
 };
 
+const PERIOD_DAYS: Record<string, number> = { week: 7, month: 30, "3m": 90 };
+const PERIOD_LABELS: Record<string, string> = { week: "今週", month: "今月", "3m": "過去3ヶ月" };
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function buildWhere(cat: string, q: string): any {
+function buildWhere(cat: string, q: string, tag: string, period: string): any {
   const where: Record<string, unknown> = { summary: { not: null }, publishedAt: { not: null } };
   if (q) {
     where.OR = [
@@ -38,6 +42,14 @@ function buildWhere(cat: string, q: string): any {
   } else if (cat === "breaking") {
     where.importance = "high";
   }
+  if (tag) {
+    where.tags = { has: tag };
+  }
+  if (PERIOD_DAYS[period]) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - PERIOD_DAYS[period]);
+    where.publishedAt = { not: null, gte: cutoff };
+  }
   return where;
 }
 
@@ -45,19 +57,19 @@ function buildWhere(cat: string, q: string): any {
 export default async function BasePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; cat?: string; page?: string; feed?: string }>;
+  searchParams: Promise<{ q?: string; cat?: string; tag?: string; period?: string; page?: string; feed?: string }>;
 }) {
-  const [session, { q = "", cat = "", page = "1", feed = "mine" }] = await Promise.all([
+  const [session, { q = "", cat = "", tag = "", period = "", page = "1", feed = "mine" }] = await Promise.all([
     getSession(),
     searchParams,
   ]);
 
-  const isFiltered = !!(q || cat);
+  const isFiltered = !!(q || cat || tag || period);
   const feedMode: "mine" | "all" = feed === "all" ? "all" : "mine";
   const pageNum = Math.max(1, parseInt(page));
   const take = 20;
   const skip = (pageNum - 1) * take;
-  const where = buildWhere(cat, q);
+  const where = buildWhere(cat, q, tag, period);
 
   // ホーム画面(未検索時)のみ「あなたにオススメ」タブに対応。
   // WEB・LINEどちらからでも編集できる個人のタグ（UserTag）を使う。
@@ -92,7 +104,13 @@ export default async function BasePage({
 
   const extras = await loadFeedExtras(docs.map((d) => d.id), session?.companyId ?? null);
   const totalPages = Math.ceil(total / take);
-  const label = CATEGORY_LABELS[cat] ?? (q ? `「${q}」` : "");
+  const labelParts = [
+    CATEGORY_LABELS[cat],
+    tag ? `#${tag}` : "",
+    q ? `「${q}」` : "",
+    PERIOD_LABELS[period] ?? "",
+  ].filter(Boolean);
+  const label = labelParts.join(" ・ ");
 
   return (
     <div style={{ maxWidth: 640, margin: "0 auto" }}>
@@ -109,6 +127,9 @@ export default async function BasePage({
           </a>
         </div>
       )}
+
+      {/* スマホ用検索バー（ヘッダーの検索フォームはスマホで非表示のため） */}
+      <MobileSearchBar defaultValue={q} />
 
       {/* あなたにオススメ / 全ての投稿一覧 タブ（ホーム画面のみ） */}
       {!isFiltered && <FeedTabs active={feedMode} />}
@@ -174,9 +195,9 @@ export default async function BasePage({
 
       {totalPages > 1 && (
         <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 12 }}>
-          {pageNum > 1 && <a href={`/base?cat=${cat}&q=${q}&page=${pageNum - 1}`} style={pageLinkStyle}>← 前へ</a>}
+          {pageNum > 1 && <a href={`/base?cat=${cat}&q=${q}&tag=${tag}&period=${period}&page=${pageNum - 1}`} style={pageLinkStyle}>← 前へ</a>}
           <span style={{ padding: "8px 16px", fontSize: 13, color: "#888" }}>{pageNum} / {totalPages}</span>
-          {pageNum < totalPages && <a href={`/base?cat=${cat}&q=${q}&page=${pageNum + 1}`} style={pageLinkStyle}>次へ →</a>}
+          {pageNum < totalPages && <a href={`/base?cat=${cat}&q=${q}&tag=${tag}&period=${period}&page=${pageNum + 1}`} style={pageLinkStyle}>次へ →</a>}
         </div>
       )}
     </div>

@@ -15,7 +15,7 @@ const SOURCE_COLOR: Record<string, { label: string; color: string; bg: string }>
 export default async function RightSidebar() {
   const [breakingDocs, latestBatch] = await Promise.all([
     prisma.siteDocument.findMany({
-      where: { importance: "high", summary: { not: null } },
+      where: { importance: "high", summary: { not: null }, publishedAt: { not: null } },
       orderBy: { createdAt: "desc" },
       take: 4,
       select: { id: true, title: true, source: true, publishedAt: true, createdAt: true, structuredContent: true },

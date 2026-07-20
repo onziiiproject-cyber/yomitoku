@@ -12,7 +12,7 @@ export default async function NewArticlesPage({
   const take = 20;
   const skip = (pageNum - 1) * take;
 
-  const where = { importance: "high", summary: { not: null } };
+  const where = { importance: "high", summary: { not: null }, publishedAt: { not: null } };
 
   const [docs, total, favorites] = await Promise.all([
     prisma.siteDocument.findMany({

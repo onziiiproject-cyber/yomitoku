@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useRef } from "react";
+import Image from "next/image";
 import ArticleContextCard, { type ArticleContext } from "./ArticleContextCard";
+import ProfileAvatar from "./ProfileAvatar";
 
 interface Comment {
   id: string;
@@ -9,19 +11,23 @@ interface Comment {
   createdAt: string;
   likeCount: number;
   likedByMe: boolean;
+  isEditorComment?: boolean;
+  authorIconKey?: string | null;
+  authorIconUrl?: string | null;
 }
 
-function Avatar({ name }: { name: string }) {
-  return (
-    <div style={{
-      width: 38, height: 38, borderRadius: "50%",
-      background: "linear-gradient(135deg, #0D686E, #1B9C8E)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      flexShrink: 0, fontWeight: 800, fontSize: 15, color: "#fff",
-    }}>
-      {name?.[0] ?? "?"}
-    </div>
-  );
+function Avatar({ name, isEditor, iconKey, iconUrl }: { name: string; isEditor?: boolean; iconKey?: string | null; iconUrl?: string | null }) {
+  if (isEditor) {
+    return (
+      <div style={{
+        width: 38, height: 38, borderRadius: "50%", overflow: "hidden",
+        flexShrink: 0, background: "#E8F5F1", border: "1.5px solid #0D686E",
+      }}>
+        <Image src="/mascot/gori-base-face.png" alt="ゴリ編集長" width={38} height={38} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </div>
+    );
+  }
+  return <ProfileAvatar name={name} iconKey={iconKey} iconUrl={iconUrl} size={38} />;
 }
 
 function relativeTime(d: string) {
@@ -114,10 +120,15 @@ export default function CommentModal({
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {comments.map((c) => (
                   <div key={c.id} style={{ display: "flex", gap: 12 }}>
-                    <Avatar name={c.authorName} />
+                    <Avatar name={c.authorName} isEditor={c.isEditorComment} iconKey={c.authorIconKey} iconUrl={c.authorIconUrl} />
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
                         <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a" }}>{c.authorName}</span>
+                        {c.isEditorComment && (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#0D686E", background: "#E8F5F1", padding: "1px 7px", borderRadius: 4 }}>
+                            編集長
+                          </span>
+                        )}
                         <span style={{ fontSize: 11, color: "#aaa" }}>{relativeTime(c.createdAt)}</span>
                       </div>
                       <p style={{ fontSize: 14, color: "#333", margin: 0, lineHeight: 1.7, whiteSpace: "pre-wrap", marginBottom: 8 }}>{c.body}</p>

@@ -18,24 +18,11 @@ const NAV_ITEMS = [
   {
     key: "search",
     label: "検索",
-    href: "/base?q=",
+    href: "/base/search",
     icon: (active: boolean) => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
         stroke={active ? "#0D686E" : "#888"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-      </svg>
-    ),
-  },
-  {
-    key: "mhlw",
-    label: "最新情報",
-    href: "/base?cat=mhlw_latest",
-    icon: (active: boolean) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-        stroke={active ? "#0D686E" : "#888"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
       </svg>
     ),
   },
@@ -47,6 +34,17 @@ const NAV_ITEMS = [
       <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? "#0D686E" : "none"}
         stroke={active ? "#0D686E" : "#888"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+      </svg>
+    ),
+  },
+  {
+    key: "profile",
+    label: "プロフィール",
+    href: "/base/profile",
+    icon: (active: boolean) => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+        stroke={active ? "#0D686E" : "#888"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
       </svg>
     ),
   },
@@ -107,11 +105,11 @@ export default function LayoutShell({
       <nav className="base-bottom-nav">
         {NAV_ITEMS.map(item => {
           const isHome = item.key === "home" && pathname === "/base" && !searchParams.get("q") && !cat;
-          const isCat = item.href.includes("cat=") && cat === item.href.split("cat=")[1];
           const isFav = item.key === "favorites" && pathname === "/base/favorites";
           const isSettings = item.key === "settings" && pathname === "/base/settings";
-          const isSearch = item.key === "search" && !!searchParams.get("q");
-          const active = isHome || isCat || isFav || isSettings || isSearch;
+          const isProfile = item.key === "profile" && pathname === "/base/profile";
+          const isSearch = item.key === "search" && (pathname === "/base/search" || !!searchParams.get("q"));
+          const active = isHome || isFav || isSettings || isProfile || isSearch;
 
           return (
             <a
@@ -122,13 +120,14 @@ export default function LayoutShell({
                 flexDirection: "column",
                 alignItems: "center",
                 gap: 3,
-                padding: "6px 12px",
+                padding: "6px 2px",
                 textDecoration: "none",
                 flex: 1,
+                minWidth: 0,
               }}
             >
               {item.icon(active)}
-              <span style={{ fontSize: 10, color: active ? "#0D686E" : "#888", fontWeight: active ? 700 : 400 }}>
+              <span style={{ fontSize: 10, color: active ? "#0D686E" : "#888", fontWeight: active ? 700 : 400, whiteSpace: "nowrap" }}>
                 {item.label}
               </span>
             </a>

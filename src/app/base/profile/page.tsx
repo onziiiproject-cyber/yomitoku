@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import ProfileNicknameForm from "./ProfileNicknameForm";
 import TagPreferenceEditor from "./TagPreferenceEditor";
+import IconPicker from "./IconPicker";
 
 const GROUP_LABEL: Record<number, string> = {
   1: "事業種別",
@@ -61,11 +63,12 @@ export default async function ProfilePage() {
       <h1 style={{ fontSize: 20, fontWeight: 800, color: "#1B5E52", marginBottom: 24 }}>プロフィール</h1>
 
       <section style={{ background: "#fff", borderRadius: 14, padding: "24px", border: "1.5px solid #E8F0EE", marginBottom: 20, display: "flex", alignItems: "center", gap: 20 }}>
-        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#E8F5F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0D686E" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-          </svg>
-        </div>
+        <IconPicker
+          name={displayName}
+          initialIconKey={session.iconKey ?? null}
+          initialIconUrl={session.iconUrl ?? null}
+          editable={!!session.userId}
+        />
         <div>
           <ProfileNicknameForm initialNickname={displayName} editable={!!session.userId} />
           <p style={{ fontSize: 13, color: "#888", margin: "6px 0 0" }}>{company.name}</p>
@@ -85,15 +88,22 @@ export default async function ProfilePage() {
         <p style={{ fontSize: 11, color: "#aaa", marginTop: 10 }}>※ 事業所全体（LINE登録メンバー含む）の合計です</p>
       </section>
 
-      {session.userId && (
-        <section style={{ marginTop: 28 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a", marginBottom: 4 }}>興味のあるタグ</h2>
-          <p style={{ fontSize: 12, color: "#888", marginBottom: 16 }}>
-            選んだタグに関連する記事が、ホームの「あなたにオススメの投稿一覧」に表示されます。LINEのリッチメニューからの設定とも連動します。
-          </p>
+      <section style={{ marginTop: 28 }}>
+        <h2 style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a", marginBottom: 4 }}>興味のあるタグ</h2>
+        <p style={{ fontSize: 12, color: "#888", marginBottom: 16 }}>
+          選んだタグに関連する記事が、ホームの「あなたにオススメの投稿一覧」に表示されます。LINEのリッチメニューからの設定とも連動します。
+        </p>
+        {session.userId ? (
           <TagPreferenceEditor groups={tagGroups} initialSelectedKeys={mySelectedKeys} />
-        </section>
-      )}
+        ) : (
+          <div style={{ background: "#F0F9F8", border: "1.5px solid #D0E8E4", borderRadius: 10, padding: "16px 18px", fontSize: 13, color: "#1B5E52" }}>
+            タグを設定するには、まずプロフィールの登録が必要です。
+            <Link href="/base/whoami" style={{ display: "inline-block", marginTop: 10, color: "#0D686E", fontWeight: 700, textDecoration: "underline" }}>
+              プロフィールを設定する →
+            </Link>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

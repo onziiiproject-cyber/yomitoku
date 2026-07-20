@@ -220,6 +220,106 @@ export async function sendFeatureRequestNotification(opts: {
   });
 }
 
+export async function sendSignupNotification(opts: { companyName: string; email: string }) {
+  await getResend().emails.send({
+    from: "ヨミトク編集部（登録通知） <signup@yomitoku-base.com>",
+    to: "onziii.project@gmail.com",
+    subject: `【ヨミトク編集部】新規登録｜${opts.companyName}`,
+    html: `
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f0f4f4;font-family:'Hiragino Sans',Meiryo,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f4;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#fff;border-radius:16px;">
+        <tr>
+          <td style="padding:28px 32px 16px;">
+            <span style="font-size:18px;font-weight:bold;color:#0D686E;">ヨミトク編集部</span>
+            <span style="margin-left:8px;font-size:12px;color:#888;">新規登録通知</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 32px 24px;">
+            <h2 style="margin:0 0 16px;font-size:18px;color:#1F2E2A;">新しい登録がありました 🎉</h2>
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1.5px solid #E8F0EE;border-radius:10px;">
+              <tr><td style="padding:12px 16px;background:#F5F7F6;font-size:12px;font-weight:700;color:#555;border-radius:10px 10px 0 0;">事業所名</td></tr>
+              <tr><td style="padding:12px 16px;font-size:15px;font-weight:700;color:#0D686E;">${opts.companyName}</td></tr>
+              <tr><td style="padding:12px 16px;background:#F5F7F6;font-size:12px;font-weight:700;color:#555;">メールアドレス</td></tr>
+              <tr><td style="padding:12px 16px;font-size:14px;color:#1a1a1a;border-radius:0 0 10px 10px;">${opts.email}</td></tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 32px 24px;">
+            <p style="margin:0;font-size:12px;color:#aaa;">登録日時：${new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px;border-top:1px solid #E8F0EE;text-align:center;">
+            <p style="margin:0;font-size:11px;color:#bbb;">© 2026 ヨミトク編集部 / 株式会社ONZiii Act</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`.trim(),
+  });
+}
+
+export async function sendCancellationNotification(opts: { companyName: string; email: string }) {
+  await getResend().emails.send({
+    from: "ヨミトク編集部（解約通知） <cancellation@yomitoku-base.com>",
+    to: "onziii.project@gmail.com",
+    subject: `【ヨミトク編集部】解約｜${opts.companyName}`,
+    html: `
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f0f4f4;font-family:'Hiragino Sans',Meiryo,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f4;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#fff;border-radius:16px;">
+        <tr>
+          <td style="padding:28px 32px 16px;">
+            <span style="font-size:18px;font-weight:bold;color:#0D686E;">ヨミトク編集部</span>
+            <span style="margin-left:8px;font-size:12px;color:#888;">解約通知</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 32px 24px;">
+            <h2 style="margin:0 0 16px;font-size:18px;color:#B45309;">解約がありました</h2>
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1.5px solid #E8F0EE;border-radius:10px;">
+              <tr><td style="padding:12px 16px;background:#F5F7F6;font-size:12px;font-weight:700;color:#555;border-radius:10px 10px 0 0;">事業所名</td></tr>
+              <tr><td style="padding:12px 16px;font-size:15px;font-weight:700;color:#B45309;">${opts.companyName}</td></tr>
+              <tr><td style="padding:12px 16px;background:#F5F7F6;font-size:12px;font-weight:700;color:#555;">メールアドレス</td></tr>
+              <tr><td style="padding:12px 16px;font-size:14px;color:#1a1a1a;border-radius:0 0 10px 10px;">${opts.email}</td></tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 32px 24px;">
+            <p style="margin:0;font-size:12px;color:#aaa;">解約日時：${new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px;border-top:1px solid #E8F0EE;text-align:center;">
+            <p style="margin:0;font-size:11px;color:#bbb;">© 2026 ヨミトク編集部 / 株式会社ONZiii Act</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`.trim(),
+  });
+}
+
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   await getResend().emails.send({
     from: "ヨミトク編集部（送信専用） <noreply@yomitoku-base.com>",

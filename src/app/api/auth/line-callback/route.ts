@@ -82,6 +82,8 @@ export async function GET(req: NextRequest) {
     lineRecipientId: recipient.id,
     userId: user.id,
     nickname: user.name,
+    iconKey: user.iconKey ?? undefined,
+    iconUrl: user.iconUrl ?? undefined,
   });
 
   // NextResponse.redirect に直接クッキーをセット

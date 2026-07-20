@@ -8,11 +8,25 @@ export const metadata: Metadata = {
   title: "ユーザー登録 | ヨミトク編集部",
 };
 
-export default async function RegisterPage() {
-  const tags = await prisma.tag.findMany({
-    orderBy: { sortOrder: "asc" },
-    select: { key: true, label: true },
-  });
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string }>;
+}) {
+  const [tags, { ref }] = await Promise.all([
+    prisma.tag.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: { key: true, label: true },
+    }),
+    searchParams,
+  ]);
+
+  const referralRaw = ref
+    ? await prisma.referralCode.findUnique({ where: { code: ref }, select: { code: true, expiresAt: true } })
+    : null;
+  const referral = referralRaw && (!referralRaw.expiresAt || referralRaw.expiresAt > new Date())
+    ? referralRaw
+    : null;
 
   return (
     <div className={styles.page}>
@@ -36,8 +50,13 @@ export default async function RegisterPage() {
           <div className={styles.accountNote}>
             <span>1アカウントで法人内3名まで共有できます</span>
           </div>
+          {referral && (
+            <div style={{ marginTop: 12, background: "#FFF8F0", border: "1.5px solid #F5A623", borderRadius: 10, padding: "10px 16px", fontSize: 13, color: "#7B4F00", fontWeight: 700 }}>
+              🎁 紹介登録のため、初月無料でご利用いただけます
+            </div>
+          )}
         </header>
-        <RegisterForm tags={tags} />
+        <RegisterForm tags={tags} referralCode={referral?.code ?? null} />
       </div>
     </div>
   );

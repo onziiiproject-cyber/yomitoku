@@ -26,7 +26,7 @@ export default function GuestHeader() {
         <HeaderLogo />
 
         {/* Search bar */}
-        <form onSubmit={handleSearch} style={{ flex: 1, position: "relative", maxWidth: 680 }}>
+        <form onSubmit={handleSearch} className="header-search-form" style={{ flex: 1, position: "relative", maxWidth: 680, minWidth: 0 }}>
           <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#9BB5B0", display: "flex", pointerEvents: "none" }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>

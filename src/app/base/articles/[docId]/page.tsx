@@ -33,7 +33,7 @@ export default async function ArticleDetailPage({
     prisma.articleLike.count({ where: { siteDocumentId: docId } }),
     prisma.articleComment.findMany({
       where: { siteDocumentId: docId },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ isEditorComment: "desc" }, { createdAt: "desc" }],
       include: { commentLikes: { select: { companyId: true } } },
     }),
   ]);
@@ -47,6 +47,9 @@ export default async function ArticleDetailPage({
     createdAt: c.createdAt.toISOString(),
     likeCount: c.commentLikes.length,
     likedByMe: session ? c.commentLikes.some((l) => l.companyId === session.companyId) : false,
+    isEditorComment: c.isEditorComment,
+    authorIconKey: c.authorIconKey,
+    authorIconUrl: c.authorIconUrl,
   }));
 
   const swiper = (

@@ -41,7 +41,7 @@ const PREFECTURES = [
 
 type Tag = { key: string; label: string };
 
-export default function RegisterForm({ tags }: { tags: Tag[] }) {
+export default function RegisterForm({ tags, referralCode }: { tags: Tag[]; referralCode: string | null }) {
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [agreed, setAgreed] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -60,6 +60,7 @@ export default function RegisterForm({ tags }: { tags: Tag[] }) {
 
   return (
     <form action={action} className={styles.form}>
+      {referralCode && <input type="hidden" name="ref" value={referralCode} />}
 
       {/* 法人名 */}
       <div className={styles.field}>

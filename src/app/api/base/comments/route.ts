@@ -13,13 +13,22 @@ export async function POST(req: NextRequest) {
   const authorName = session.nickname ?? session.companyName;
 
   const comment = await prisma.articleComment.create({
-    data: { companyId: session.companyId, siteDocumentId: docId, authorName, body: body.trim() },
+    data: {
+      companyId: session.companyId,
+      siteDocumentId: docId,
+      authorName,
+      authorIconKey: session.iconKey ?? null,
+      authorIconUrl: session.iconUrl ?? null,
+      body: body.trim(),
+    },
   });
 
   return NextResponse.json({
     id: comment.id,
     body: comment.body,
     authorName: comment.authorName,
+    authorIconKey: comment.authorIconKey,
+    authorIconUrl: comment.authorIconUrl,
     createdAt: comment.createdAt,
   });
 }

@@ -13,6 +13,8 @@ export interface SessionPayload {
   lineRecipientId?: string;
   userId?: string;
   nickname?: string;
+  iconKey?: string;
+  iconUrl?: string;
 }
 
 export async function createSession(payload: SessionPayload): Promise<string> {

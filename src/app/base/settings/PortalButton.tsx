@@ -38,7 +38,7 @@ export default function PortalButton() {
         cursor: loading ? "not-allowed" : "pointer",
       }}
     >
-      {loading ? "読み込み中..." : "プランを管理する（解約・請求書・カード変更）"}
+      {loading ? "読み込み中..." : "解約・お支払い方法の変更はこちら →"}
     </button>
   );
 }

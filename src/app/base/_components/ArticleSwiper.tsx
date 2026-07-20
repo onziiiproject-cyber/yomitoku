@@ -10,6 +10,9 @@ interface Comment {
   createdAt: string;
   likeCount: number;
   likedByMe: boolean;
+  isEditorComment?: boolean;
+  authorIconKey?: string | null;
+  authorIconUrl?: string | null;
 }
 
 interface ArticleSwiperProps {

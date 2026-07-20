@@ -31,6 +31,7 @@ export async function startRegistration(_: unknown, formData: FormData) {
     prefecture:   formData.get("prefecture") || undefined,
     tagKeys:      formData.getAll("tagKeys"),
   };
+  const refCode = formData.get("ref");
 
   const parsed = schema.safeParse(raw);
   if (!parsed.success) {
@@ -48,6 +49,13 @@ export async function startRegistration(_: unknown, formData: FormData) {
   if (existing) {
     return { error: "このメールアドレスはすでに登録されています。" };
   }
+
+  const referralRaw = typeof refCode === "string" && refCode
+    ? await prisma.referralCode.findUnique({ where: { code: refCode } })
+    : null;
+  const referral = referralRaw && (!referralRaw.expiresAt || referralRaw.expiresAt > new Date())
+    ? referralRaw
+    : null;
 
   const stripeCustomer = await stripe.customers.create({
     name: companyName,
@@ -68,6 +76,7 @@ export async function startRegistration(_: unknown, formData: FormData) {
       phone:        phone ?? null,
       prefecture:   prefecture ?? null,
       stripeCustomerId: stripeCustomer.id,
+      referredByCodeId: referral?.id ?? null,
       tags: { create: tags.map((t) => ({ tagId: t.id })) },
     },
   });
@@ -84,7 +93,10 @@ export async function startRegistration(_: unknown, formData: FormData) {
     success_url: `${baseUrl}/thanks?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url:  `${baseUrl}/register?cancelled=1`,
     metadata:         { companyId: company.id },
-    subscription_data: { metadata: { companyId: company.id } },
+    subscription_data: {
+      metadata: { companyId: company.id },
+      ...(referral ? { trial_period_days: 30 } : {}),
+    },
   });
 
   redirect(session.url!);

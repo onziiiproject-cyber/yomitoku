@@ -11,6 +11,9 @@ interface Comment {
   createdAt: string;
   likeCount: number;
   likedByMe: boolean;
+  isEditorComment?: boolean;
+  authorIconKey?: string | null;
+  authorIconUrl?: string | null;
 }
 
 export default function LikeCommentSection({
@@ -124,7 +127,7 @@ export default function LikeCommentSection({
     const data = await res.json();
     if (!res.ok) { setError(data.error ?? "エラーが発生しました"); }
     else {
-      setComments((prev) => [{ id: data.id, body: data.body, authorName: data.authorName, createdAt: data.createdAt, likeCount: 0, likedByMe: false }, ...prev]);
+      setComments((prev) => [{ id: data.id, body: data.body, authorName: data.authorName, authorIconKey: data.authorIconKey, authorIconUrl: data.authorIconUrl, createdAt: data.createdAt, likeCount: 0, likedByMe: false }, ...prev]);
       setBody("");
     }
     setPosting(false);

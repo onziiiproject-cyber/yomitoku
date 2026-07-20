@@ -41,6 +41,15 @@ model Company {
 
   maxRecipients Int @default(3)
 
+  // 無料期間（紹介登録時のみ設定）
+  trialEndsAt           DateTime?
+  trialReminder7dSentAt DateTime?
+  trialReminder1dSentAt DateTime?
+
+  // 紹介まわり
+  referredByCodeId String?
+  referredByCode   ReferralCode? @relation("ReferredByCode", fields: [referredByCodeId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -54,6 +63,18 @@ model Company {
   articleComments ArticleComment[]
   commentLikes    CommentLike[]
   articleReports  ArticleReport[]
+}
+
+// 本部が発行するキャンペーン単位の紹介コード（特定事業所に紐づかない）。
+// 例:「〇〇協会加盟者用」「地元地域施設運営者用」のように配布先グループ単位で発行する。
+model ReferralCode {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  label     String
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  referredCompanies Company[] @relation("ReferredByCode")
 }
 
 model Tag {
@@ -97,6 +118,8 @@ model User {
   companyId       String
   name            String
   lineRecipientId String?  @unique
+  iconKey         String?
+  iconUrl         String?
   createdAt       DateTime @default(now())
 
   company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -247,14 +270,17 @@ model ArticleLike {
 }
 
 model ArticleComment {
-  id             String   @id @default(cuid())
-  companyId      String
-  siteDocumentId String
-  authorName     String
-  body           String   @db.Text
-  createdAt      DateTime @default(now())
+  id              String   @id @default(cuid())
+  companyId       String?
+  siteDocumentId  String
+  authorName      String
+  authorIconKey   String?
+  authorIconUrl   String?
+  body            String   @db.Text
+  isEditorComment Boolean  @default(false)
+  createdAt       DateTime @default(now())
 
-  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company      Company?      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   siteDocument SiteDocument  @relation(fields: [siteDocumentId], references: [id], onDelete: Cascade)
   commentLikes CommentLike[]
 }

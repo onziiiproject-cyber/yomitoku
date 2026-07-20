@@ -27,6 +27,7 @@
 html {
   font-size: 16px;
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -98,6 +99,34 @@ img {
   /* ボトムナビ分の余白 */
   .base-main-content {
     padding-bottom: 80px !important;
+  }
+}
+
+/* ヘッダー: スマホでは検索フォームと重複するお気に入り導線を隠す（ボトムナビで代替） */
+@media (max-width: 640px) {
+  .header-search-form,
+  .header-favorites-link,
+  .header-favorites-divider {
+    display: none !important;
+  }
+  .header-company-name {
+    max-width: 90px !important;
+  }
+}
+
+/* スマホ用検索バー: ヘッダーの検索フォームが隠れる代わりにフィード内に表示 */
+.mobile-search-bar {
+  display: none;
+}
+@media (max-width: 640px) {
+  .mobile-search-bar {
+    display: block;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-logo-text {
+    display: none !important;
   }
 }
 

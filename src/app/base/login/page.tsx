@@ -289,8 +289,8 @@ export default function LoginPage() {
                 </div>
 
                 {/* Remember + Forgot */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", fontWeight: 400, color: "#555", cursor: "pointer", lineHeight: 1.5 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", flexWrap: "wrap" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", fontWeight: 400, color: "#555", cursor: "pointer", lineHeight: 1.5, whiteSpace: "nowrap" }}>
                     <input
                       type="checkbox"
                       checked={rememberMe}

@@ -11,7 +11,7 @@ export default async function WhoAmIPage() {
   const users = await prisma.user.findMany({
     where: { companyId: session.companyId },
     orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, lineRecipientId: true },
+    select: { id: true, name: true, lineRecipientId: true, iconKey: true, iconUrl: true },
   });
 
   return (
@@ -24,7 +24,7 @@ export default async function WhoAmIPage() {
           {session.companyName} に登録されているメンバーから選んでください
         </p>
         <WhoAmIPicker
-          users={users.map((u) => ({ id: u.id, name: u.name, linked: !!u.lineRecipientId }))}
+          users={users.map((u) => ({ id: u.id, name: u.name, linked: !!u.lineRecipientId, iconKey: u.iconKey, iconUrl: u.iconUrl }))}
         />
       </div>
     </div>

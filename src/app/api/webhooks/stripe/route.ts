@@ -6,7 +6,7 @@ import { customAlphabet } from "nanoid";
 const generateInviteCode = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 8);
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
-import { sendWelcomeEmail } from "@/lib/resend";
+import { sendWelcomeEmail, sendSignupNotification, sendCancellationNotification } from "@/lib/resend";
 
 export const dynamic = "force-dynamic";
 
@@ -47,26 +47,34 @@ export async function POST(req: Request) {
       const companyId = session.metadata?.companyId;
       if (!companyId) throw new Error("Missing companyId in session metadata");
 
+      const existingCompany = await prisma.company.findUnique({ where: { id: companyId } });
+      const trialEndsAt = existingCompany?.referredByCodeId
+        ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        : undefined;
+
       const company = await prisma.company.update({
         where: { id: companyId },
         data: {
           status: "ACTIVE",
           stripeSubscriptionId: session.subscription as string,
           inviteCode: generateInviteCode(),
+          ...(trialEndsAt ? { trialEndsAt } : {}),
         },
       });
 
       await sendWelcomeEmail(company.email, company.name, company.inviteCode!).catch(console.error);
+      await sendSignupNotification({ companyName: company.name, email: company.email }).catch(console.error);
     }
 
     if (event.type === "customer.subscription.deleted") {
       const sub = event.data.object as Stripe.Subscription;
       const companyId = sub.metadata?.companyId;
       if (companyId) {
-        await prisma.company.update({
+        const company = await prisma.company.update({
           where: { id: companyId },
           data: { status: "CANCELED" },
         });
+        await sendCancellationNotification({ companyName: company.name, email: company.email }).catch(console.error);
       }
     }
 

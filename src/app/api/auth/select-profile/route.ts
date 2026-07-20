@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
     ...session,
     userId: user.id,
     nickname: user.name,
+    iconKey: user.iconKey ?? undefined,
+    iconUrl: user.iconUrl ?? undefined,
   });
   await setSessionCookie(token);
 

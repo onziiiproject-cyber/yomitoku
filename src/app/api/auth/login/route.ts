@@ -40,7 +40,12 @@ export async function POST(req: NextRequest) {
     email: company.email,
     companyName: company.name,
     ...(users.length === 1
-      ? { userId: users[0].id, nickname: users[0].name }
+      ? {
+          userId: users[0].id,
+          nickname: users[0].name,
+          iconKey: users[0].iconKey ?? undefined,
+          iconUrl: users[0].iconUrl ?? undefined,
+        }
       : {}),
   };
 

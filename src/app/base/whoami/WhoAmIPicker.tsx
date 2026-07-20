@@ -1,21 +1,9 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ProfileAvatar from "../_components/ProfileAvatar";
 
-function Avatar({ name }: { name: string }) {
-  return (
-    <div style={{
-      width: 44, height: 44, borderRadius: "50%",
-      background: "linear-gradient(135deg, #0D686E, #1B9C8E)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      flexShrink: 0, fontWeight: 800, fontSize: 17, color: "#fff",
-    }}>
-      {name?.[0] ?? "?"}
-    </div>
-  );
-}
-
-export default function WhoAmIPicker({ users }: { users: { id: string; name: string; linked: boolean }[] }) {
+export default function WhoAmIPicker({ users }: { users: { id: string; name: string; linked: boolean; iconKey: string | null; iconUrl: string | null }[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -62,10 +50,10 @@ export default function WhoAmIPicker({ users }: { users: { id: string; name: str
                 textAlign: "left", width: "100%",
               }}
             >
-              <Avatar name={u.name} />
-              <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a" }}>{u.name}</span>
+              <ProfileAvatar name={u.name} iconKey={u.iconKey} iconUrl={u.iconUrl} size={44} />
+              <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.name}</span>
               {u.linked && (
-                <span style={{ marginLeft: "auto", fontSize: 10, color: "#06C755", fontWeight: 700, flexShrink: 0 }}>LINE連携済み</span>
+                <span style={{ fontSize: 10, color: "#06C755", fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>LINE連携済み</span>
               )}
             </button>
           ))}

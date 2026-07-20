@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import PortalButton from "./PortalButton";
 
 export default async function SettingsPage() {
@@ -25,6 +26,22 @@ export default async function SettingsPage() {
     <div style={{ paddingTop: 24 }}>
       <h1 style={{ fontSize: 20, fontWeight: 800, color: "#1B5E52", marginBottom: 24 }}>設定</h1>
 
+      {/* Profile / tag preferences */}
+      <Link
+        href="/base/profile"
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          background: "#fff", borderRadius: 14, padding: "18px 20px", border: "1.5px solid #E8F0EE",
+          marginBottom: 20, textDecoration: "none",
+        }}
+      >
+        <div>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1B5E52", margin: 0, marginBottom: 4 }}>プロフィール・タグ設定</h2>
+          <p style={{ fontSize: 12, color: "#888", margin: 0 }}>ニックネームや、興味のあるタグを変更できます</p>
+        </div>
+        <span style={{ color: "#0D686E", fontSize: 18, flexShrink: 0, marginLeft: 12 }}>→</span>
+      </Link>
+
       {/* Company info */}
       <section style={{ background: "#fff", borderRadius: 14, padding: "20px", border: "1.5px solid #E8F0EE", marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1B5E52", marginBottom: 16 }}>事業所情報</h2>
@@ -35,7 +52,21 @@ export default async function SettingsPage() {
           <Row label="メールアドレス" value={company.email} />
           <Row label="プランステータス" value={{ ACTIVE: "有効", PENDING_PAYMENT: "お支払い待ち", PAST_DUE: "支払い延滞", CANCELED: "解約済み" }[company.status] ?? company.status} />
         </div>
-        {company.stripeCustomerId && <PortalButton />}
+      </section>
+
+      {/* Billing / cancellation */}
+      <section style={{ background: "#fff", borderRadius: 14, padding: "20px", border: "1.5px solid #E8F0EE", marginBottom: 20 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1B5E52", marginBottom: 8 }}>お支払い・解約</h2>
+        <p style={{ fontSize: 13, color: "#666", marginBottom: 16, lineHeight: 1.6 }}>
+          お支払い方法の変更・請求書の確認・解約は、こちらのボタンから行えます。
+        </p>
+        {company.stripeCustomerId ? (
+          <PortalButton />
+        ) : (
+          <div style={{ background: "#F0F9F8", border: "1.5px solid #D0E8E4", borderRadius: 10, padding: "16px 18px", fontSize: 13, color: "#1B5E52" }}>
+            契約情報が見つかりませんでした。お手数ですがサポートまでご連絡ください。
+          </div>
+        )}
       </section>
 
       {/* Invite code */}

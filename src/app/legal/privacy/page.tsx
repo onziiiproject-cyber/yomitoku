@@ -35,7 +35,7 @@ export default function PrivacyPage() {
       <ul>
         <li><strong>広告・協賛コンテンツの配信：</strong>介護事業に関連する製品・サービス・セミナー等の広告・PR情報をメールまたはLINEでお届けします。月1〜2回程度を上限とし、「広告」と明示した上で配信します。</li>
       </ul>
-      <p>上記の任意同意はいつでも撤回できます。撤回をご希望の場合は <strong>onziii.project@gmail.com</strong> までご連絡ください。</p>
+      <p>上記の任意同意はいつでも撤回できます。撤回をご希望の場合は <strong>info@yomitoku-base.com</strong> までご連絡ください。</p>
 
       <h2>3. 第三者提供</h2>
       <p>当社は、以下の場合を除き、取得した個人情報を第三者に提供しません。</p>
@@ -59,12 +59,12 @@ export default function PrivacyPage() {
       <p>当社は、個人情報の漏洩・滅失・毀損を防止するため、適切な安全管理措置を講じます。</p>
 
       <h2>6. 開示・訂正・削除</h2>
-      <p>個人情報の開示・訂正・削除を希望される場合は、<strong>onziii.project@gmail.com</strong> までご連絡ください。本人確認の上、合理的な範囲で対応します。</p>
+      <p>個人情報の開示・訂正・削除を希望される場合は、<strong>info@yomitoku-base.com</strong> までご連絡ください。本人確認の上、合理的な範囲で対応します。</p>
 
       <h2>7. お問い合わせ</h2>
       <p>個人情報の取り扱いに関するお問い合わせは以下までご連絡ください。</p>
       <p>株式会社ONZiii Act　個人情報管理担当<br />
-      メール：onziii.project@gmail.com</p>
+      メール：info@yomitoku-base.com</p>
     </div>
   );
 }

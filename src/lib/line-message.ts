@@ -560,6 +560,17 @@ export async function pushShingiNoMatch(
   return res.sentMessages?.[0]?.id ?? "";
 }
 
+export async function pushTrialEndingReminder(lineUserId: string, daysLeft: number): Promise<void> {
+  const client = getClient();
+  const text = daysLeft === 1
+    ? "🎁 無料期間は明日までです。このまま自動で本登録となり、月額300円のお支払いが開始されます。解約をご希望の場合は「ヨミトク編集室」の設定ページからお手続きください。"
+    : `🎁 無料期間は残り${daysLeft}日です。このまま自動で本登録となり、月額300円のお支払いが開始されます。解約をご希望の場合は「ヨミトク編集室」の設定ページからお手続きください。`;
+  await client.pushMessage({
+    to: lineUserId,
+    messages: [{ type: "text", text }],
+  });
+}
+
 export async function pushTestMessage(lineUserId: string): Promise<void> {
   const client = getClient();
   await client.pushMessage({

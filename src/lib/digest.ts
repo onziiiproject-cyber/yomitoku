@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { scrapeMhlwLatest, scrapeShingi } from "./scraper";
-import { analyzeDocument, generateStructuredContent, buildWeeklyDigest, buildShingiPDFData, type StructuredContent } from "./anthropic";
+import { analyzeDocument, generateStructuredContent, generateDiscussionQuestion, buildWeeklyDigest, buildShingiPDFData, type StructuredContent } from "./anthropic";
 import { pushWeeklyDigestCards, pushBreakingNews, pushShingiCover, pushShingiTopics, pushShingiNoMatch, type DigestDoc, type WeeklyCardDoc } from "./line-message";
 import { generateShingiCoverPDF, generateShingiTopicPDF, type ShingiThemeDetail } from "./pdf-shingi";
 import { put } from "@vercel/blob";
@@ -33,6 +33,29 @@ function oneWeekAgo(): Date {
   const d = new Date();
   d.setDate(d.getDate() - 7);
   return d;
+}
+
+// 記事処理完了直後に、ゴリ編集長名義で議論のきっかけとなる質問コメントを自動投稿する。
+// 「この先どうなるか、予想してみます」パート（信憑性なしと明記された推測）への反応を聞く形にすることで、
+// 事業所の内部情報を答えさせるプレッシャーを避け、気軽に書き込める問いかけにする。
+// 失敗しても記事処理自体は成立済みなので、ここでは例外を握りつぶしログのみ残す。
+async function postEditorComment(siteDocumentId: string, title: string, structured: StructuredContent) {
+  try {
+    const outlook = structured.sections.find((s) => s.kind === "outlook")?.body;
+    if (!outlook) return;
+    const question = await generateDiscussionQuestion(title, outlook);
+    if (!question) return;
+    await prisma.articleComment.create({
+      data: {
+        siteDocumentId,
+        authorName: "ゴリ編集長",
+        body: question,
+        isEditorComment: true,
+      },
+    });
+  } catch (e) {
+    console.error(`Editor comment failed for ${siteDocumentId}:`, e);
+  }
 }
 
 // 分科会のテーマ単位データを、既存のgenerateStructuredContent/analyzeDocumentに渡せる1本のテキストに変換
@@ -84,8 +107,9 @@ export async function processShingiSession(doc: {
             processedAt: new Date(),
           },
         });
+        await postEditorComment(doc.id, title, structured);
       } else {
-        await prisma.siteDocument.create({
+        const created = await prisma.siteDocument.create({
           data: {
             url: doc.url,
             themeNo: detail.no,
@@ -100,6 +124,7 @@ export async function processShingiSession(doc: {
             processedAt: new Date(),
           },
         });
+        await postEditorComment(created.id, title, structured);
       }
       count++;
     } catch (e) {
@@ -204,6 +229,7 @@ export async function runProcessPending(limit = 1): Promise<ProcessResult> {
           processedAt: new Date(),
         },
       });
+      await postEditorComment(doc.id, doc.title, structured);
       processed++;
     } catch (e) {
       errors.push(`Process failed "${doc.title.slice(0, 30)}": ${e}`);

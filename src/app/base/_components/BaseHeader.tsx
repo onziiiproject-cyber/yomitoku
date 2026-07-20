@@ -32,7 +32,7 @@ export default function BaseHeader({ companyName }: { companyName: string }) {
         <HeaderLogo />
 
         {/* Search bar */}
-        <form onSubmit={handleSearch} style={{ flex: 1, position: "relative", maxWidth: 680 }}>
+        <form onSubmit={handleSearch} className="header-search-form" style={{ flex: 1, position: "relative", maxWidth: 680, minWidth: 0 }}>
           <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#9BB5B0", display: "flex", pointerEvents: "none" }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -70,14 +70,14 @@ export default function BaseHeader({ companyName }: { companyName: string }) {
 
         {/* Right icons */}
         <div style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0, marginLeft: "auto" }}>
-          <a href="/base/favorites" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, textDecoration: "none", color: "#7AADA6" }}>
+          <a href="/base/favorites" className="header-favorites-link" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, textDecoration: "none", color: "#7AADA6" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
             </svg>
             <span style={{ fontSize: 10, fontFamily: "sans-serif" }}>お気に入り</span>
           </a>
 
-          <div style={{ width: 1, height: 28, background: "#E2EDEB" }} />
+          <div className="header-favorites-divider" style={{ width: 1, height: 28, background: "#E2EDEB" }} />
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#E8F5F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -86,7 +86,7 @@ export default function BaseHeader({ companyName }: { companyName: string }) {
               </svg>
             </div>
             <div>
-              <a href="/base/settings" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#1a1a1a", textDecoration: "none", lineHeight: 1.3, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <a href="/base/settings" className="header-company-name" style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#1a1a1a", textDecoration: "none", lineHeight: 1.3, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {companyName}
               </a>
               <button onClick={logout} style={{ display: "block", fontSize: 11, color: "#9BB5B0", background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1.4, textAlign: "left" }}>

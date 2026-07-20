@@ -7,6 +7,9 @@ export interface FeedComment {
   createdAt: string;
   likeCount: number;
   likedByMe: boolean;
+  isEditorComment: boolean;
+  authorIconKey: string | null;
+  authorIconUrl: string | null;
 }
 
 export interface FeedExtras {
@@ -44,7 +47,7 @@ export async function loadFeedExtras(docIds: string[], companyId: string | null)
       : Promise.resolve([]),
     prisma.articleComment.findMany({
       where: { siteDocumentId: { in: docIds } },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ isEditorComment: "desc" }, { createdAt: "desc" }],
       include: { commentLikes: { select: { companyId: true } } },
     }),
   ]);
@@ -58,6 +61,9 @@ export async function loadFeedExtras(docIds: string[], companyId: string | null)
       createdAt: c.createdAt.toISOString(),
       likeCount: c.commentLikes.length,
       likedByMe: companyId ? c.commentLikes.some((l) => l.companyId === companyId) : false,
+      isEditorComment: c.isEditorComment,
+      authorIconKey: c.authorIconKey,
+      authorIconUrl: c.authorIconUrl,
     };
     const list = commentsByDoc.get(c.siteDocumentId) ?? [];
     list.push(dto);
