@@ -5,6 +5,13 @@ import { pushWeeklyDigestCards, pushBreakingNews, pushShingiCover, pushShingiTop
 import { generateShingiCoverPDF, generateShingiTopicPDF, type ShingiThemeDetail } from "./pdf-shingi";
 import { put } from "@vercel/blob";
 
+// PDFがClaudeのページ数上限（100ページ）やトークン上限を超えている場合、
+// この文書は何度リトライしても永久に処理できないので判別して即座に諦める
+function isDocumentTooLargeError(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  return message.includes("maximum of 100 PDF pages") || message.includes("prompt is too long");
+}
+
 // PDF取得は失敗しても黙ってテキストのみにフォールバックせず、
 // リトライしてもダメならnullを返す（呼び出し側で「未処理のまま次回に持ち越す」判断に使う）
 async function fetchPdfBase64(url: string, label: string): Promise<string | null> {
@@ -234,8 +241,31 @@ export async function runProcessPending(limit = 1): Promise<ProcessResult> {
         pdfBase64 = fetched;
       }
 
-      const result = await analyzeDocument(doc.title, doc.rawText ?? "", pdfBase64);
-      const structured = await generateStructuredContent(doc.title, doc.rawText ?? "", pdfBase64);
+      let result: Awaited<ReturnType<typeof analyzeDocument>>;
+      let structured: StructuredContent;
+      try {
+        result = await analyzeDocument(doc.title, doc.rawText ?? "", pdfBase64);
+        structured = await generateStructuredContent(doc.title, doc.rawText ?? "", pdfBase64);
+      } catch (e) {
+        // PDFがページ数上限（100ページ）やトークン上限を超えている場合は、テキストのみに
+        // フォールバックせず（=中身のない要約を防ぐため）、正直に「対象外」として処理済みにする。
+        // これをしないと毎日のcronが同じ処理不能な文書を無限にリトライし続けてしまう。
+        if (isDocumentTooLargeError(e)) {
+          await prisma.siteDocument.update({
+            where: { id: doc.id },
+            data: {
+              summary: "この文書はページ数・分量が多いため自動要約の対象外です。原文PDFを直接ご確認ください。",
+              tags: [],
+              importance: "normal",
+              processedAt: new Date(),
+            },
+          });
+          errors.push(`文書サイズ上限のため要約対象外としてマーク: "${doc.title.slice(0, 30)}"`);
+          processed++;
+          continue;
+        }
+        throw e;
+      }
 
       await prisma.siteDocument.update({
         where: { id: doc.id },
