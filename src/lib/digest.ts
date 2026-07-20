@@ -5,6 +5,22 @@ import { pushWeeklyDigestCards, pushBreakingNews, pushShingiCover, pushShingiTop
 import { generateShingiCoverPDF, generateShingiTopicPDF, type ShingiThemeDetail } from "./pdf-shingi";
 import { put } from "@vercel/blob";
 
+// PDF取得は失敗しても黙ってテキストのみにフォールバックせず、
+// リトライしてもダメならnullを返す（呼び出し側で「未処理のまま次回に持ち越す」判断に使う）
+async function fetchPdfBase64(url: string, label: string): Promise<string | null> {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; YomitokuBot/1.0)" } });
+      if (res.ok) return Buffer.from(await res.arrayBuffer()).toString("base64");
+      console.error(`[digest] PDF fetch non-OK (attempt ${attempt}/3, status ${res.status}) for "${label}": ${url}`);
+    } catch (e) {
+      console.error(`[digest] PDF fetch error (attempt ${attempt}/3) for "${label}": ${e}`);
+    }
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 1000 * attempt));
+  }
+  return null;
+}
+
 export interface DigestResult {
   newDocs: number;
   sentTo: number;
@@ -205,15 +221,17 @@ export async function runProcessPending(limit = 1): Promise<ProcessResult> {
         continue;
       }
 
-      // PDF URLならダウンロードしてClaudeに渡す
+      // PDF URLならダウンロードしてClaudeに渡す。取得に失敗した場合、一覧ページの
+      // 断片テキストだけで要約を生成すると内容の伴わない記事になるため、
+      // summaryをnullのままにしてこの記事はスキップし、次回のcron実行で再試行する
       let pdfBase64: string | undefined;
       if (doc.url.endsWith(".pdf")) {
-        try {
-          const pdfRes = await fetch(doc.url, {
-            headers: { "User-Agent": "Mozilla/5.0 (compatible; YomitokuBot/1.0)" },
-          });
-          if (pdfRes.ok) pdfBase64 = Buffer.from(await pdfRes.arrayBuffer()).toString("base64");
-        } catch { /* テキストのみでフォールバック */ }
+        const fetched = await fetchPdfBase64(doc.url, doc.title.slice(0, 40));
+        if (!fetched) {
+          errors.push(`PDF取得失敗のためスキップ（次回に再試行）: "${doc.title.slice(0, 30)}"`);
+          continue;
+        }
+        pdfBase64 = fetched;
       }
 
       const result = await analyzeDocument(doc.title, doc.rawText ?? "", pdfBase64);
@@ -411,10 +429,12 @@ export async function runBreakingNewsCheck(): Promise<BreakingNewsResult> {
     try {
       let pdfBase64 = item.pdfBase64;
       if (!pdfBase64 && item.url.endsWith(".pdf")) {
-        try {
-          const pdfRes = await fetch(item.url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; YomitokuBot/1.0)" } });
-          if (pdfRes.ok) pdfBase64 = Buffer.from(await pdfRes.arrayBuffer()).toString("base64");
-        } catch { /* fallback to title-only */ }
+        const fetched = await fetchPdfBase64(item.url, item.title.slice(0, 40));
+        if (!fetched) {
+          errors.push(`PDF取得失敗のためスキップ（次回に再試行）: "${item.title.slice(0, 30)}"`);
+          continue;
+        }
+        pdfBase64 = fetched;
       }
       const result = await analyzeDocument(item.title, item.rawText, pdfBase64);
       const structured = await generateStructuredContent(item.title, item.rawText, pdfBase64);
