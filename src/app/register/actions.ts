@@ -46,7 +46,9 @@ export async function startRegistration(_: unknown, formData: FormData) {
   }
 
   const existing = await prisma.company.findUnique({ where: { email } });
-  if (existing) {
+  // 決済未完了（PENDING_PAYMENT）のまま離脱した場合は再登録として上書きを許可する。
+  // それ以外（有効・解約済みなど）のステータスは本当に既存アカウントなのでブロックする。
+  if (existing && existing.status !== "PENDING_PAYMENT") {
     return { error: "このメールアドレスはすでに登録されています。" };
   }
 
@@ -57,29 +59,40 @@ export async function startRegistration(_: unknown, formData: FormData) {
     ? referralRaw
     : null;
 
-  const stripeCustomer = await stripe.customers.create({
-    name: companyName,
-    email,
-    metadata: { contactName, contactRole, prefecture: prefecture ?? "" },
-  });
+  const stripeCustomer = existing?.stripeCustomerId
+    ? await stripe.customers.update(existing.stripeCustomerId, {
+        name: companyName,
+        email,
+        metadata: { contactName, contactRole, prefecture: prefecture ?? "" },
+      })
+    : await stripe.customers.create({
+        name: companyName,
+        email,
+        metadata: { contactName, contactRole, prefecture: prefecture ?? "" },
+      });
 
   const passwordHash = await bcrypt.hash(password, 12);
 
-  const company = await prisma.company.create({
-    data: {
-      name:         companyName,
-      facilityName,
-      contactName,
-      contactRole,
-      email,
-      passwordHash,
-      phone:        phone ?? null,
-      prefecture:   prefecture ?? null,
-      stripeCustomerId: stripeCustomer.id,
-      referredByCodeId: referral?.id ?? null,
-      tags: { create: tags.map((t) => ({ tagId: t.id })) },
-    },
-  });
+  const companyData = {
+    name:         companyName,
+    facilityName,
+    contactName,
+    contactRole,
+    passwordHash,
+    phone:        phone ?? null,
+    prefecture:   prefecture ?? null,
+    stripeCustomerId: stripeCustomer.id,
+    referredByCodeId: referral?.id ?? null,
+  };
+
+  const company = existing
+    ? await prisma.company.update({
+        where: { id: existing.id },
+        data: { ...companyData, tags: { deleteMany: {}, create: tags.map((t) => ({ tagId: t.id })) } },
+      })
+    : await prisma.company.create({
+        data: { ...companyData, email, tags: { create: tags.map((t) => ({ tagId: t.id })) } },
+      });
 
   const headersList = await headers();
   const host = headersList.get("host") ?? "yomitoku-base.com";
