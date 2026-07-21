@@ -28,9 +28,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `LineRecipient not found for lineUserId=${lineUserId}` }, { status: 404 });
   }
 
-  // DBから直近ドキュメントを取得
+  // DBから直近ドキュメントを取得（本番の週刊ダイジェストと同じ条件。
+  // publishedAtがない記事は記事詳細ページが404を返すため除外する）
   const docs = await prisma.siteDocument.findMany({
-    where: { summary: { not: null } },
+    where: { summary: { not: null }, publishedAt: { not: null } },
     orderBy: [{ importance: "desc" }, { createdAt: "desc" }],
     take: 8,
   });
