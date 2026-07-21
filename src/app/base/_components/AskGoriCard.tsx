@@ -125,7 +125,7 @@ export default function AskGoriCard({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/mascot/gori-base-face.png" alt="" width={38} height={38} style={{ flexShrink: 0, objectFit: "cover", borderRadius: "50%", background: "#fff" }} />
           <div>
-            <p style={{ fontSize: 15, fontWeight: 800, color: "#1a1a1a", margin: "0 0 2px" }}>ゴリに質問する</p>
+            <p style={{ fontSize: 15, fontWeight: 800, color: "#1a1a1a", margin: "0 0 2px" }}>ゴリ編集長に質問する</p>
             <p style={{ fontSize: 11, color: "#aaa", margin: 0 }}>この記事の内容についてだけ答えます</p>
           </div>
         </div>
@@ -173,7 +173,7 @@ export default function AskGoriCard({
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 20px", borderBottom: "1px solid #F0F0F0", flexShrink: 0 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/mascot/gori-base-face.png" alt="" width={34} height={34} style={{ flexShrink: 0, objectFit: "cover", borderRadius: "50%", background: "#fff" }} />
-            <p style={{ fontSize: 15, fontWeight: 800, color: "#1a1a1a", margin: 0, flex: 1 }}>ゴリに質問する</p>
+            <p style={{ fontSize: 15, fontWeight: 800, color: "#1a1a1a", margin: 0, flex: 1 }}>ゴリ編集長に質問する</p>
             <button onClick={() => setModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, color: "#888" }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
