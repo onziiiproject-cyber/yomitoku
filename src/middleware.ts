@@ -11,6 +11,10 @@ function isPublicBasePath(pathname: string): boolean {
   if (pathname.startsWith("/base/login")) return true;
   if (pathname.startsWith("/base/forgot-password")) return true;
   if (pathname.startsWith("/base/reset-password")) return true;
+  // 個別記事ページは未ログインでも見出しまでは閲覧できる仕様
+  // （本文はサーバー側でredactStructuredContentForGuestにより除去済み）。
+  // SNSからのリンク着地先として、ログイン強制よりこちらを見せたい。
+  if (pathname.startsWith("/base/articles/")) return true;
   return false;
 }
 
