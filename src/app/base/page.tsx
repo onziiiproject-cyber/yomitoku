@@ -5,7 +5,7 @@ import FeedArticleCard from "./_components/FeedArticleCard";
 import FeedTabs from "./_components/FeedTabs";
 import MobileSearchBar from "./_components/MobileSearchBar";
 import { loadFeedExtras } from "@/lib/feedData";
-import type { StructuredContent } from "@/lib/anthropic";
+import { redactStructuredContentForGuest, type StructuredContent } from "@/lib/anthropic";
 
 // ─── カテゴリ判定ロジック ────────────────────────────────────────────────────
 // サイドバーのリンクは 介護保険最新情報／分科会かんたん解説／タグ検索 のみだが、
@@ -174,7 +174,11 @@ export default async function BasePage({
               id={doc.id}
               title={doc.title}
               summary={doc.summary}
-              structuredContent={doc.structuredContent ? (doc.structuredContent as unknown as StructuredContent) : null}
+              structuredContent={doc.structuredContent
+                ? (session
+                    ? (doc.structuredContent as unknown as StructuredContent)
+                    : redactStructuredContentForGuest(doc.structuredContent as unknown as StructuredContent))
+                : null}
               tags={doc.tags as string[]}
               source={doc.source}
               publishedAt={doc.publishedAt!.toISOString()}

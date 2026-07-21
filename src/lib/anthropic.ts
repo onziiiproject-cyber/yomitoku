@@ -135,6 +135,20 @@ export interface StructuredContent {
   sections: ContentSection[];
 }
 
+// 未ログインユーザー向け：見出し（kind/type/heading）だけを残し本文を取り除く。
+// CSSのぼかしだけでは本文がHTML/RSCペイロードにそのまま含まれてしまい、
+// view-sourceやDevToolsで誰でも全文を読めてしまうため、サーバー側で除去する。
+export function redactStructuredContentForGuest(content: StructuredContent): StructuredContent {
+  return {
+    ...content,
+    sections: content.sections.map((s) => ({
+      kind: s.kind,
+      type: s.type,
+      heading: s.heading,
+    })),
+  };
+}
+
 // カードは常にこの6種類・この順序で固定。読み手の「何が変わる？」という自然な思考の流れに沿わせる。
 const SECTION_SPECS: { kind: SectionKind; defaultHeading: string; guide: string }[] = [
   {

@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import GuestHeader from "../../_components/GuestHeader";
 import ArticleSwiper from "../../_components/ArticleSwiper";
-import type { StructuredContent } from "@/lib/anthropic";
+import { redactStructuredContentForGuest, type StructuredContent } from "@/lib/anthropic";
 
 export default async function ArticleDetailPage({
   params,
@@ -57,7 +57,11 @@ export default async function ArticleDetailPage({
       id={doc.id}
       title={doc.title}
       summary={doc.summary}
-      structuredContent={doc.structuredContent ? (doc.structuredContent as unknown as StructuredContent) : null}
+      structuredContent={doc.structuredContent
+        ? (session
+            ? (doc.structuredContent as unknown as StructuredContent)
+            : redactStructuredContentForGuest(doc.structuredContent as unknown as StructuredContent))
+        : null}
       tags={doc.tags as string[]}
       source={doc.source}
       publishedAt={doc.publishedAt.toISOString()}
