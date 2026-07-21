@@ -126,6 +126,45 @@ export async function classifyDecisionStatus(
     : null;
 }
 
+// スクレイパーが一覧ページから日付を拾えなかったPDF文書向けのバックフィル用。
+// PDF本文に記載された発出日・公布日をAIに読み取らせる。
+export async function extractPublishedDate(
+  title: string,
+  pdfBase64: string
+): Promise<string | null> {
+  const client = getClient();
+
+  const prompt = `以下のPDF文書の発出日・公布日・通知日を読み取ってください。
+
+タイトル: ${title}
+
+以下のJSON形式のみで回答してください（他のテキスト不要）：
+{ "publishedAt": "YYYY-MM-DD形式の日付、読み取れない場合はnull" }`;
+
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 128,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 } },
+          { type: "text", text: prompt },
+        ],
+      },
+    ],
+  });
+
+  const text = response.content[0].type === "text" ? response.content[0].text : "{}";
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+
+  const parsed = JSON.parse(match[0]);
+  return typeof parsed.publishedAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.publishedAt)
+    ? parsed.publishedAt
+    : null;
+}
+
 export async function generateDiscussionQuestion(
   title: string,
   outlook: string
