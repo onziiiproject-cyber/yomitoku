@@ -116,15 +116,20 @@ function StarRow({ label, value, light }: { label: string; value: number; light?
 }
 
 // ── Section renderers ──────────────────────────────────────────────────────
+// 見出しだけは未ログインでもぼかさず見せる（中身を見たくなる導線として）
+function SectionHeading({ section, color, bg }: { section: ContentSection; color: string; bg: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, background: bg, borderRadius: 16, padding: "8px 14px 8px 8px" }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/mascot/gori-base-face.png" alt="" width={38} height={38} style={{ flexShrink: 0, objectFit: "cover", borderRadius: "50%", background: "#fff" }} />
+      <h2 style={{ fontSize: 17, fontWeight: 800, color, margin: 0, lineHeight: 1.3 }}>{GORI_HEADING[section.kind] ?? section.heading}</h2>
+    </div>
+  );
+}
+
 function SectionCard({ section, color, bg }: { section: ContentSection; color: string; bg: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, background: bg, borderRadius: 16, padding: "8px 14px 8px 8px" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/mascot/gori-base-face.png" alt="" width={38} height={38} style={{ flexShrink: 0, objectFit: "cover", borderRadius: "50%", background: "#fff" }} />
-        <h2 style={{ fontSize: 17, fontWeight: 800, color, margin: 0, lineHeight: 1.3 }}>{GORI_HEADING[section.kind] ?? section.heading}</h2>
-      </div>
-
       {section.kind === "outlook" && (
         <div style={{ display: "flex", gap: 10, alignItems: "flex-start", background: "#FEF3C7", border: "1.5px solid #F5D98A", borderRadius: 10, padding: "10px 12px" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -358,15 +363,19 @@ export default function ArticleSwiper(props: ArticleSwiperProps) {
               <div style={{ position: "absolute", top: 12, right: 16, fontSize: 11, color: "#ccc", fontWeight: 600 }}>
                 {si + 1}/{sections.length}
               </div>
-              <div style={{ flex: 1, overflowY: "auto", ...(guestLocked ? BLUR_STYLE : {}) }}>
-                <SectionCard section={section} color={src.color} bg={src.bg} />
+              {/* 見出しはロックせず表示。中身を見たくなる導線として機能させる */}
+              <SectionHeading section={section} color={src.color} bg={src.bg} />
+              <div style={{ position: "relative", flex: 1, overflowY: "auto", marginTop: 14 }}>
+                <div style={guestLocked ? BLUR_STYLE : undefined}>
+                  <SectionCard section={section} color={src.color} bg={src.bg} />
+                </div>
+                {guestLocked && <LockOverlay color={src.color} />}
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20, ...(guestLocked ? BLUR_STYLE : {}) }}>
                 <button onClick={() => goTo(ci + 1)} style={{ background: "transparent", border: `1.5px solid ${src.color}`, color: src.color, borderRadius: 20, padding: "7px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                   {isLast ? "原文を見る →" : "次へ →"}
                 </button>
               </div>
-              {guestLocked && <LockOverlay color={src.color} />}
             </div>
           );
         }) : (
