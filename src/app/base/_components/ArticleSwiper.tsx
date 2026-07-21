@@ -25,6 +25,7 @@ interface ArticleSwiperProps {
   publishedAt: string;
   createdAt: string;
   importance: string;
+  decisionStatus?: string | null;
   url: string;
   initialRead: boolean;
   initialReadCount: number;
@@ -199,7 +200,7 @@ function SectionCard({ section, color, bg }: { section: ContentSection; color: s
 
 export default function ArticleSwiper(props: ArticleSwiperProps) {
   const {
-    id, title, structuredContent, summary, tags, source, publishedAt, createdAt, importance, url,
+    id, title, structuredContent, summary, tags, source, publishedAt, createdAt, importance, decisionStatus, url,
     initialRead, initialReadCount, initialLiked, initialLikeCount,
     initialFavorited, initialComments, isLoggedIn, hideBackLink,
   } = props;
@@ -282,6 +283,12 @@ export default function ArticleSwiper(props: ArticleSwiperProps) {
                     <span style={{ background: "#F5A623", color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 4, width: "fit-content" }}>新着</span>
                   )}
                   <span style={{ fontSize: 11, color: src.color, fontWeight: 700, background: "rgba(255,255,255,0.85)", padding: "3px 9px", borderRadius: 4, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>{src.label}</span>
+                  {decisionStatus === "discussion" && (
+                    <span style={{ fontSize: 10, color: "#B45309", fontWeight: 800, background: "rgba(255,255,255,0.9)", padding: "3px 9px", borderRadius: 4, width: "fit-content" }}>議論中</span>
+                  )}
+                  {decisionStatus === "decided" && (
+                    <span style={{ fontSize: 10, color: "#0D686E", fontWeight: 800, background: "rgba(255,255,255,0.9)", padding: "3px 9px", borderRadius: 4, width: "fit-content" }}>決定事項</span>
+                  )}
                 </div>
                 <div style={{ background: src.color, borderRadius: 10, padding: "8px 12px", textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.15)", minWidth: 56 }}>
                   <div style={{ fontSize: 9, color: "rgba(255,255,255,0.8)", fontWeight: 700, marginBottom: 2, letterSpacing: "0.05em" }}>発表日</div>

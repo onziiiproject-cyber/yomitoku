@@ -17,6 +17,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   guideline: "ガイドライン・通知",
   subsidy: "補助金・助成金情報",
   breaking: "速報・重要情報",
+  discussion: "議論中",
+  decided: "決定事項",
 };
 
 const PERIOD_DAYS: Record<string, number> = { week: 7, month: 30, "3m": 90 };
@@ -41,6 +43,10 @@ function buildWhere(cat: string, q: string, tag: string, period: string): any {
     where.tags = { hasSome: ["補助金・助成金"] };
   } else if (cat === "breaking") {
     where.importance = "high";
+  } else if (cat === "discussion") {
+    where.decisionStatus = "discussion";
+  } else if (cat === "decided") {
+    where.decisionStatus = "decided";
   }
   if (tag) {
     where.tags = { has: tag };
@@ -96,7 +102,7 @@ export default async function BasePage({
       skip,
       select: {
         id: true, title: true, summary: true, structuredContent: true, tags: true,
-        source: true, publishedAt: true, importance: true, url: true, createdAt: true,
+        source: true, publishedAt: true, importance: true, decisionStatus: true, url: true, createdAt: true,
       },
     }),
     prisma.siteDocument.count({ where }),
@@ -184,6 +190,7 @@ export default async function BasePage({
               publishedAt={doc.publishedAt!.toISOString()}
               createdAt={doc.createdAt.toISOString()}
               importance={doc.importance}
+              decisionStatus={doc.decisionStatus}
               url={doc.url}
               initialRead={extras.readIds.has(doc.id)}
               initialReadCount={extras.readCounts.get(doc.id) ?? 0}

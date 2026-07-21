@@ -175,20 +175,22 @@ model MessageBatch {
 }
 
 model SiteDocument {
-  id          String    @id @default(cuid())
-  url         String
+  id             String    @id @default(cuid())
+  url            String
   // 分科会は1URL（1回の会合）から複数トピックの記事を作るため、themeNoで区別する。
   // mhlw_latestは常に0（実質1URL=1記事のまま）。
-  themeNo     Int       @default(0)
-  title       String
-  source      String // "mhlw_latest" | "shingi"
-  publishedAt DateTime?
-  rawText     String    @db.Text
-  summary     String?   @db.Text
-  tags        String[]
-  importance  String    @default("normal") // "high" | "normal"
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
+  themeNo        Int       @default(0)
+  title          String
+  source         String // "mhlw_latest" | "shingi"
+  publishedAt    DateTime?
+  rawText        String    @db.Text
+  summary        String?   @db.Text
+  tags           String[]
+  importance     String    @default("normal") // "high" | "normal"
+  // 議論中("discussion")か決定事項("decided")かのAI分類。どちらにも当てはまらない場合はnull（バッジ非表示）
+  decisionStatus String?
+  processedAt    DateTime?
+  createdAt      DateTime  @default(now())
 
   structuredContent Json?
 

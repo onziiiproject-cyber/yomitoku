@@ -67,6 +67,7 @@ export default async function ArticleDetailPage({
       publishedAt={doc.publishedAt.toISOString()}
       createdAt={doc.createdAt.toISOString()}
       importance={doc.importance}
+      decisionStatus={doc.decisionStatus}
       url={doc.url}
       initialRead={!!readRecord}
       initialReadCount={readCount}

@@ -14,6 +14,7 @@ interface FeedArticleCardProps {
   publishedAt: string;
   createdAt: string;
   importance: string;
+  decisionStatus?: string | null;
   url: string;
   initialRead: boolean;
   initialReadCount: number;
@@ -27,7 +28,7 @@ interface FeedArticleCardProps {
 
 export default function FeedArticleCard(props: FeedArticleCardProps) {
   const {
-    id, title, summary, structuredContent, tags, source, publishedAt, createdAt, importance, url,
+    id, title, summary, structuredContent, tags, source, publishedAt, createdAt, importance, decisionStatus, url,
     initialRead, initialReadCount, initialLiked, initialLikeCount,
     initialFavorited, initialComments, isLoggedIn, showScrollHint,
   } = props;
@@ -46,6 +47,7 @@ export default function FeedArticleCard(props: FeedArticleCardProps) {
           publishedAt={publishedAt}
           createdAt={createdAt}
           importance={importance}
+          decisionStatus={decisionStatus}
           url={url}
           initialRead={initialRead}
           initialReadCount={initialReadCount}
