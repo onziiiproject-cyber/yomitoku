@@ -374,6 +374,7 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
       importanceStars: sc?.importanceStars ?? null,
       urgencyStars: sc?.urgencyStars ?? null,
       isNew: new Date().getTime() - new Date(d.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
+      decisionStatus: d.decisionStatus,
     };
   });
 

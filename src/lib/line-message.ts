@@ -39,12 +39,32 @@ export interface WeeklyCardDoc {
   importanceStars: number | null;
   urgencyStars: number | null;
   isNew: boolean;
+  decisionStatus: string | null;
 }
 
 const WEEKLY_SOURCE_BADGE: Record<string, { label: string; color: string }> = {
   mhlw_latest: { label: "介護保険最新情報", color: "#0D686E" },
   shingi: { label: "分科会かんたん解説", color: "#B45309" },
 };
+
+const DECISION_STATUS_BADGE: Record<string, { label: string; bg: string; color: string }> = {
+  discussion: { label: "議論中", bg: "#FEF3C7", color: "#B45309" },
+  decided: { label: "決定事項", bg: "#E8F5F1", color: "#0D686E" },
+};
+
+// 情報源バッジ（塗りつぶし）と紛らわしくならないよう、薄い背景色のバッジにする
+function paleBadgePill(text: string, bg: string, color: string): messagingApi.FlexBox {
+  return {
+    type: "box",
+    layout: "vertical",
+    paddingAll: "3px",
+    paddingStart: "8px",
+    paddingEnd: "8px",
+    backgroundColor: bg,
+    cornerRadius: "4px",
+    contents: [{ type: "text", text, size: "xxs", weight: "bold", color } as messagingApi.FlexText],
+  };
+}
 
 function starText(stars: number | null): string {
   if (!stars) return "";
@@ -131,6 +151,8 @@ function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string): messagingApi.Flex
   const badges: messagingApi.FlexComponent[] = [];
   if (doc.isNew) badges.push(badgePill("新着", "#F5A623"));
   badges.push(badgePill(src.label, src.color));
+  const decisionBadge = doc.decisionStatus ? DECISION_STATUS_BADGE[doc.decisionStatus] : null;
+  if (decisionBadge) badges.push(paleBadgePill(decisionBadge.label, decisionBadge.bg, decisionBadge.color));
 
   const starLines: messagingApi.FlexComponent[] = [];
   if (doc.importanceStars) {
