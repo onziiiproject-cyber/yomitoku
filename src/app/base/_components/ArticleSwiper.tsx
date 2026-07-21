@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState, useEffect } from "react";
 import LikeCommentSection from "./LikeCommentSection";
+import AskGoriCard from "./AskGoriCard";
 import type { StructuredContent, ContentSection, SectionKind } from "@/lib/anthropic";
 
 interface Comment {
@@ -216,8 +217,8 @@ export default function ArticleSwiper(props: ArticleSwiperProps) {
   const guestLocked = !isLoggedIn;
   void importance;
 
-  // Cards: 表紙(1) + 3行まとめ(1, if points) + sections(N) + 原文(1)
-  const TOTAL = 1 + (points ? 1 : 0) + sections.length + 1;
+  // Cards: 表紙(1) + 3行まとめ(1, if points) + sections(N) + 原文(1) + ゴリに質問する(1)
+  const TOTAL = 1 + (points ? 1 : 0) + sections.length + 1 + 1;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
@@ -403,7 +404,8 @@ export default function ArticleSwiper(props: ArticleSwiperProps) {
           );})()
         )}
 
-        {/* ── 最終カード: 原文 ── */}
+        {/* ── 原文カード ── */}
+        {(() => { const ci = cardIndex++; return (
         <div style={{ ...cardBase, background: "#FFFBF0", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ textAlign: "center" }}>
             <p style={{ fontSize: 17, fontWeight: 800, color: src.color, margin: "0 0 4px" }}>原文・資料</p>
@@ -421,7 +423,18 @@ export default function ArticleSwiper(props: ArticleSwiperProps) {
               </p>
             </div>
           </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", width: "100%", ...(guestLocked ? BLUR_STYLE : {}) }}>
+            <button onClick={() => goTo(ci + 1)} style={{ background: "transparent", border: `1.5px solid ${src.color}`, color: src.color, borderRadius: 20, padding: "7px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              ゴリに質問する →
+            </button>
+          </div>
           {guestLocked && <LockOverlay color={src.color} />}
+        </div>
+        );})()}
+
+        {/* ── 最終カード: ゴリに質問する ── */}
+        <div style={{ ...cardBase, background: "#fff" }}>
+          <AskGoriCard docId={id} color={src.color} guestLocked={guestLocked} />
         </div>
       </div>
 

@@ -195,6 +195,51 @@ AIの予想: ${outlook}
   return text.trim().replace(/^["「]|["」]$/g, "").slice(0, 150);
 }
 
+export interface ArticleQAMessage {
+  role: "user" | "assistant";
+  text: string;
+}
+
+// 記事内容の範囲でのみ答える、スコープを限定したQ&A。
+// 「あなたの事業所の場合はどうすべきか」のような個別具体相談には踏み込ませず、
+// この記事に書かれている内容の解説・言い換えに留める。
+export async function answerArticleQuestion(
+  article: { title: string; summary: string | null; rawText: string },
+  question: string,
+  history: ArticleQAMessage[]
+): Promise<string> {
+  const client = getClient();
+
+  const systemPrompt = `あなたは介護保険の情報を発信するキャラクター「ゴリ編集長」です。読者からの質問に、この記事の内容の範囲内でだけ答えてください。
+
+記事タイトル: ${article.title}
+記事要約: ${article.summary ?? ""}
+記事本文（抜粋）: ${article.rawText.slice(0, 6000)}
+
+回答のルール:
+- 必ずこの記事に書かれている内容を根拠に答える。記事に書かれていないことは推測で答えない
+- 「あなたの事業所の場合は」「うちの施設では」のような個別具体的な相談・助言を求められた場合は、記事の一般的な内容を説明した上で、個別の判断は専門家（社労士・行政窓口等）に確認するよう案内する。断定的な助言はしない
+- この記事と無関係な質問（他の制度、雑談等）には、この記事の範囲外であることを伝えて丁寧に断る
+- 口調はゴリ編集長らしく、頼れる先輩のように親しみやすく。ただし内容は正確・慎重に
+- 100〜200字程度で簡潔に答える
+- Markdown記法（**太字**、#見出し等）は使わない。プレーンテキストのみで書く`;
+
+  const messages = [
+    ...history.map((h) => ({ role: h.role, content: h.text })),
+    { role: "user" as const, content: question },
+  ];
+
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 400,
+    system: systemPrompt,
+    messages,
+  });
+
+  const text = response.content[0].type === "text" ? response.content[0].text : "";
+  return text.trim();
+}
+
 export type SectionKind =
   | "why_relevant"
   | "what_changes"
