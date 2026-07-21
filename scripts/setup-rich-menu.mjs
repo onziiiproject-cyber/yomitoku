@@ -8,7 +8,6 @@
  *   LINE_CHANNEL_ACCESS_TOKEN
  *   NEXT_PUBLIC_LIFF_LIBRARY_ID     (記事ライブラリ LIFF)
  *   NEXT_PUBLIC_LIFF_TAGS_ID        (タグ設定 LIFF) ← LINE Developersで新規作成
- *   NEXT_PUBLIC_LIFF_REQUEST_ID     (機能要望 LIFF) ← LINE Developersで新規作成
  *   NEXT_PUBLIC_APP_URL             (本番HTTPS URL)
  */
 
@@ -34,15 +33,14 @@ const env = Object.fromEntries(
 const ACCESS_TOKEN    = env.LINE_CHANNEL_ACCESS_TOKEN;
 const LIFF_LIBRARY_URL = `https://liff.line.me/${env.NEXT_PUBLIC_LIFF_LIBRARY_ID}`;
 const LIFF_TAGS_URL    = `https://liff.line.me/${env.NEXT_PUBLIC_LIFF_TAGS_ID ?? env.NEXT_PUBLIC_LIFF_ID}`;
-const LIFF_REQUEST_URL = `https://liff.line.me/${env.NEXT_PUBLIC_LIFF_REQUEST_ID ?? env.NEXT_PUBLIC_LIFF_ID}`;
 const BASE_URL         = `${env.NEXT_PUBLIC_APP_URL}/base`;
+const SPOTIFY_SHOW_URL = "https://open.spotify.com/show/033TlBFRkPM02RusVb5Xl6";
 
 if (!ACCESS_TOKEN) {
   console.error("LINE_CHANNEL_ACCESS_TOKEN が設定されていません");
   process.exit(1);
 }
 if (!env.NEXT_PUBLIC_LIFF_TAGS_ID) console.warn("⚠️  NEXT_PUBLIC_LIFF_TAGS_ID 未設定 — LIFF_IDで代替");
-if (!env.NEXT_PUBLIC_LIFF_REQUEST_ID) console.warn("⚠️  NEXT_PUBLIC_LIFF_REQUEST_ID 未設定 — LIFF_IDで代替");
 
 // ────────────────────────────────────────────────────────
 // 1. リッチメニュー画像を生成
@@ -207,7 +205,7 @@ async function setupRichMenu(imagePath) {
       },
       {
         bounds: { x: colW, y: splitY, width: colW, height: H - splitY },
-        action: { type: "uri", label: "機能要望", uri: LIFF_REQUEST_URL },
+        action: { type: "uri", label: "ヨミトク放送室", uri: SPOTIFY_SHOW_URL },
       },
       {
         bounds: { x: colW * 2, y: splitY, width: W - colW * 2, height: H - splitY },
