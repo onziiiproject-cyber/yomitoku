@@ -68,13 +68,13 @@ model Company {
 // 本部が発行するキャンペーン単位の紹介コード（特定事業所に紐づかない）。
 // 例:「〇〇協会加盟者用」「地元地域施設運営者用」のように配布先グループ単位で発行する。
 model ReferralCode {
-  id        String    @id @default(cuid())
-  code      String    @unique
-  label     String
-  expiresAt DateTime?
+  id           String    @id @default(cuid())
+  code         String    @unique
+  label        String
+  expiresAt    DateTime?
   // trueの場合、このコードでの登録はStripe決済をスキップし即アクティブ化する（アンバサダー登録用）
-  isAmbassador Boolean @default(false)
-  createdAt DateTime  @default(now())
+  isAmbassador Boolean   @default(false)
+  createdAt    DateTime  @default(now())
 
   referredCompanies Company[] @relation("ReferredByCode")
 }
@@ -192,12 +192,13 @@ model SiteDocument {
 
   structuredContent Json?
 
-  batches   BatchDocument[]
-  favorites Favorite[]
-  reads     ArticleRead[]
-  likes     ArticleLike[]
-  comments  ArticleComment[]
-  reports   ArticleReport[]
+  batches         BatchDocument[]
+  favorites       Favorite[]
+  reads           ArticleRead[]
+  likes           ArticleLike[]
+  comments        ArticleComment[]
+  reports         ArticleReport[]
+  podcastEpisodes PodcastEpisode[]
 
   @@unique([url, themeNo])
 }
@@ -296,6 +297,29 @@ model CommentLike {
   comment ArticleComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@id([companyId, commentId])
+}
+
+enum PodcastEpisodeStatus {
+  DRAFT // 台本・音声は生成済みだが未レビュー
+  PUBLISHED // 承認済み、RSSフィードに反映される
+  REJECTED // 見送り
+}
+
+// ヨミトク放送室（ゴリ編集長×ミスグレーの音声コンテンツ）のエピソード。
+// PUBLISHEDのものだけがRSSフィード（/podcast/feed.xml）に載る。
+model PodcastEpisode {
+  id          String               @id @default(cuid())
+  title       String
+  description String               @db.Text
+  script      Json // ダイアログ台本（[{speaker, text}]）。レビュー画面での表示用
+  audioUrl    String // Vercel Blob上のmp3 URL
+  durationSec Int
+  status      PodcastEpisodeStatus @default(DRAFT)
+  publishedAt DateTime? // RSS pubDateに使う。PUBLISHEDになった時点でセット
+  createdAt   DateTime             @default(now())
+
+  sourceDocId String?
+  sourceDoc   SiteDocument? @relation(fields: [sourceDocId], references: [id], onDelete: SetNull)
 }
 
 // 記事の内容についての誤り・わかりにくさの報告（ユーザーによる分散QA）
