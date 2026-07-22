@@ -13,7 +13,7 @@ const rows = [
   { label: "メールアドレス", value: "info@yomitoku-base.com" },
   { label: "サービス名", value: "ヨミトク編集部｜介護保険最新情報" },
   { label: "サービスの内容", value: "介護保険に関する公的機関の最新情報をAIで要約し、LINEメッセージで配信するSaaS型情報サービス" },
-  { label: "料金", value: "月額300円（税抜）／年額3,000円（税抜）\n※別途消費税がかかります" },
+  { label: "料金", value: "月額300円（税抜）／年額3,600円（税抜）\n※別途消費税がかかります" },
   { label: "支払方法", value: "クレジットカード（Visa・Mastercard・American Express・JCB）" },
   { label: "支払時期", value: "お申し込み時に初月分を決済。以降は契約更新日に自動引き落とし" },
   { label: "契約期間", value: "月単位または年単位（自動更新）" },

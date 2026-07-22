@@ -21,6 +21,7 @@ const schema = z.object({
   phone:        z.string().optional(),
   prefecture:   z.string().optional(),
   tagKeys:      z.array(z.string()).min(1),
+  plan:         z.enum(["monthly", "annual"]).default("monthly"),
 });
 
 export async function startRegistration(_: unknown, formData: FormData) {
@@ -34,6 +35,7 @@ export async function startRegistration(_: unknown, formData: FormData) {
     phone:        formData.get("phone") || undefined,
     prefecture:   formData.get("prefecture") || undefined,
     tagKeys:      formData.getAll("tagKeys"),
+    plan:         formData.get("plan") || undefined,
   };
   const refCode = formData.get("ref");
 
@@ -42,7 +44,7 @@ export async function startRegistration(_: unknown, formData: FormData) {
     return { error: "入力内容を確認してください。" };
   }
 
-  const { companyName, facilityName, contactName, contactRole, email, password, phone, prefecture, tagKeys } = parsed.data;
+  const { companyName, facilityName, contactName, contactRole, email, password, phone, prefecture, tagKeys, plan } = parsed.data;
 
   const tags = await prisma.tag.findMany({ where: { key: { in: tagKeys } } });
   if (tags.length === 0) {
@@ -111,10 +113,12 @@ export async function startRegistration(_: unknown, formData: FormData) {
   const proto = headersList.get("x-forwarded-proto") ?? "https";
   const baseUrl = `${proto}://${host}`;
 
+  const priceId = plan === "annual" ? process.env.STRIPE_PRICE_ID_ANNUAL! : process.env.STRIPE_PRICE_ID!;
+
   const session = await stripe.checkout.sessions.create({
     customer: stripeCustomer.id,
     mode: "subscription",
-    line_items: [{ price: process.env.STRIPE_PRICE_ID!, quantity: 1 }],
+    line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${baseUrl}/thanks?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url:  `${baseUrl}/register?cancelled=1`,
     metadata:         { companyId: company.id },

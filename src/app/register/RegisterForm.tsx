@@ -43,6 +43,7 @@ type Tag = { key: string; label: string };
 
 export default function RegisterForm({ tags, referralCode, isAmbassador = false }: { tags: Tag[]; referralCode: string | null; isAmbassador?: boolean }) {
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [plan, setPlan] = useState<"monthly" | "annual">("monthly");
   const [agreed, setAgreed] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
@@ -295,6 +296,40 @@ export default function RegisterForm({ tags, referralCode, isAmbassador = false 
         </label>
       </div>
 
+      {/* 支払いプラン */}
+      {!isAmbassador && (
+        <div className={styles.field}>
+          <label className={styles.label}>
+            お支払いプラン <span className={styles.required}>必須</span>
+          </label>
+          <input type="hidden" name="plan" value={plan} />
+          <div className={styles.tagGrid} style={{ gridTemplateColumns: "1fr 1fr" }}>
+            <label className={styles.tagLabel}>
+              <input
+                type="radio"
+                checked={plan === "monthly"}
+                onChange={() => setPlan("monthly")}
+                className={styles.tagCheckbox}
+              />
+              <span className={`${styles.tagChip} ${plan === "monthly" ? styles.tagChipActive : ""}`}>
+                月払い<br />¥300 / 月
+              </span>
+            </label>
+            <label className={styles.tagLabel}>
+              <input
+                type="radio"
+                checked={plan === "annual"}
+                onChange={() => setPlan("annual")}
+                className={styles.tagCheckbox}
+              />
+              <span className={`${styles.tagChip} ${plan === "annual" ? styles.tagChipActive : ""}`}>
+                年払い<br />¥3,600 / 年
+              </span>
+            </label>
+          </div>
+        </div>
+      )}
+
       {state?.error && (
         <p className={styles.errorMsg}>{state.error}</p>
       )}
@@ -306,7 +341,11 @@ export default function RegisterForm({ tags, referralCode, isAmbassador = false 
         </div>
       ) : (
         <div className={styles.summary}>
-          <p>月額 <strong>¥300（税抜）</strong></p>
+          <p>
+            {plan === "monthly"
+              ? <>月額 <strong>¥300（税抜）</strong></>
+              : <>年額 <strong>¥3,600（税抜）</strong></>}
+          </p>
           <p className={styles.summaryNote}>クレジットカードで安全に決済（Stripe）</p>
         </div>
       )}
