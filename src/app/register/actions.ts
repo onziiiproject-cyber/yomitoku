@@ -103,7 +103,7 @@ export async function startRegistration(_: unknown, formData: FormData) {
       where: { id: company.id },
       data: { status: "ACTIVE", inviteCode: generateInviteCode() },
     });
-    await sendWelcomeEmail(activated.email, activated.name, activated.inviteCode!).catch(console.error);
+    await sendWelcomeEmail(activated.email, activated.name, activated.inviteCode!, "ambassador").catch(console.error);
     await sendSignupNotification({ companyName: activated.name, email: activated.email }).catch(console.error);
     redirect(`/thanks?code=${activated.inviteCode}`);
   }
@@ -121,7 +121,7 @@ export async function startRegistration(_: unknown, formData: FormData) {
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${baseUrl}/thanks?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url:  `${baseUrl}/register?cancelled=1`,
-    metadata:         { companyId: company.id },
+    metadata:         { companyId: company.id, plan },
     subscription_data: {
       metadata: { companyId: company.id },
       ...(referral ? { trial_period_days: 30 } : {}),

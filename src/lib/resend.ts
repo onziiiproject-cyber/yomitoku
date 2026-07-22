@@ -6,7 +6,13 @@ function getResend() {
 
 const LINE_ADD_URL = "https://line.me/R/ti/p/@324eesis";
 
-export async function sendWelcomeEmail(to: string, companyName: string, inviteCode: string) {
+function planPriceLabel(plan: "monthly" | "annual" | "ambassador"): string {
+  if (plan === "ambassador") return "無料（アンバサダー特典）";
+  if (plan === "annual") return "年額3,600円（税抜）・自動更新";
+  return "月額300円（税抜）・自動更新";
+}
+
+export async function sendWelcomeEmail(to: string, companyName: string, inviteCode: string, plan: "monthly" | "annual" | "ambassador" = "monthly") {
   await getResend().emails.send({
     from: "ヨミトク編集部（送信専用） <noreply@yomitoku-base.com>",
     to,
@@ -103,7 +109,8 @@ export async function sendWelcomeEmail(to: string, companyName: string, inviteCo
                   <p style="margin:0 0 6px;font-size:14px;font-weight:bold;color:#0D686E;">事業所内メンバーへの共有方法</p>
                   <p style="margin:0 0 16px;font-size:13px;color:#555;line-height:1.85;">
                     1アカウントで3名まで共有できます。<br>
-                    他のメンバーも同じURLから友だち追加してください。
+                    他のメンバーにも下記URLを共有し、友だち追加してもらってください。<br>
+                    <a href="${LINE_ADD_URL}" style="color:#0D686E;word-break:break-all;">${LINE_ADD_URL}</a>
                   </p>
                   <p style="margin:0 0 8px;font-size:13px;color:#555;">事業所コード（LINE登録時に必要です）</p>
                   <table width="100%" cellpadding="0" cellspacing="0">
@@ -128,7 +135,7 @@ export async function sendWelcomeEmail(to: string, companyName: string, inviteCo
                   <p style="margin:0;font-size:13px;color:#888;line-height:2.0;">
                     ■ 配信開始：LINE友だち追加後、翌週の配信より<br>
                     ■ 配信頻度：毎週水曜日「週刊ヨミトク」<br>
-                    ■ 料金：月額300円（税抜）・自動更新
+                    ■ 料金：${planPriceLabel(plan)}
                   </p>
                 </td>
               </tr>

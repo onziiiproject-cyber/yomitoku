@@ -62,7 +62,8 @@ export async function POST(req: Request) {
         },
       });
 
-      await sendWelcomeEmail(company.email, company.name, company.inviteCode!).catch(console.error);
+      const plan = session.metadata?.plan === "annual" ? "annual" : "monthly";
+      await sendWelcomeEmail(company.email, company.name, company.inviteCode!, plan).catch(console.error);
       await sendSignupNotification({ companyName: company.name, email: company.email }).catch(console.error);
     }
 

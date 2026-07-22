@@ -7,10 +7,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { plan } = (await req.json().catch(() => ({}))) as { plan?: "monthly" | "annual" | "ambassador" };
+
   await sendWelcomeEmail(
     "onziii.project@gmail.com",
     "株式会社テスト法人",
     "TEST-INVITE01",
+    plan ?? "monthly",
   );
 
   return NextResponse.json({ ok: true });
