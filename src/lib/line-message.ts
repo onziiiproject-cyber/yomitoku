@@ -357,6 +357,98 @@ function breakingNewsFlex(doc: DigestDoc, appUrl: string): messagingApi.FlexMess
   };
 }
 
+const SPOTIFY_SHOW_URL = "https://open.spotify.com/show/033TlBFRkPM02RusVb5Xl6";
+
+export interface PodcastEpisodeSummary {
+  title: string;
+  description: string;
+}
+
+function weeklyNoNewsPodcastFlex(weekLabel: string, episode: PodcastEpisodeSummary | null): messagingApi.FlexMessage {
+  return {
+    type: "flex",
+    altText: `【週刊ヨミトク】${weekLabel} 今週は新着情報がありませんでした`,
+    contents: {
+      type: "bubble",
+      size: "mega",
+      header: {
+        type: "box",
+        layout: "vertical",
+        backgroundColor: "#E6F1FB",
+        paddingAll: "20px",
+        contents: [
+          { type: "text", text: "📋  週刊ヨミトク", color: "#0C447C", size: "xl", weight: "bold" } as messagingApi.FlexText,
+          {
+            type: "text",
+            text: `${weekLabel}  ·  今週は新着情報がありませんでした`,
+            color: "#185FA5",
+            size: "sm",
+            margin: "sm",
+            wrap: true,
+          } as messagingApi.FlexText,
+        ],
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "20px",
+        spacing: "md",
+        contents: [
+          {
+            type: "text",
+            text: "介護保険最新情報・分科会情報ともに、今週は新しい発表がありませんでした。",
+            wrap: true,
+            size: "sm",
+            color: "#333333",
+          } as messagingApi.FlexText,
+          ...(episode
+            ? ([
+                {
+                  type: "box",
+                  layout: "vertical",
+                  backgroundColor: "#F5FBF8",
+                  cornerRadius: "10px",
+                  paddingAll: "14px",
+                  margin: "md",
+                  spacing: "xs",
+                  contents: [
+                    { type: "text", text: "🎙 代わりに「ヨミトク放送室」はいかがですか？", size: "xs", weight: "bold", color: "#0D686E" } as messagingApi.FlexText,
+                    { type: "text", text: episode.title, size: "sm", weight: "bold", color: "#1a1a1a", wrap: true, margin: "sm" } as messagingApi.FlexText,
+                    { type: "text", text: episode.description, size: "xs", color: "#666666", wrap: true, margin: "sm" } as messagingApi.FlexText,
+                  ],
+                } as messagingApi.FlexBox,
+              ] as messagingApi.FlexComponent[])
+            : []),
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "16px",
+        contents: [
+          {
+            type: "button",
+            action: { type: "uri", label: "ヨミトク放送室を聴く →", uri: SPOTIFY_SHOW_URL },
+            style: "primary",
+            color: "#0D686E",
+          } as messagingApi.FlexButton,
+        ],
+      },
+    } as messagingApi.FlexBubble,
+  };
+}
+
+export async function pushWeeklyNoNewsWithPodcast(
+  lineUserId: string,
+  weekLabel: string,
+  episode: PodcastEpisodeSummary | null
+): Promise<string> {
+  const client = getClient();
+  const message = weeklyNoNewsPodcastFlex(weekLabel, episode);
+  const res = await client.pushMessage({ to: lineUserId, messages: [message] });
+  return res.sentMessages?.[0]?.id ?? "";
+}
+
 export async function pushWeeklyDigestCards(
   lineUserId: string,
   weekLabel: string,

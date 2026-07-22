@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 import { scrapeMhlwLatest, scrapeShingi } from "./scraper";
 import { analyzeDocument, generateStructuredContent, generateDiscussionQuestion, extractPublishedDate, buildWeeklyDigest, buildShingiPDFData, type StructuredContent } from "./anthropic";
-import { pushWeeklyDigestCards, pushBreakingNews, pushShingiCover, pushShingiTopics, pushShingiNoMatch, type DigestDoc, type WeeklyCardDoc } from "./line-message";
+import { pushWeeklyDigestCards, pushBreakingNews, pushShingiCover, pushShingiTopics, pushShingiNoMatch, pushWeeklyNoNewsWithPodcast, type DigestDoc, type WeeklyCardDoc } from "./line-message";
 import { generateShingiCoverPDF, generateShingiTopicPDF, type ShingiThemeDetail } from "./pdf-shingi";
 import { generateCoverCardImage, generateSummaryCardImage } from "./social-image";
 import { postArticleToSocial } from "./meta";
@@ -362,6 +362,14 @@ export async function runProcessPending(limit = 1): Promise<ProcessResult> {
 export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<DigestResult> {
   const errors: string[] = [];
   const since = oneWeekAgo();
+  const weekLabel = getWeekLabel();
+
+  // 0. Skip if already sent today（force=true で上書き可）
+  const todayKey = `weekly-${new Date().toISOString().slice(0, 10)}`;
+  const existingBatch = await prisma.messageBatch.findUnique({ where: { idempotencyKey: todayKey } });
+  if (existingBatch && !opts?.force) {
+    return { newDocs: 0, sentTo: 0, batchId: existingBatch.id, errors: [...errors, "Already sent today"] };
+  }
 
   // 1. 今週分の記事は日次パイプライン（scrape→process）で処理済みのはずなので、
   //    自前で再スクレイプせずDBから素直に集める（再スクレイプすると「既にDBにある」記事が
@@ -371,8 +379,58 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
     orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
   });
 
+  // 新着が1件もない週は、黙ってスキップせず「新着なし＋放送室紹介」を送る
+  // （何も届かないと解約に見えるし、せっかくの放送室の宣伝機会でもある）
   if (weekDocs.length === 0) {
-    return { newDocs: 0, sentTo: 0, batchId: "", errors };
+    const episode = await prisma.podcastEpisode.findFirst({
+      where: { status: "PUBLISHED" },
+      orderBy: { publishedAt: "desc" },
+      select: { title: true, description: true },
+    });
+
+    const batch = await prisma.messageBatch.create({
+      data: {
+        kind: "WEEKLY_DIGEST",
+        title: `週刊ヨミトク（新着なし） ${weekLabel}`,
+        content: "今週は新着情報がありませんでした",
+        idempotencyKey: todayKey,
+      },
+    });
+
+    const recipients = await prisma.lineRecipient.findMany({
+      where: { unfollowedAt: null, company: { status: "ACTIVE" } },
+    });
+
+    let sentTo = 0;
+    for (const recipient of recipients) {
+      try {
+        const messageId = await pushWeeklyNoNewsWithPodcast(recipient.lineUserId, weekLabel, episode);
+        await prisma.messageSend.create({
+          data: {
+            messageBatchId: batch.id,
+            companyId: recipient.companyId,
+            lineRecipientId: recipient.id,
+            status: "SENT",
+            lineResponseId: messageId,
+            sentAt: new Date(),
+          },
+        });
+        sentTo++;
+      } catch (e) {
+        errors.push(`LINE push failed for ${recipient.lineUserId}: ${e}`);
+        await prisma.messageSend.create({
+          data: {
+            messageBatchId: batch.id,
+            companyId: recipient.companyId,
+            lineRecipientId: recipient.id,
+            status: "FAILED",
+            error: String(e),
+          },
+        });
+      }
+    }
+
+    return { newDocs: 0, sentTo, batchId: batch.id, errors };
   }
 
   // 2. Build digest text
@@ -386,16 +444,8 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
   }));
 
   const digestText = await buildWeeklyDigest(digestDocs);
-  const weekLabel = getWeekLabel();
 
-  // 3. Skip if already sent today（force=true で上書き可）
-  const todayKey = `weekly-${new Date().toISOString().slice(0, 10)}`;
-  const existing = await prisma.messageBatch.findUnique({ where: { idempotencyKey: todayKey } });
-  if (existing && !opts?.force) {
-    return { newDocs: weekDocs.length, sentTo: 0, batchId: existing.id, errors: [...errors, "Already sent today"] };
-  }
-
-  // 4. Create MessageBatch
+  // 3. Create MessageBatch
   const batch = await prisma.messageBatch.create({
     data: {
       kind: "WEEKLY_DIGEST",
@@ -405,7 +455,7 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
     },
   });
 
-  // 5. Link documents to batch
+  // 4. Link documents to batch
   await prisma.batchDocument.createMany({
     data: weekDocs.map((d) => ({
       messageBatchId: batch.id,
@@ -414,7 +464,7 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
     skipDuplicates: true,
   });
 
-  // 6. Send LINE messages（タグでパーソナライズしたカードカルーセル）
+  // 5. Send LINE messages（タグでパーソナライズしたカードカルーセル）
   const recipients = await prisma.lineRecipient.findMany({
     where: {
       unfollowedAt: null,
