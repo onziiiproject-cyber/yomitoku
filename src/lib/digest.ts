@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { scrapeMhlwLatest, scrapeShingi } from "./scraper";
-import { analyzeDocument, generateStructuredContent, generateDiscussionQuestion, buildWeeklyDigest, buildShingiPDFData, type StructuredContent } from "./anthropic";
+import { analyzeDocument, generateStructuredContent, generateDiscussionQuestion, extractPublishedDate, buildWeeklyDigest, buildShingiPDFData, type StructuredContent } from "./anthropic";
 import { pushWeeklyDigestCards, pushBreakingNews, pushShingiCover, pushShingiTopics, pushShingiNoMatch, type DigestDoc, type WeeklyCardDoc } from "./line-message";
 import { generateShingiCoverPDF, generateShingiTopicPDF, type ShingiThemeDetail } from "./pdf-shingi";
 import { generateCoverCardImage, generateSummaryCardImage } from "./social-image";
@@ -314,6 +314,19 @@ export async function runProcessPending(limit = 1): Promise<ProcessResult> {
         throw e;
       }
 
+      // 一覧ページから発行日が拾えなかった場合（PDF本文にしか記載がないケースがある）、
+      // 週刊ダイジェストが「直近7日以内」をpublishedAt基準で絞り込むため、ここで埋めないと
+      // 実際は今週処理された記事が永久にダイジェストへ載らなくなる
+      let publishedAt = doc.publishedAt;
+      if (!publishedAt && pdfBase64) {
+        try {
+          const dateStr = await extractPublishedDate(doc.title, pdfBase64);
+          if (dateStr) publishedAt = new Date(dateStr);
+        } catch (e) {
+          errors.push(`発行日抽出失敗 "${doc.title.slice(0, 30)}": ${e}`);
+        }
+      }
+
       await prisma.siteDocument.update({
         where: { id: doc.id },
         data: {
@@ -323,11 +336,12 @@ export async function runProcessPending(limit = 1): Promise<ProcessResult> {
           decisionStatus: result.decisionStatus,
           structuredContent: structured as object,
           processedAt: new Date(),
+          ...(publishedAt ? { publishedAt } : {}),
         },
       });
       await postEditorComment(doc.id, doc.title, structured);
       await postToSocial(
-        { id: doc.id, title: doc.title, source: doc.source, tags: result.tags, publishedAt: doc.publishedAt, decisionStatus: result.decisionStatus },
+        { id: doc.id, title: doc.title, source: doc.source, tags: result.tags, publishedAt, decisionStatus: result.decisionStatus },
         structured,
         result.summary
       );
