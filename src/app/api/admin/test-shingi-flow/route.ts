@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
       const recipients = await prisma.lineRecipient.findMany({
         where: { unfollowedAt: null, company: { status: "ACTIVE" } },
-        include: { company: { include: { tags: { include: { tag: true } } } } },
+        include: { user: { include: { tags: { include: { tag: true } } } } },
       });
       log.push(`   対象: ${recipients.length}人`);
 
@@ -105,10 +105,10 @@ export async function POST(req: NextRequest) {
             coverBlob.url
           );
 
-          const companyTags = recipient.company.tags.map(ct => ct.tag.key);
-          if (companyTags.length > 0) {
+          const userTags = recipient.user?.tags.map(ut => ut.tag.key) ?? [];
+          if (userTags.length > 0) {
             const matchingThemes = pdfData.theme_details.filter(d =>
-              d.related_roles.some(r => companyTags.includes(r))
+              d.related_roles.some(r => userTags.includes(r))
             );
             if (matchingThemes.length > 0) {
               const available = matchingThemes.filter(t => topicPdfUrls[t.no]);

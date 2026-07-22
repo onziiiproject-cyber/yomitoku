@@ -508,7 +508,7 @@ export async function runBreakingNewsCheck(): Promise<BreakingNewsResult> {
 
   const recipients = await prisma.lineRecipient.findMany({
     where: { unfollowedAt: null, company: { status: "ACTIVE" } },
-    include: { company: { include: { tags: { include: { tag: true } } } } },
+    include: { user: { include: { tags: { include: { tag: true } } } } },
   });
 
   if (recipients.length === 0) {
@@ -566,11 +566,11 @@ export async function runBreakingNewsCheck(): Promise<BreakingNewsResult> {
             coverPdfUrl
           );
 
-          // タグマッチング
-          const companyTags = recipient.company.tags.map(ct => ct.tag.key);
-          if (companyTags.length > 0) {
+          // タグマッチング（個人単位のUserTag。週刊ダイジェストと同じ基準に揃える）
+          const userTags = recipient.user?.tags.map(ut => ut.tag.key) ?? [];
+          if (userTags.length > 0) {
             const matchingThemes = pdfData.theme_details.filter(detail =>
-              detail.related_roles.some(role => companyTags.includes(role))
+              detail.related_roles.some(role => userTags.includes(role))
             );
 
             if (matchingThemes.length > 0) {
