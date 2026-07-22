@@ -3,6 +3,8 @@ import { scrapeMhlwLatest, scrapeShingi } from "./scraper";
 import { analyzeDocument, generateStructuredContent, generateDiscussionQuestion, buildWeeklyDigest, buildShingiPDFData, type StructuredContent } from "./anthropic";
 import { pushWeeklyDigestCards, pushBreakingNews, pushShingiCover, pushShingiTopics, pushShingiNoMatch, type DigestDoc, type WeeklyCardDoc } from "./line-message";
 import { generateShingiCoverPDF, generateShingiTopicPDF, type ShingiThemeDetail } from "./pdf-shingi";
+import { generateCoverCardImage, generateSummaryCardImage } from "./social-image";
+import { postArticleToSocial } from "./meta";
 import { put } from "@vercel/blob";
 
 // PDFがClaudeのページ数上限（100ページ）やトークン上限を超えている場合、
@@ -81,6 +83,39 @@ async function postEditorComment(siteDocumentId: string, title: string, structur
   }
 }
 
+// 記事処理完了直後に、Facebook/Instagramへ表紙＋3行まとめの2枚組を自動投稿する。
+// 失敗しても記事処理自体は成立済みなので、ここでは例外を握りつぶしログのみ残す。
+async function postToSocial(
+  doc: { id: string; title: string; source: string; tags: string[]; publishedAt: Date | null; decisionStatus: string | null },
+  structured: StructuredContent,
+  summary: string
+) {
+  try {
+    const title = structured.hookTitle || doc.title;
+    const [coverBuffer, summaryBuffer] = await Promise.all([
+      generateCoverCardImage({
+        title,
+        subtitle: doc.title,
+        source: doc.source,
+        tags: doc.tags,
+        publishedAt: doc.publishedAt ?? new Date(),
+        decisionStatus: doc.decisionStatus,
+      }),
+      generateSummaryCardImage({ source: doc.source, points: structured.points }),
+    ]);
+    const [coverBlob, summaryBlob] = await Promise.all([
+      put(`social/article-${doc.id}-cover-${Date.now()}.png`, coverBuffer, { access: "public", contentType: "image/png" }),
+      put(`social/article-${doc.id}-summary-${Date.now()}.png`, summaryBuffer, { access: "public", contentType: "image/png" }),
+    ]);
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
+    const articleUrl = `${baseUrl}/base/articles/${doc.id}`;
+    const result = await postArticleToSocial({ imageUrls: [coverBlob.url, summaryBlob.url], summary, articleUrl });
+    if (result.errors.length) console.error(`SNS投稿一部失敗 ${doc.id}:`, result.errors);
+  } catch (e) {
+    console.error(`SNS投稿失敗 ${doc.id}:`, e);
+  }
+}
+
 // 分科会のテーマ単位データを、既存のgenerateStructuredContent/analyzeDocumentに渡せる1本のテキストに変換
 function buildShingiThemeText(detail: ShingiThemeDetail): string {
   const parts: string[] = [`概要: ${detail.overview}`];
@@ -132,6 +167,11 @@ export async function processShingiSession(doc: {
           },
         });
         await postEditorComment(doc.id, title, structured);
+        await postToSocial(
+          { id: doc.id, title, source: "shingi", tags: result.tags, publishedAt: doc.publishedAt, decisionStatus: result.decisionStatus },
+          structured,
+          result.summary
+        );
       } else {
         const created = await prisma.siteDocument.create({
           data: {
@@ -150,6 +190,11 @@ export async function processShingiSession(doc: {
           },
         });
         await postEditorComment(created.id, title, structured);
+        await postToSocial(
+          { id: created.id, title, source: "shingi", tags: result.tags, publishedAt: doc.publishedAt, decisionStatus: result.decisionStatus },
+          structured,
+          result.summary
+        );
       }
       count++;
     } catch (e) {
@@ -281,6 +326,11 @@ export async function runProcessPending(limit = 1): Promise<ProcessResult> {
         },
       });
       await postEditorComment(doc.id, doc.title, structured);
+      await postToSocial(
+        { id: doc.id, title: doc.title, source: doc.source, tags: result.tags, publishedAt: doc.publishedAt, decisionStatus: result.decisionStatus },
+        structured,
+        result.summary
+      );
       processed++;
     } catch (e) {
       errors.push(`Process failed "${doc.title.slice(0, 30)}": ${e}`);
