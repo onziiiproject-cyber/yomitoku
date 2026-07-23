@@ -1,6 +1,28 @@
 import sharp from "sharp";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync, mkdirSync, writeFileSync } from "fs";
 import path from "path";
+
+// sharpのSVGレンダラー（librsvg経由のPango）はOSのfontconfigでフォントを探すため、
+// Vercelのサーバーレス環境には日本語フォントが1つも入っておらず、そのままだと文字が
+// 全く描画されない（豆腐文字にすらならず空白になる）。同梱フォントを指すfontconfig設定を
+// /tmp に生成してFONTCONFIG_PATHで読み込ませることで、環境を問わず確実に描画させる。
+let fontconfigReady = false;
+function ensureFontconfig() {
+  if (fontconfigReady) return;
+  const fontDir = path.join(process.cwd(), "public/fonts");
+  const confDir = "/tmp/fontconfig";
+  const cacheDir = "/tmp/fontconfig/cache";
+  if (!existsSync(cacheDir)) mkdirSync(cacheDir, { recursive: true });
+  const confPath = path.join(confDir, "fonts.conf");
+  if (!existsSync(confPath)) {
+    writeFileSync(
+      confPath,
+      `<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "fonts.dtd">\n<fontconfig>\n  <dir>${fontDir}</dir>\n  <cachedir>${cacheDir}</cachedir>\n</fontconfig>\n`
+    );
+  }
+  process.env.FONTCONFIG_PATH = confDir;
+  fontconfigReady = true;
+}
 
 const GORI_ICON_PATH = path.join(process.cwd(), "public/mascot/gori-base-face.png");
 const COVER_BG_PATH: Record<string, string> = {
@@ -60,7 +82,7 @@ function badgeRowSvg(badges: { label: string; bg: string; color: string }[], x0:
   return parts.join("");
 }
 
-const FONT = "Hiragino Kaku Gothic ProN, Hiragino Sans, Noto Sans JP, sans-serif";
+const FONT = "Noto Sans JP, sans-serif";
 const W = 1080;
 const H = 1080;
 
@@ -82,6 +104,7 @@ export async function generateCoverCardImage(params: {
   publishedAt: Date;
   decisionStatus?: string | null;
 }): Promise<Buffer> {
+  ensureFontconfig();
   const src = SRC_LABEL[params.source] ?? { label: "情報", color: "#374151", bg: "#F3F4F6" };
   const bandH = 480;
 
@@ -149,6 +172,7 @@ export async function generateSummaryCardImage(params: {
   source: string;
   points: string[];
 }): Promise<Buffer> {
+  ensureFontconfig();
   const src = SRC_LABEL[params.source] ?? { label: "情報", color: "#374151", bg: "#F3F4F6" };
   const pointLines = params.points.slice(0, 3);
 
