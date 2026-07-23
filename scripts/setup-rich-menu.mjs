@@ -34,7 +34,10 @@ const ACCESS_TOKEN    = env.LINE_CHANNEL_ACCESS_TOKEN;
 const LIFF_LIBRARY_URL = `https://liff.line.me/${env.NEXT_PUBLIC_LIFF_LIBRARY_ID}`;
 const LIFF_TAGS_URL    = `https://liff.line.me/${env.NEXT_PUBLIC_LIFF_TAGS_ID ?? env.NEXT_PUBLIC_LIFF_ID}`;
 const BASE_URL         = `${env.NEXT_PUBLIC_APP_URL}/base`;
-const SPOTIFY_SHOW_URL = "https://open.spotify.com/show/033TlBFRkPM02RusVb5Xl6";
+// openExternalBrowser=1 でLINEアプリ内ブラウザではなく端末の標準ブラウザ（Safari等）で開かせる。
+// LINE内ブラウザだとUniversal Linkが効かずSpotifyアプリへの直接遷移に失敗し、
+// 毎回App Storeのアプリ詳細ページに飛ばされてしまうため（Safariなら正しく遷移する）
+const SPOTIFY_SHOW_URL = "https://open.spotify.com/show/033TlBFRkPM02RusVb5Xl6?openExternalBrowser=1";
 
 if (!ACCESS_TOKEN) {
   console.error("LINE_CHANNEL_ACCESS_TOKEN が設定されていません");
