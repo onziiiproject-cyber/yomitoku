@@ -82,19 +82,18 @@ export async function postArticleToSocial(params: {
   const errors: string[] = [];
   const caption = `${params.summary}\n\n詳しくは以下のリンクまたはプロフィール欄のリンクから\n${params.articleUrl}`;
 
-  let facebook: { id: string } | null = null;
-  try {
-    facebook = await postCarouselToFacebookPage(caption, params.imageUrls);
-  } catch (e) {
-    errors.push(`Facebook: ${e}`);
-  }
+  // 直列だとInstagramのカルーセル投稿（複数ステップ）が後回しになり、
+  // cron側のmaxDuration打ち切りでFacebookだけ成功する事故が起きたため並列化
+  const [facebookResult, instagramResult] = await Promise.allSettled([
+    postCarouselToFacebookPage(caption, params.imageUrls),
+    postCarouselToInstagram(params.imageUrls, caption),
+  ]);
 
-  let instagram: { id: string } | null = null;
-  try {
-    instagram = await postCarouselToInstagram(params.imageUrls, caption);
-  } catch (e) {
-    errors.push(`Instagram: ${e}`);
-  }
+  const facebook = facebookResult.status === "fulfilled" ? facebookResult.value : null;
+  if (facebookResult.status === "rejected") errors.push(`Facebook: ${facebookResult.reason}`);
+
+  const instagram = instagramResult.status === "fulfilled" ? instagramResult.value : null;
+  if (instagramResult.status === "rejected") errors.push(`Instagram: ${instagramResult.reason}`);
 
   return { facebook, instagram, errors };
 }

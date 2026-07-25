@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runProcessPending } from "@/lib/digest";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
