@@ -195,6 +195,73 @@ AIの予想: ${outlook}
   return text.trim().replace(/^["「]|["」]$/g, "").slice(0, 150);
 }
 
+export interface RadioScriptLine {
+  speaker: "gori" | "gray";
+  text: string;
+}
+
+export interface RadioScriptDraft {
+  title: string;
+  description: string;
+  script: RadioScriptLine[];
+}
+
+// 「ヨミトク放送室」台本の初稿を生成する。記事の分析・予測など有料コンテンツの価値になる
+// 内容は含めず、記事に出てくる専門用語の「そもそも解説」に限定する（ユーザーが確定済みの方針）。
+export async function generateRadioScript(
+  articleTitle: string,
+  articleSummary: string,
+  episodeNo: number
+): Promise<RadioScriptDraft> {
+  const client = getClient();
+
+  const prompt = `あなたは「ヨミトク放送室」という音声コンテンツの台本作家です。
+
+登場人物:
+- ゴリ編集長（speaker: "gori"）: 介護保険制度に詳しいベテラン編集長。頼れるがフランクな口調。
+- ミスグレー（speaker: "gray"）: 新人記者（猫キャラ）。素朴な「そもそも」な疑問を投げかける。
+
+以下の記事に出てくる専門用語を、超初心者向けに「そもそも解説」する掛け合い台本を作成してください。
+
+記事タイトル: ${articleTitle}
+記事概要: ${articleSummary}
+
+条件（厳守）:
+- 記事の分析・予測・具体的な対応方針など、有料コンテンツの価値になる内容は一切含めない
+- あくまで記事に出てくる専門用語・制度の基礎知識を、超初心者向けにやさしく解説することだけに限定する
+- ミスグレーの「そもそも」な質問→ゴリ編集長の解説、という掛け合い形式
+- 台本は16〜20行程度、合計800〜1100字程度（3〜5分程度の尺を想定）
+- 最後はゴリ編集長の「制度を、読むから、わかるへ。続きは編集部で。」という締めの一言で終える
+- 事業所固有の対応や助言は含めない
+
+以下のJSON形式のみで回答してください（他のテキスト不要）:
+{
+  "title": "第${episodeNo}回 ○○ってなに？",
+  "description": "80字程度の紹介文（新人記者ミスグレーの「そもそも」な質問に、ゴリ編集長が答えます、というトーン）",
+  "script": [
+    { "speaker": "gray", "text": "..." },
+    { "speaker": "gori", "text": "..." }
+  ]
+}`;
+
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 2048,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const text = response.content[0].type === "text" ? response.content[0].text : "{}";
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("台本生成のJSON解析に失敗しました");
+
+  const parsed = JSON.parse(match[0]);
+  if (!parsed.title || !parsed.description || !Array.isArray(parsed.script)) {
+    throw new Error("台本生成の結果が不正な形式です");
+  }
+
+  return { title: parsed.title, description: parsed.description, script: parsed.script };
+}
+
 export interface ArticleQAMessage {
   role: "user" | "assistant";
   text: string;

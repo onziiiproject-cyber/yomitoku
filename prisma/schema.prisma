@@ -302,20 +302,22 @@ model CommentLike {
 }
 
 enum PodcastEpisodeStatus {
-  DRAFT // 台本・音声は生成済みだが未レビュー
+  DRAFT // 台本のみ生成済み・音声化前（もしくは音声化済みで未レビュー）
   PUBLISHED // 承認済み、RSSフィードに反映される
   REJECTED // 見送り
 }
 
 // ヨミトク放送室（ゴリ編集長×ミスグレーの音声コンテンツ）のエピソード。
 // PUBLISHEDのものだけがRSSフィード（/podcast/feed.xml）に載る。
+// 台本はAIが自動生成するが、音声合成（VOICEVOX）はローカル実行前提のため、
+// DRAFT作成時点ではaudioUrl/durationSecは未確定（null）でよい。
 model PodcastEpisode {
   id          String               @id @default(cuid())
   title       String
   description String               @db.Text
   script      Json // ダイアログ台本（[{speaker, text}]）。レビュー画面での表示用
-  audioUrl    String // Vercel Blob上のmp3 URL
-  durationSec Int
+  audioUrl    String? // Vercel Blob上のmp3 URL。音声合成後にセット
+  durationSec Int?
   status      PodcastEpisodeStatus @default(DRAFT)
   publishedAt DateTime? // RSS pubDateに使う。PUBLISHEDになった時点でセット
   createdAt   DateTime             @default(now())

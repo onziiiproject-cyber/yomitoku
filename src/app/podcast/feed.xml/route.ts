@@ -20,21 +20,23 @@ function formatDurationHms(totalSec: number): string {
 
 export async function GET() {
   const episodes = await prisma.podcastEpisode.findMany({
-    where: { status: "PUBLISHED" },
+    where: { status: "PUBLISHED", audioUrl: { not: null }, durationSec: { not: null } },
     orderBy: { publishedAt: "desc" },
   });
 
   const items = episodes
     .map((ep) => {
+      const audioUrl = ep.audioUrl!;
+      const durationSec = ep.durationSec!;
       const pubDate = (ep.publishedAt ?? ep.createdAt).toUTCString();
       return `
     <item>
       <title>${escapeXml(ep.title)}</title>
       <description>${escapeXml(ep.description)}</description>
-      <enclosure url="${escapeXml(ep.audioUrl)}" type="audio/mpeg" />
+      <enclosure url="${escapeXml(audioUrl)}" type="audio/mpeg" />
       <guid isPermaLink="false">${ep.id}</guid>
       <pubDate>${pubDate}</pubDate>
-      <itunes:duration>${formatDurationHms(ep.durationSec)}</itunes:duration>
+      <itunes:duration>${formatDurationHms(durationSec)}</itunes:duration>
       <itunes:explicit>false</itunes:explicit>
     </item>`;
     })

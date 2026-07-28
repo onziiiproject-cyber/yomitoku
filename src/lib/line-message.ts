@@ -441,6 +441,25 @@ function weeklyNoNewsPodcastFlex(weekLabel: string, episode: PodcastEpisodeSumma
   };
 }
 
+// 放送室の台本ドラフトができた時に管理者へ1通だけ送る通知。
+// 音声合成前のレビュー依頼のため、全ユーザー向け配信とは別枠（管理者のみ）。
+export async function pushPodcastDraftReady(
+  lineUserId: string,
+  episodeTitle: string,
+  description: string
+): Promise<void> {
+  const client = getClient();
+  await client.pushMessage({
+    to: lineUserId,
+    messages: [
+      {
+        type: "text",
+        text: `🎙 放送室の新しい台本ができました\n\n「${episodeTitle}」\n${description}\n\nClaude Codeで内容を確認・相談してください。`,
+      },
+    ],
+  });
+}
+
 export async function pushWeeklyNoNewsWithPodcast(
   lineUserId: string,
   weekLabel: string,
