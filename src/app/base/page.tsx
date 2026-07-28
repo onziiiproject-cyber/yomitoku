@@ -1,11 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import Link from "next/link";
+import type { Metadata } from "next";
 import FeedArticleCard from "./_components/FeedArticleCard";
 import FeedTabs from "./_components/FeedTabs";
 import MobileSearchBar from "./_components/MobileSearchBar";
 import { loadFeedExtras } from "@/lib/feedData";
 import { redactStructuredContentForGuest, type StructuredContent } from "@/lib/anthropic";
+
+export const metadata: Metadata = {
+  title: "ヨミトク編集室 | 介護保険最新情報をゴリ編集長が要約",
+  description: "厚生労働省などの介護保険最新情報・分科会情報をゴリ編集長がわかりやすく要約。タグで絞り込んで検索できるバックナンバー一覧です。",
+  alternates: { canonical: "https://yomitoku-base.com/base" },
+};
 
 // ─── カテゴリ判定ロジック ────────────────────────────────────────────────────
 // サイドバーのリンクは 介護保険最新情報／分科会かんたん解説／タグ検索 のみだが、

@@ -3,6 +3,7 @@ import styles from "../legal.module.css";
 
 export const metadata: Metadata = {
   title: "特定商取引法に基づく表記 | ヨミトク編集部",
+  alternates: { canonical: "https://yomitoku-base.com/legal/commercial" },
 };
 
 const rows = [

@@ -3,6 +3,7 @@ import styles from "../legal.module.css";
 
 export const metadata: Metadata = {
   title: "プライバシーポリシー | ヨミトク編集部",
+  alternates: { canonical: "https://yomitoku-base.com/legal/privacy" },
 };
 
 export default function PrivacyPage() {

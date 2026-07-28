@@ -8,7 +8,27 @@ import BaseHeader from "../../base/_components/BaseHeader";
 import GuestHeader from "../../base/_components/GuestHeader";
 import styles from "./page.module.css";
 
-export const metadata: Metadata = { title: "週刊ヨミトク | ヨミトク編集部" };
+const SITE_URL = "https://yomitoku-base.com";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ batchId: string }>;
+}): Promise<Metadata> {
+  const { batchId } = await params;
+  const batch = await prisma.messageBatch.findUnique({ where: { id: batchId }, select: { title: true } });
+
+  if (!batch) return { title: "週刊ヨミトク | ヨミトク編集部" };
+
+  const title = `${batch.title} | ヨミトク編集部`;
+  const url = `${SITE_URL}/digest/${batchId}`;
+
+  return {
+    title,
+    alternates: { canonical: url },
+    openGraph: { title: batch.title, url, siteName: "ヨミトク編集部", locale: "ja_JP", type: "website" },
+  };
+}
 
 function formatDate(date: Date | null): string {
   if (!date) return "";

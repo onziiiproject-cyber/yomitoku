@@ -3,6 +3,7 @@ import styles from "../legal.module.css";
 
 export const metadata: Metadata = {
   title: "利用規約 | ヨミトク編集部",
+  alternates: { canonical: "https://yomitoku-base.com/legal/terms" },
 };
 
 export default function TermsPage() {

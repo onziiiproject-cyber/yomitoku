@@ -121,9 +121,20 @@ const faqs = [
   { q: "情報源は信頼できますか？", a: "厚生労働省など公的機関が発表した情報のみを情報源としています。原文・資料へのリンクも記事から確認できます。" },
 ];
 
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: { "@type": "Answer", text: f.a },
+  })),
+};
+
 export default function LandingPage() {
   return (
     <div style={{ fontFamily: "'Noto Sans JP','Hiragino Kaku Gothic ProN','Hiragino Sans',Meiryo,sans-serif", color: P.text, overflowX: "hidden" }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
 
       <style>{`
         @media (max-width: 860px) {

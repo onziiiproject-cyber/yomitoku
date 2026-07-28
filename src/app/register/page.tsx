@@ -6,6 +6,8 @@ import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "ユーザー登録 | ヨミトク編集部",
+  description: "介護保険最新情報をLINEで受け取るユーザー登録ページです。月額300円から、最大3アカウントまで利用できます。",
+  alternates: { canonical: "https://yomitoku-base.com/register" },
 };
 
 export default async function RegisterPage({
