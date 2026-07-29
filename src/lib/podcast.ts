@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { generateRadioScript } from "./anthropic";
+import { generateRadioScript, type RadioScriptLine } from "./anthropic";
 import { pushPodcastDraftReady } from "./line-message";
 
 export interface PodcastDraftResult {
@@ -7,6 +7,27 @@ export interface PodcastDraftResult {
   episodeId?: string;
   reason?: string;
 }
+
+// 毎回固定で末尾に付けるサービス紹介パート。AIに自由生成させず固定文言にすることで、
+// 誘導文言のブレを防ぎ、番組の「締めの型」として聞き手に定着させる（ユーザー方針決定済み）。
+export const PROMO_SEGMENT: RadioScriptLine[] = [
+  { speaker: "gray", text: "ゴリ編集長、このヨミトク放送室は介護保険制度の今更聞けない、を耳で学ぶラジオですが、ヨミトク編集部っていうサービスがあるんですよね？どんなサービスなんですか？私、まだよく分かってないんです。" },
+  { speaker: "gori", text: "おう、簡単に言うと、介護保険の最新情報を毎週水曜日にLINEでまとめて届けてるサービスだ。" },
+  { speaker: "gray", text: "「届ける」っていうのがポイントなんですか？" },
+  { speaker: "gori", text: "そうなんだ。本来、こういう情報って厚労省のサイトとか自分から見に行かないと手に入らないだろ？忙しい現場だと、それだけで後回しになっちまう。だからこっちから届ける形にしたんだ。" },
+  { speaker: "gray", text: "なるほど、待ってるだけで届くのはありがたいですね。でも資料自体って結構堅くて読みにくいイメージがあります。" },
+  { speaker: "gori", text: "そこも工夫してるとこだ。そもそも読みにくい、届いても正直読む気になれないような資料を、俺が進研ゼミみたいに分かりやすくまとめ直してるんだよ。" },
+  { speaker: "gray", text: "進研ゼミ！！懐かしいです、あの「ここが出る」みたいな感じですね。" },
+  { speaker: "gori", text: "そういうことだ。" },
+  { speaker: "gray", text: "ちなみに…お高いんでしょう？" },
+  { speaker: "gori", text: "月額……300円。" },
+  { speaker: "gray", text: "え、300円！？" },
+  { speaker: "gori", text: "しかも1契約でLINE登録は3人までできるから、経営者も現場の人も一緒に使えるぞ。" },
+  { speaker: "gray", text: "それは気になります！どこで詳しく見れるんですか？" },
+  { speaker: "gori", text: "InstagramとFacebookのプロフィール欄にリンクを貼ってあるから、そこから飛んでみてくれ。LINEの友だち追加もそこからできるぞ。" },
+  { speaker: "gray", text: "チェックしてみます！というわけで、今日はこのへんで。" },
+  { speaker: "gori", text: "制度を、読むから、わかるへ。続きは編集部で。" },
+];
 
 // 放送室向けの記事候補を選定し、台本の初稿をAIに作らせてDRAFTとして保存する。
 // 音声合成（VOICEVOX）はローカル実行前提のためここでは行わず、管理者への通知だけ行う。
@@ -36,12 +57,13 @@ export async function runPodcastDraftGeneration(): Promise<PodcastDraftResult> {
 
   const episodeNo = (await prisma.podcastEpisode.count()) + 1;
   const draft = await generateRadioScript(candidate.title, candidate.summary, episodeNo);
+  const fullScript = [...draft.script, ...PROMO_SEGMENT];
 
   const episode = await prisma.podcastEpisode.create({
     data: {
       title: draft.title,
       description: draft.description,
-      script: draft.script as object,
+      script: fullScript as object,
       status: "DRAFT",
       sourceDocId: candidate.id,
     },
