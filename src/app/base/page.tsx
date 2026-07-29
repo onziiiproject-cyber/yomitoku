@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import Link from "next/link";
 import type { Metadata } from "next";
 import FeedArticleCard from "./_components/FeedArticleCard";
+import PodcastEpisodeCard from "./_components/PodcastEpisodeCard";
 import FeedTabs from "./_components/FeedTabs";
 import MobileSearchBar from "./_components/MobileSearchBar";
 import { loadFeedExtras } from "@/lib/feedData";
@@ -117,6 +118,40 @@ export default async function BasePage({
 
   const extras = await loadFeedExtras(docs.map((d) => d.id), session?.companyId ?? null);
   const totalPages = Math.ceil(total / take);
+
+  // タイムラインにIG風で放送室エピソードも混ぜる。カテゴリ・検索・タグ絞り込み時、
+  // および2ページ目以降は対象外（エピソードはタグを持たずページ境界の判定が難しいため、
+  // 1ページ目＝タイムライン最上部にだけ混ぜる。件数が少ないうちはこれで十分実用的）。
+  type FeedItem =
+    | { type: "article"; publishedAt: Date; doc: (typeof docs)[number] }
+    | { type: "episode"; publishedAt: Date; episode: { id: string; episodeNo: number; title: string; description: string; audioUrl: string; durationSec: number } };
+
+  let feedItems: FeedItem[] = docs.map((doc) => ({ type: "article", publishedAt: doc.publishedAt!, doc }));
+
+  if (!isFiltered && pageNum === 1 && docs.length > 0) {
+    const oldest = docs[docs.length - 1].publishedAt!;
+    // 通し番号を出すため、公開済み全エピソードを古い順に取得（件数は少ない前提）
+    const allEpisodes = await prisma.podcastEpisode.findMany({
+      where: { status: "PUBLISHED", audioUrl: { not: null }, durationSec: { not: null } },
+      orderBy: { publishedAt: "asc" },
+    });
+    const episodeItems: FeedItem[] = allEpisodes
+      .map((ep, i) => ({ ep, episodeNo: i + 1 }))
+      .filter(({ ep }) => ep.publishedAt! >= oldest)
+      .map(({ ep, episodeNo }) => ({
+        type: "episode" as const,
+        publishedAt: ep.publishedAt!,
+        episode: {
+          id: ep.id,
+          episodeNo,
+          title: ep.title,
+          description: ep.description,
+          audioUrl: ep.audioUrl!,
+          durationSec: ep.durationSec!,
+        },
+      }));
+    feedItems = [...feedItems, ...episodeItems].sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+  }
   const labelParts = [
     CATEGORY_LABELS[cat],
     tag ? `#${tag}` : "",
@@ -180,34 +215,45 @@ export default async function BasePage({
         </div>
       ) : (
         <div>
-          {docs.map((doc, i) => (
-            <FeedArticleCard
-              key={doc.id}
-              showScrollHint={i === 0}
-              id={doc.id}
-              title={doc.title}
-              summary={doc.summary}
-              structuredContent={doc.structuredContent
-                ? (session
-                    ? (doc.structuredContent as unknown as StructuredContent)
-                    : redactStructuredContentForGuest(doc.structuredContent as unknown as StructuredContent))
-                : null}
-              tags={doc.tags as string[]}
-              source={doc.source}
-              publishedAt={doc.publishedAt!.toISOString()}
-              createdAt={doc.createdAt.toISOString()}
-              importance={doc.importance}
-              decisionStatus={doc.decisionStatus}
-              url={doc.url}
-              initialRead={extras.readIds.has(doc.id)}
-              initialReadCount={extras.readCounts.get(doc.id) ?? 0}
-              initialLiked={extras.likedIds.has(doc.id)}
-              initialLikeCount={extras.likeCounts.get(doc.id) ?? 0}
-              initialFavorited={extras.favoritedIds.has(doc.id)}
-              initialComments={extras.commentsByDoc.get(doc.id) ?? []}
-              isLoggedIn={!!session}
-            />
-          ))}
+          {feedItems.map((item, i) =>
+            item.type === "episode" ? (
+              <PodcastEpisodeCard
+                key={`episode-${item.episode.id}`}
+                episodeNo={item.episode.episodeNo}
+                title={item.episode.title}
+                description={item.episode.description}
+                audioUrl={item.episode.audioUrl}
+                durationSec={item.episode.durationSec}
+              />
+            ) : (
+              <FeedArticleCard
+                key={item.doc.id}
+                showScrollHint={i === 0}
+                id={item.doc.id}
+                title={item.doc.title}
+                summary={item.doc.summary}
+                structuredContent={item.doc.structuredContent
+                  ? (session
+                      ? (item.doc.structuredContent as unknown as StructuredContent)
+                      : redactStructuredContentForGuest(item.doc.structuredContent as unknown as StructuredContent))
+                  : null}
+                tags={item.doc.tags as string[]}
+                source={item.doc.source}
+                publishedAt={item.doc.publishedAt!.toISOString()}
+                createdAt={item.doc.createdAt.toISOString()}
+                importance={item.doc.importance}
+                decisionStatus={item.doc.decisionStatus}
+                url={item.doc.url}
+                initialRead={extras.readIds.has(item.doc.id)}
+                initialReadCount={extras.readCounts.get(item.doc.id) ?? 0}
+                initialLiked={extras.likedIds.has(item.doc.id)}
+                initialLikeCount={extras.likeCounts.get(item.doc.id) ?? 0}
+                initialFavorited={extras.favoritedIds.has(item.doc.id)}
+                initialComments={extras.commentsByDoc.get(item.doc.id) ?? []}
+                isLoggedIn={!!session}
+              />
+            )
+          )}
         </div>
       )}
 
