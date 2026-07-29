@@ -208,3 +208,42 @@ export async function generateSummaryCardImage(params: {
     .png()
     .toBuffer();
 }
+
+// ── ③ 放送室エピソード告知カード ───────────────────────────────────────────
+const PODCAST_COVER_PATH = path.join(process.cwd(), "public/podcast/cover.png");
+
+export async function generatePodcastEpisodeCardImage(params: {
+  episodeNo: number;
+  title: string;
+}): Promise<Buffer> {
+  ensureFontconfig();
+
+  const coverDataUri = `data:image/png;base64,${(await sharp(readFileSync(PODCAST_COVER_PATH)).resize(W, W).toBuffer()).toString("base64")}`;
+  const titleLines = wrapText(params.title, 15, 3);
+  const titleTspans = titleLines
+    .map((line, i) => `<tspan x="70" dy="${i === 0 ? 0 : 60}">${escapeXml(line)}</tspan>`)
+    .join("");
+  const titleBlockHeight = titleLines.length * 60;
+  const titleY = H - 140 - titleBlockHeight;
+
+  const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+    <image href="${coverDataUri}" x="0" y="0" width="${W}" height="${W}" />
+
+    <defs>
+      <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#000000" stop-opacity="0" />
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.78" />
+      </linearGradient>
+    </defs>
+    <rect x="0" y="${H - 460}" width="${W}" height="460" fill="url(#fade)" />
+
+    <rect x="70" y="${H - 410}" width="220" height="52" rx="26" fill="#F5A623" />
+    <text x="180" y="${H - 374}" font-family="${FONT}" font-size="26" font-weight="800" fill="#ffffff" text-anchor="middle">配信中 🎙</text>
+
+    <text x="70" y="${titleY}" font-family="${FONT}" font-size="52" font-weight="900" fill="#ffffff">${titleTspans}</text>
+
+    <text x="70" y="${H - 55}" font-family="${FONT}" font-size="26" font-weight="700" fill="#ffffff">プロフィール欄のリンクから聴く →</text>
+  </svg>`;
+
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}

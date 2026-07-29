@@ -1,12 +1,17 @@
+import { put } from "@vercel/blob";
 import { prisma } from "./prisma";
 import { generateRadioScript, type RadioScriptLine } from "./anthropic";
 import { pushPodcastDraftReady } from "./line-message";
+import { generatePodcastEpisodeCardImage } from "./social-image";
+import { postPodcastEpisodeToSocial } from "./meta";
 
 export interface PodcastDraftResult {
   created: boolean;
   episodeId?: string;
   reason?: string;
 }
+
+const SPOTIFY_SHOW_URL = "https://open.spotify.com/show/033TlBFRkPM02RusVb5Xl6";
 
 // 毎回固定で末尾に付けるサービス紹介パート。AIに自由生成させず固定文言にすることで、
 // 誘導文言のブレを防ぎ、番組の「締めの型」として聞き手に定着させる（ユーザー方針決定済み）。
@@ -75,4 +80,39 @@ export async function runPodcastDraftGeneration(): Promise<PodcastDraftResult> {
   }
 
   return { created: true, episodeId: episode.id };
+}
+
+export interface PodcastPublishResult {
+  facebook: { id: string } | null;
+  instagram: { id: string } | null;
+  errors: string[];
+}
+
+// 音声合成（VOICEVOXでのローカル作業）が終わったエピソードをPUBLISHEDにし、
+// 告知カードを生成してFacebook/Instagramに同時投稿する。
+export async function publishPodcastEpisode(params: {
+  episodeId: string;
+  audioUrl: string;
+  durationSec: number;
+}): Promise<PodcastPublishResult> {
+  const episode = await prisma.podcastEpisode.update({
+    where: { id: params.episodeId },
+    data: {
+      audioUrl: params.audioUrl,
+      durationSec: params.durationSec,
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+    },
+  });
+
+  const episodeNo = await prisma.podcastEpisode.count({ where: { status: "PUBLISHED" } });
+  const cardBuffer = await generatePodcastEpisodeCardImage({ episodeNo, title: episode.title });
+  const cardBlob = await put(`podcast/social/ep${episodeNo}-card-${Date.now()}.png`, cardBuffer, {
+    access: "public",
+    contentType: "image/png",
+  });
+
+  const caption = `🎙 ヨミトク放送室 第${episodeNo}回配信中\n\n「${episode.title}」\n${episode.description}\n\n詳しくは以下のリンクまたはプロフィール欄のリンクから\n${SPOTIFY_SHOW_URL}`;
+
+  return postPodcastEpisodeToSocial({ imageUrl: cardBlob.url, caption });
 }
