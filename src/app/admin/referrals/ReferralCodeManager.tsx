@@ -25,11 +25,13 @@ function isExpired(expiresAt: string | null) {
 export default function ReferralCodeManager({ initialCodes }: { initialCodes: ReferralCodeRow[] }) {
   const [codes, setCodes] = useState(initialCodes);
   const [label, setLabel] = useState("");
+  const [customCode, setCustomCode] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [isAmbassador, setIsAmbassador] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
   function linkFor(code: string) {
     return `${APP_URL}/register?ref=${code}`;
@@ -49,7 +51,7 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
       const res = await fetch("/api/admin/referral-codes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: label.trim(), expiresAt: expiresAt || undefined, isAmbassador }),
+        body: JSON.stringify({ label: label.trim(), expiresAt: expiresAt || undefined, isAmbassador, code: customCode.trim() || undefined }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) {
@@ -58,6 +60,7 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
       }
       setCodes((prev) => [{ ...data, signupCount: 0, conversionCount: 0 }, ...prev]);
       setLabel("");
+      setCustomCode("");
       setExpiresAt("");
       setIsAmbassador(false);
     } catch {
@@ -73,6 +76,12 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
     setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1500);
   }
 
+  async function handleCopyCode(id: string, code: string) {
+    await navigator.clipboard.writeText(code);
+    setCopiedCodeId(id);
+    setTimeout(() => setCopiedCodeId((cur) => (cur === id ? null : cur)), 1500);
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #E8F0EE", padding: 20 }}>
@@ -84,6 +93,13 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
             placeholder="キャンペーン名（例：〇〇協会加盟者用）"
             maxLength={50}
             style={{ flex: "2 1 240px", minWidth: 0, padding: "9px 12px", border: "1.5px solid #D0E8E4", borderRadius: 8, fontSize: 13, outline: "none" }}
+          />
+          <input
+            value={customCode}
+            onChange={(e) => setCustomCode(e.target.value.toUpperCase())}
+            placeholder="コード（任意・空欄で自動生成）"
+            maxLength={20}
+            style={{ flex: "1 1 200px", minWidth: 0, padding: "9px 12px", border: "1.5px solid #D0E8E4", borderRadius: 8, fontSize: 13, outline: "none", fontFamily: "monospace" }}
           />
           <div style={{ display: "flex", alignItems: "center", gap: 6, flex: "1 1 180px" }}>
             <label style={{ fontSize: 12, color: "#888", whiteSpace: "nowrap" }}>有効期限（任意）</label>
@@ -109,6 +125,9 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
           <input type="checkbox" checked={isAmbassador} onChange={(e) => setIsAmbassador(e.target.checked)} />
           アンバサダー用登録（決済不要・即アクティブ化）
         </label>
+        <p style={{ fontSize: 12, color: "#888", marginTop: 8, marginBottom: 0 }}>
+          コードは登録フォームで手入力もできます。SNS投稿や動画で口頭紹介する場合はリンクの代わりにコードを伝えてください。
+        </p>
         {error && <p style={{ fontSize: 12, color: "#DC2626", marginTop: 8, marginBottom: 0 }}>{error}</p>}
       </div>
 
@@ -116,7 +135,7 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "#F5F7F6", borderBottom: "1.5px solid #E8F0EE" }}>
-              {["QR", "発行日", "キャンペーン名", "リンク", "有効期限", "登録数", "有効数", ""].map((h) => (
+              {["QR", "発行日", "キャンペーン名", "コード", "リンク", "有効期限", "登録数", "有効数", ""].map((h) => (
                 <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontSize: 12, fontWeight: 700, color: "#555", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>
@@ -124,7 +143,7 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
           <tbody>
             {codes.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: "48px", textAlign: "center", color: "#aaa" }}>紹介コードはまだ発行されていません</td>
+                <td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "#aaa" }}>紹介コードはまだ発行されていません</td>
               </tr>
             ) : (
               codes.map((c, i) => {
@@ -143,6 +162,18 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
                           アンバサダー
                         </span>
                       )}
+                    </td>
+                    <td style={{ padding: "14px" }}>
+                      <button
+                        onClick={() => handleCopyCode(c.id, c.code)}
+                        style={{
+                          fontFamily: "monospace", fontSize: 13, fontWeight: 700, padding: "5px 10px", borderRadius: 6,
+                          border: "1.5px solid #0D686E", background: copiedCodeId === c.id ? "#0D686E" : "#fff",
+                          color: copiedCodeId === c.id ? "#fff" : "#0D686E", cursor: "pointer", whiteSpace: "nowrap",
+                        }}
+                      >
+                        {copiedCodeId === c.id ? "コピーしました" : c.code}
+                      </button>
                     </td>
                     <td style={{ padding: "14px", color: "#1a1a1a", fontFamily: "monospace", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {linkFor(c.code)}

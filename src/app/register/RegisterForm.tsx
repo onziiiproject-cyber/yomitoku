@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useEffect, useRef, useActionState } from "react";
 import { startRegistration } from "./actions";
 import styles from "./register.module.css";
+
+type RefStatus = "idle" | "checking" | "valid" | "invalid";
 
 const ROLES = ["代表者・経営者", "事務長・施設長・管理者", "その他"];
 
@@ -53,6 +55,42 @@ export default function RegisterForm({ tags, referralCode, isAmbassador = false 
 
   const passwordMismatch = passwordConfirm.length > 0 && password !== passwordConfirm;
 
+  // 紹介コード：URLの?refから自動入力されるほか、手入力もできる。
+  // 入力に応じてその場で有効性を確認し、アンバサダーコードなら支払いプランを隠す。
+  const [refCode, setRefCode] = useState(referralCode ?? "");
+  const [refStatus, setRefStatus] = useState<RefStatus>(referralCode ? "valid" : "idle");
+  const [refIsAmbassador, setRefIsAmbassador] = useState(isAmbassador);
+  const skipNextValidation = useRef(!!referralCode);
+
+  useEffect(() => {
+    const trimmed = refCode.trim();
+
+    if (skipNextValidation.current) {
+      skipNextValidation.current = false;
+      return;
+    }
+
+    if (!trimmed) {
+      setRefStatus("idle");
+      setRefIsAmbassador(false);
+      return;
+    }
+
+    setRefStatus("checking");
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/referral-codes/validate?code=${encodeURIComponent(trimmed)}`);
+        const data = await res.json();
+        setRefStatus(data.valid ? "valid" : "invalid");
+        setRefIsAmbassador(data.valid ? data.isAmbassador : false);
+      } catch {
+        setRefStatus("invalid");
+        setRefIsAmbassador(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [refCode]);
+
   const toggleTag = (key: string) => {
     setSelectedKeys((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
@@ -61,7 +99,37 @@ export default function RegisterForm({ tags, referralCode, isAmbassador = false 
 
   return (
     <form action={action} className={styles.form}>
-      {referralCode && <input type="hidden" name="ref" value={referralCode} />}
+      {/* 紹介コード */}
+      <div className={styles.field}>
+        <label className={styles.label} htmlFor="ref">
+          紹介コード（お持ちの方）
+        </label>
+        <input
+          id="ref"
+          name="ref"
+          type="text"
+          className={styles.input}
+          placeholder="例：ABCD1234"
+          value={refCode}
+          onChange={(e) => setRefCode(e.target.value.toUpperCase())}
+          maxLength={20}
+          autoCapitalize="characters"
+          autoComplete="off"
+        />
+        {refStatus === "checking" && (
+          <p className={styles.hint}>確認中…</p>
+        )}
+        {refStatus === "valid" && (
+          <p style={{ fontSize: 12, fontWeight: 700, color: "#7B4F00", marginTop: 6 }}>
+            {refIsAmbassador ? "🎗️ アンバサダーコードを確認しました。お支払い情報の入力は不要です" : "🎁 紹介コードを確認しました。初月無料が適用されます"}
+          </p>
+        )}
+        {refStatus === "invalid" && (
+          <p style={{ fontSize: 12, fontWeight: 700, color: "#DC2626", marginTop: 6 }}>
+            このコードは見つかりませんでした。入力内容をご確認ください
+          </p>
+        )}
+      </div>
 
       {/* 法人名 */}
       <div className={styles.field}>
@@ -297,7 +365,7 @@ export default function RegisterForm({ tags, referralCode, isAmbassador = false 
       </div>
 
       {/* 支払いプラン */}
-      {!isAmbassador && (
+      {!refIsAmbassador && (
         <div className={styles.field}>
           <label className={styles.label}>
             お支払いプラン <span className={styles.required}>必須</span>
@@ -334,7 +402,7 @@ export default function RegisterForm({ tags, referralCode, isAmbassador = false 
         <p className={styles.errorMsg}>{state.error}</p>
       )}
 
-      {isAmbassador ? (
+      {refIsAmbassador ? (
         <div className={styles.summary}>
           <p><strong>アンバサダー登録</strong></p>
           <p className={styles.summaryNote}>お支払い情報の入力は不要です</p>
@@ -355,7 +423,7 @@ export default function RegisterForm({ tags, referralCode, isAmbassador = false 
         className={styles.submitBtn}
         disabled={pending || selectedKeys.length === 0 || !agreed || passwordMismatch || password.length < 8}
       >
-        {pending ? "処理中..." : isAmbassador ? "登録する →" : "お支払いに進む →"}
+        {pending ? "処理中..." : refIsAmbassador ? "登録する →" : "お支払いに進む →"}
       </button>
 
     </form>

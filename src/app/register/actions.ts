@@ -37,7 +37,8 @@ export async function startRegistration(_: unknown, formData: FormData) {
     tagKeys:      formData.getAll("tagKeys"),
     plan:         formData.get("plan") || undefined,
   };
-  const refCode = formData.get("ref");
+  const refCodeRaw = formData.get("ref");
+  const refCode = typeof refCodeRaw === "string" ? refCodeRaw.trim().toUpperCase() : refCodeRaw;
 
   const parsed = schema.safeParse(raw);
   if (!parsed.success) {

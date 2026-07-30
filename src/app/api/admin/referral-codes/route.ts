@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { label, expiresAt, isAmbassador } = await req.json().catch(() => ({ label: undefined, expiresAt: undefined, isAmbassador: false }));
+  const { label, expiresAt, isAmbassador, code } = await req.json().catch(() => ({ label: undefined, expiresAt: undefined, isAmbassador: false, code: undefined }));
   const trimmedLabel = typeof label === "string" ? label.trim() : "";
   if (!trimmedLabel) {
     return NextResponse.json({ error: "キャンペーン名を入力してください" }, { status: 400 });
@@ -27,8 +27,25 @@ export async function POST(req: NextRequest) {
     expiresAtDate = parsed;
   }
 
+  // コードは任意で手動指定できる（インフルエンサー名など覚えやすい文字列を使いたいケース向け）。
+  // 空欄なら従来通り自動生成する。
+  let finalCode: string;
+  const trimmedCode = typeof code === "string" ? code.trim().toUpperCase() : "";
+  if (trimmedCode) {
+    if (!/^[A-Z0-9]{3,20}$/.test(trimmedCode)) {
+      return NextResponse.json({ error: "コードは英数字3〜20文字で入力してください" }, { status: 400 });
+    }
+    const existing = await prisma.referralCode.findUnique({ where: { code: trimmedCode } });
+    if (existing) {
+      return NextResponse.json({ error: "このコードはすでに使われています" }, { status: 400 });
+    }
+    finalCode = trimmedCode;
+  } else {
+    finalCode = generateCode();
+  }
+
   const referralCode = await prisma.referralCode.create({
-    data: { code: generateCode(), label: trimmedLabel, expiresAt: expiresAtDate, isAmbassador: isAmbassador === true },
+    data: { code: finalCode, label: trimmedLabel, expiresAt: expiresAtDate, isAmbassador: isAmbassador === true },
   });
 
   return NextResponse.json({
