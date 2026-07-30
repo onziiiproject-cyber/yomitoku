@@ -62,7 +62,7 @@ export async function startRegistration(_: unknown, formData: FormData) {
   const referralRaw = typeof refCode === "string" && refCode
     ? await prisma.referralCode.findUnique({ where: { code: refCode } })
     : null;
-  const referral = referralRaw && (!referralRaw.expiresAt || referralRaw.expiresAt > new Date())
+  const referral = referralRaw && !referralRaw.disabledAt && (!referralRaw.expiresAt || referralRaw.expiresAt > new Date())
     ? referralRaw
     : null;
 

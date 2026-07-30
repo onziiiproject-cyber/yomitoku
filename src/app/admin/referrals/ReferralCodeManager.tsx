@@ -7,6 +7,7 @@ interface ReferralCodeRow {
   label: string;
   expiresAt: string | null;
   isAmbassador: boolean;
+  disabledAt: string | null;
   createdAt: string;
   signupCount: number;
   conversionCount: number;
@@ -32,6 +33,7 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   function linkFor(code: string) {
     return `${APP_URL}/register?ref=${code}`;
@@ -80,6 +82,34 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
     await navigator.clipboard.writeText(code);
     setCopiedCodeId(id);
     setTimeout(() => setCopiedCodeId((cur) => (cur === id ? null : cur)), 1500);
+  }
+
+  async function handleToggleDisable(id: string, code: string, currentlyDisabled: boolean) {
+    const confirmed = window.confirm(
+      currentlyDisabled
+        ? `コード「${code}」を再度有効化しますか？`
+        : `コード「${code}」を無効化しますか？\nこのコードでの新規登録・初月無料の適用ができなくなります。`
+    );
+    if (!confirmed) return;
+
+    setTogglingId(id);
+    try {
+      const res = await fetch(`/api/admin/referral-codes/${code}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ disabled: !currentlyDisabled }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) {
+        alert(data?.error ?? "エラーが発生しました");
+        return;
+      }
+      setCodes((prev) => prev.map((c) => (c.id === id ? { ...c, disabledAt: data.disabledAt } : c)));
+    } catch {
+      alert("エラーが発生しました");
+    } finally {
+      setTogglingId(null);
+    }
   }
 
   return (
@@ -148,8 +178,9 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
             ) : (
               codes.map((c, i) => {
                 const expired = isExpired(c.expiresAt);
+                const disabled = !!c.disabledAt;
                 return (
-                  <tr key={c.id} style={{ borderBottom: i < codes.length - 1 ? "1px solid #F0F0F0" : "none", opacity: expired ? 0.5 : 1 }}>
+                  <tr key={c.id} style={{ borderBottom: i < codes.length - 1 ? "1px solid #F0F0F0" : "none", opacity: expired || disabled ? 0.5 : 1 }}>
                     <td style={{ padding: "10px 14px" }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={qrSrc(c.code)} alt="" width={48} height={48} style={{ display: "block", borderRadius: 4, border: "1px solid #E8F0EE" }} />
@@ -160,6 +191,11 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
                       {c.isAmbassador && (
                         <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: "#7C3AED", background: "#F3E8FF", padding: "2px 7px", borderRadius: 10 }}>
                           アンバサダー
+                        </span>
+                      )}
+                      {disabled && (
+                        <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: "#DC2626", background: "#FEE2E2", padding: "2px 7px", borderRadius: 10 }}>
+                          無効化済み
                         </span>
                       )}
                     </td>
@@ -213,6 +249,18 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
                         >
                           QRを保存
                         </a>
+                        <button
+                          onClick={() => handleToggleDisable(c.id, c.code, disabled)}
+                          disabled={togglingId === c.id}
+                          style={{
+                            fontSize: 12, fontWeight: 700, padding: "5px 10px", borderRadius: 6,
+                            border: disabled ? "1.5px solid #0D686E" : "1.5px solid #DC2626",
+                            background: "#fff", color: disabled ? "#0D686E" : "#DC2626",
+                            cursor: togglingId === c.id ? "not-allowed" : "pointer", whiteSpace: "nowrap",
+                          }}
+                        >
+                          {togglingId === c.id ? "処理中..." : disabled ? "有効化する" : "無効化する"}
+                        </button>
                       </div>
                     </td>
                   </tr>

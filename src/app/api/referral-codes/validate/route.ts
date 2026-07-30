@@ -10,9 +10,9 @@ export async function GET(req: NextRequest) {
 
   const referral = await prisma.referralCode.findUnique({
     where: { code },
-    select: { expiresAt: true, isAmbassador: true },
+    select: { expiresAt: true, isAmbassador: true, disabledAt: true },
   });
-  const valid = !!referral && (!referral.expiresAt || referral.expiresAt > new Date());
+  const valid = !!referral && !referral.disabledAt && (!referral.expiresAt || referral.expiresAt > new Date());
 
   return NextResponse.json({ valid, isAmbassador: valid ? referral!.isAmbassador : false });
 }

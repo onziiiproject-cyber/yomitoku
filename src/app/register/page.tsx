@@ -24,9 +24,9 @@ export default async function RegisterPage({
   ]);
 
   const referralRaw = ref
-    ? await prisma.referralCode.findUnique({ where: { code: ref }, select: { code: true, expiresAt: true, isAmbassador: true } })
+    ? await prisma.referralCode.findUnique({ where: { code: ref }, select: { code: true, expiresAt: true, isAmbassador: true, disabledAt: true } })
     : null;
-  const referral = referralRaw && (!referralRaw.expiresAt || referralRaw.expiresAt > new Date())
+  const referral = referralRaw && !referralRaw.disabledAt && (!referralRaw.expiresAt || referralRaw.expiresAt > new Date())
     ? referralRaw
     : null;
 
