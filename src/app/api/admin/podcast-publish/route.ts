@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { publishPodcastEpisode } from "@/lib/podcast";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 // 音声合成（ローカルVOICEVOX作業）が終わったエピソードを公開し、SNS告知まで行う。
 // audioUrlはVercel Blobに事前アップロード済みのものを渡す想定。

@@ -6,6 +6,20 @@ function requireEnv(name: string): string {
   return value;
 }
 
+// Instagramのメディアコンテナは作成直後まだ処理中のことがあり、
+// 未完了のまま公開しようとすると「Media ID is not available」で失敗する。
+// status_codeがFINISHEDになるまで待ってから公開する。
+async function waitForInstagramContainerReady(containerId: string, token: string): Promise<void> {
+  for (let i = 0; i < 15; i++) {
+    const res = await fetch(`${GRAPH_API}/${containerId}?fields=status_code&access_token=${token}`);
+    const data = await res.json();
+    if (data.status_code === "FINISHED") return;
+    if (data.status_code === "ERROR") throw new Error(`Instagram container failed: ${JSON.stringify(data)}`);
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  throw new Error(`Instagram container ${containerId} did not finish processing in time`);
+}
+
 // 複数枚（表紙＋3行まとめ）をFacebookページに投稿する
 export async function postCarouselToFacebookPage(message: string, imageUrls: string[]): Promise<{ id: string }> {
   const pageId = requireEnv("FACEBOOK_PAGE_ID");
@@ -64,6 +78,8 @@ export async function postCarouselToInstagram(imageUrls: string[], caption: stri
   const createData = await createRes.json();
   if (!createRes.ok) throw new Error(`Instagram carousel create failed: ${JSON.stringify(createData)}`);
 
+  await waitForInstagramContainerReady(createData.id, token);
+
   const publishRes = await fetch(`${GRAPH_API}/${igId}/media_publish`, {
     method: "POST",
     body: new URLSearchParams({ creation_id: createData.id, access_token: token }),
@@ -99,6 +115,8 @@ export async function postSingleToInstagram(imageUrl: string, caption: string): 
   });
   const createData = await createRes.json();
   if (!createRes.ok) throw new Error(`Instagram media create failed: ${JSON.stringify(createData)}`);
+
+  await waitForInstagramContainerReady(createData.id, token);
 
   const publishRes = await fetch(`${GRAPH_API}/${igId}/media_publish`, {
     method: "POST",
