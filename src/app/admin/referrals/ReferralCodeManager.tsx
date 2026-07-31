@@ -33,10 +33,14 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
+  const [copiedLpId, setCopiedLpId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   function linkFor(code: string) {
     return `${APP_URL}/register?ref=${code}`;
+  }
+  function lpLinkFor(code: string) {
+    return `${APP_URL}/lp/${code}`;
   }
   function qrSrc(code: string) {
     return `/api/admin/referral-codes/${code}/qr`;
@@ -82,6 +86,12 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
     await navigator.clipboard.writeText(code);
     setCopiedCodeId(id);
     setTimeout(() => setCopiedCodeId((cur) => (cur === id ? null : cur)), 1500);
+  }
+
+  async function handleCopyLp(id: string, code: string) {
+    await navigator.clipboard.writeText(lpLinkFor(code));
+    setCopiedLpId(id);
+    setTimeout(() => setCopiedLpId((cur) => (cur === id ? null : cur)), 1500);
   }
 
   async function handleToggleDisable(id: string, code: string, currentlyDisabled: boolean) {
@@ -238,6 +248,16 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
                           }}
                         >
                           {copiedId === c.id ? "コピーしました" : "リンクをコピー"}
+                        </button>
+                        <button
+                          onClick={() => handleCopyLp(c.id, c.code)}
+                          style={{
+                            fontSize: 12, fontWeight: 700, padding: "5px 10px", borderRadius: 6,
+                            border: "1.5px solid #7C3AED", background: copiedLpId === c.id ? "#7C3AED" : "#fff",
+                            color: copiedLpId === c.id ? "#fff" : "#7C3AED", cursor: "pointer", whiteSpace: "nowrap",
+                          }}
+                        >
+                          {copiedLpId === c.id ? "コピーしました" : "LPリンクをコピー"}
                         </button>
                         <a
                           href={`${qrSrc(c.code)}?download=1`}
