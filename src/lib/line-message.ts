@@ -48,9 +48,8 @@ const WEEKLY_SOURCE_BADGE: Record<string, { label: string; icon: string; color: 
   shingi: { label: "分科会かんたん解説", icon: "💡", color: "#B45309", tint: "#FDF3E7" },
 };
 
-// キャラクターの単体イラストが揃うまで、揃ったソースだけ表示する
 const WEEKLY_SOURCE_CHARACTER: Record<string, string | null> = {
-  mhlw_latest: null, // ミスグレーの単体イラスト待ち
+  mhlw_latest: "/LP_sozai/assets/mascot/misugray-clipboard.png",
   shingi: "/LP_sozai/assets/mascot/gori-thinking.png",
 };
 
