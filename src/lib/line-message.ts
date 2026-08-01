@@ -86,29 +86,57 @@ function badgePill(text: string, bg: string, color = "#ffffff"): messagingApi.Fl
 
 function weeklyLeadFlex(
   weekLabel: string,
+  matchedCount: number,
   docCount: number,
   digestText: string,
   digestUrl: string
 ): messagingApi.FlexMessage {
+  const iconUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com"}/icons/icon-gori-editor.jpg`;
+
   return {
     type: "flex",
-    altText: `【週刊ヨミトク】${weekLabel}（${docCount}件のトピックス）`,
+    altText: `【週刊ヨミトク】${weekLabel}（あなたのタグに${matchedCount}件ヒット）`,
     contents: {
       type: "bubble",
       size: "mega",
       header: {
         type: "box",
         layout: "vertical",
-        backgroundColor: "#E6F1FB",
+        backgroundColor: "#0D686E",
         paddingAll: "20px",
         contents: [
-          { type: "text", text: "📋  週刊ヨミトク", color: "#0C447C", size: "xl", weight: "bold" } as messagingApi.FlexText,
+          {
+            type: "box",
+            layout: "horizontal",
+            spacing: "sm",
+            alignItems: "center",
+            contents: [
+              {
+                type: "box",
+                layout: "vertical",
+                width: "40px",
+                height: "40px",
+                cornerRadius: "20px",
+                contents: [
+                  { type: "image", url: iconUrl, size: "full", aspectMode: "cover", aspectRatio: "1:1" } as messagingApi.FlexImage,
+                ],
+              } as messagingApi.FlexBox,
+              {
+                type: "box",
+                layout: "vertical",
+                contents: [
+                  { type: "text", text: "週刊ヨミトク", color: "#ffffff", size: "lg", weight: "bold" } as messagingApi.FlexText,
+                  { type: "text", text: weekLabel, color: "#BFE3DD", size: "xs", margin: "xs" } as messagingApi.FlexText,
+                ],
+              } as messagingApi.FlexBox,
+            ],
+          } as messagingApi.FlexBox,
           {
             type: "text",
-            text: `${weekLabel}  ·  今週は${docCount}件のトピックスがありました`,
-            color: "#185FA5",
+            text: "ゴリ編集長です。今週分をまとめました！",
+            color: "#ffffff",
             size: "sm",
-            margin: "sm",
+            margin: "md",
             wrap: true,
           } as messagingApi.FlexText,
         ],
@@ -119,11 +147,37 @@ function weeklyLeadFlex(
         paddingAll: "20px",
         contents: [
           {
+            type: "box",
+            layout: "vertical",
+            backgroundColor: "#F0F9F8",
+            cornerRadius: "12px",
+            paddingAll: "16px",
+            alignItems: "center",
+            contents: [
+              {
+                type: "text",
+                text: "あなたのタグにヒットした件数 / 全体件数",
+                size: "xs",
+                color: "#527672",
+              } as messagingApi.FlexText,
+              {
+                type: "box",
+                layout: "baseline",
+                margin: "sm",
+                contents: [
+                  { type: "text", text: String(matchedCount), size: "4xl", weight: "bold", color: "#FA5203", flex: 0 } as messagingApi.FlexText,
+                  { type: "text", text: ` / ${docCount}`, size: "lg", weight: "bold", color: "#888888", margin: "xs", flex: 0 } as messagingApi.FlexText,
+                ],
+              } as messagingApi.FlexBox,
+            ],
+          } as messagingApi.FlexBox,
+          {
             type: "text",
             text: digestText || "今週の介護保険最新情報をまとめました。",
             wrap: true,
             size: "sm",
             color: "#333333",
+            margin: "lg",
           } as messagingApi.FlexText,
         ],
       },
@@ -136,7 +190,7 @@ function weeklyLeadFlex(
             type: "button",
             action: { type: "uri", label: "この後にカード一覧が届きます →", uri: digestUrl },
             style: "primary",
-            color: "#0C447C",
+            color: "#0D686E",
           } as messagingApi.FlexButton,
         ],
       },
@@ -483,7 +537,7 @@ export async function pushWeeklyDigestCards(
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
   const digestUrl = `${appUrl}/digest/${batchId}`;
 
-  const lead = weeklyLeadFlex(weekLabel, docCount, digestText, digestUrl);
+  const lead = weeklyLeadFlex(weekLabel, docs.length, docCount, digestText, digestUrl);
   const carousel = docs.length > 0 ? weeklyCarouselFlex(docs, appUrl) : weeklyNoMatchFlex(weekLabel, appUrl);
 
   const res = await client.pushMessage({ to: lineUserId, messages: [lead, carousel] });
