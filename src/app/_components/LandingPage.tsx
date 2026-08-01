@@ -1,6 +1,7 @@
 import Image from "next/image";
+import MangaSection from "./MangaSection";
 
-const P = {
+export const P = {
   teal: "#0D686E",
   dark: "#0A4A50",
   mid: "#158A82",
@@ -408,6 +409,8 @@ export default function LandingPage({ ctaHref = "/register" }: { ctaHref?: strin
           <p style={{ fontSize: 13, color: P.muted, marginTop: 16 }}>月額300円（税抜）　お申し込み後、LINEへご案内します。</p>
         </div>
       </section>
+
+      <MangaSection />
 
       {/* ─── 編集室 ─── */}
       <section id="room" style={{ background: P.lighter, padding: "96px 24px" }}>
