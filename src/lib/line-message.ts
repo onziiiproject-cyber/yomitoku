@@ -84,15 +84,31 @@ function badgePill(text: string, bg: string, color = "#ffffff"): messagingApi.Fl
   };
 }
 
+const WEEKLY_BREAKDOWN_LABEL: Record<string, string> = {
+  shingi: "分科会",
+  mhlw_latest: "最新情報",
+};
+
+function weeklySourceBreakdown(docs: WeeklyCardDoc[]): { label: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const doc of docs) {
+    counts.set(doc.source, (counts.get(doc.source) ?? 0) + 1);
+  }
+  return Object.entries(WEEKLY_BREAKDOWN_LABEL)
+    .map(([source, label]) => ({ label, count: counts.get(source) ?? 0 }))
+    .filter((row) => row.count > 0);
+}
+
 function weeklyLeadFlex(
   weekLabel: string,
-  matchedCount: number,
-  docCount: number,
-  digestText: string
+  docs: WeeklyCardDoc[],
+  docCount: number
 ): messagingApi.FlexMessage {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
   const iconUrl = `${baseUrl}/icons/icon-gori-editor.jpg`;
   const pointerImageUrl = `${baseUrl}/line/weekly-pointer.jpg`;
+  const matchedCount = docs.length;
+  const breakdown = weeklySourceBreakdown(docs);
 
   return {
     type: "flex",
@@ -172,14 +188,27 @@ function weeklyLeadFlex(
               } as messagingApi.FlexBox,
             ],
           } as messagingApi.FlexBox,
-          {
-            type: "text",
-            text: digestText || "今週の介護保険最新情報をまとめました。",
-            wrap: true,
-            size: "sm",
-            color: "#333333",
-            margin: "lg",
-          } as messagingApi.FlexText,
+          ...(breakdown.length > 0
+            ? [
+                {
+                  type: "box",
+                  layout: "vertical",
+                  margin: "lg",
+                  spacing: "xs",
+                  contents: breakdown.map(
+                    (row) =>
+                      ({
+                        type: "box",
+                        layout: "horizontal",
+                        contents: [
+                          { type: "text", text: `・${row.label}`, size: "sm", color: "#333333", flex: 3 } as messagingApi.FlexText,
+                          { type: "text", text: `${row.count}件`, size: "sm", weight: "bold", color: "#0D686E", align: "end", flex: 1 } as messagingApi.FlexText,
+                        ],
+                      }) as messagingApi.FlexBox
+                  ),
+                } as messagingApi.FlexBox,
+              ]
+            : []),
         ],
       },
       footer: {
@@ -531,13 +560,12 @@ export async function pushWeeklyDigestCards(
   lineUserId: string,
   weekLabel: string,
   docCount: number,
-  digestText: string,
   docs: WeeklyCardDoc[]
 ): Promise<string> {
   const client = getClient();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
 
-  const lead = weeklyLeadFlex(weekLabel, docs.length, docCount, digestText);
+  const lead = weeklyLeadFlex(weekLabel, docs, docCount);
   const carousel = docs.length > 0 ? weeklyCarouselFlex(docs, appUrl) : weeklyNoMatchFlex(weekLabel, appUrl);
 
   const res = await client.pushMessage({ to: lineUserId, messages: [lead, carousel] });

@@ -506,7 +506,6 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
         recipient.lineUserId,
         weekLabel,
         weekDocs.length,
-        digestText,
         cardsToSend
       );
       await prisma.messageSend.create({

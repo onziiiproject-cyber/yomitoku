@@ -56,13 +56,7 @@ export async function POST(req: NextRequest) {
   });
 
   try {
-    await pushWeeklyDigestCards(
-      lineUserId,
-      "テスト",
-      cardDocs.length,
-      "【テスト送信】今週の介護保険最新情報をお届けします。これは週刊ヨミトクのFlex Message（カード形式）のテストです。",
-      cardDocs
-    );
+    await pushWeeklyDigestCards(lineUserId, "テスト", cardDocs.length, cardDocs);
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
   }
