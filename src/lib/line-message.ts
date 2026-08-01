@@ -84,19 +84,15 @@ function badgePill(text: string, bg: string, color = "#ffffff"): messagingApi.Fl
   };
 }
 
-const WEEKLY_BREAKDOWN_LABEL: Record<string, string> = {
-  shingi: "分科会",
-  mhlw_latest: "最新情報",
-};
-
 function weeklySourceBreakdown(docs: WeeklyCardDoc[]): { label: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const doc of docs) {
     counts.set(doc.source, (counts.get(doc.source) ?? 0) + 1);
   }
-  return Object.entries(WEEKLY_BREAKDOWN_LABEL)
-    .map(([source, label]) => ({ label, count: counts.get(source) ?? 0 }))
-    .filter((row) => row.count > 0);
+  return Object.entries(WEEKLY_SOURCE_BADGE).map(([source, { label }]) => ({
+    label,
+    count: counts.get(source) ?? 0,
+  }));
 }
 
 function weeklyLeadFlex(
@@ -188,27 +184,24 @@ function weeklyLeadFlex(
               } as messagingApi.FlexBox,
             ],
           } as messagingApi.FlexBox,
-          ...(breakdown.length > 0
-            ? [
-                {
+          { type: "text", text: "今週の通知は以下の通りです♪", size: "sm", weight: "bold", color: "#333333", margin: "lg" } as messagingApi.FlexText,
+          {
+            type: "box",
+            layout: "vertical",
+            margin: "sm",
+            spacing: "xs",
+            contents: breakdown.map(
+              (row) =>
+                ({
                   type: "box",
-                  layout: "vertical",
-                  margin: "lg",
-                  spacing: "xs",
-                  contents: breakdown.map(
-                    (row) =>
-                      ({
-                        type: "box",
-                        layout: "horizontal",
-                        contents: [
-                          { type: "text", text: `・${row.label}`, size: "sm", color: "#333333", flex: 3 } as messagingApi.FlexText,
-                          { type: "text", text: `${row.count}件`, size: "sm", weight: "bold", color: "#0D686E", align: "end", flex: 1 } as messagingApi.FlexText,
-                        ],
-                      }) as messagingApi.FlexBox
-                  ),
-                } as messagingApi.FlexBox,
-              ]
-            : []),
+                  layout: "horizontal",
+                  contents: [
+                    { type: "text", text: `・${row.label}`, size: "sm", color: "#333333", flex: 3 } as messagingApi.FlexText,
+                    { type: "text", text: `${row.count}件`, size: "sm", weight: "bold", color: "#0D686E", align: "end", flex: 1 } as messagingApi.FlexText,
+                  ],
+                }) as messagingApi.FlexBox
+            ),
+          } as messagingApi.FlexBox,
         ],
       },
       footer: {
