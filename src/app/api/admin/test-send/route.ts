@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
       id: d.id,
       title: d.title,
       hookTitle: sc?.hookTitle ?? null,
+      summary: d.summary ?? "",
       source: d.source,
       tags: (d.tags as string[]) ?? [],
       importanceStars: sc?.importanceStars ?? null,

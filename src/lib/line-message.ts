@@ -34,6 +34,7 @@ export interface WeeklyCardDoc {
   id: string;
   title: string;
   hookTitle: string | null;
+  summary: string;
   source: string;
   tags: string[];
   importanceStars: number | null;
@@ -42,9 +43,15 @@ export interface WeeklyCardDoc {
   decisionStatus: string | null;
 }
 
-const WEEKLY_SOURCE_BADGE: Record<string, { label: string; color: string }> = {
-  mhlw_latest: { label: "介護保険最新情報", color: "#0D686E" },
-  shingi: { label: "分科会かんたん解説", color: "#B45309" },
+const WEEKLY_SOURCE_BADGE: Record<string, { label: string; icon: string; color: string; tint: string }> = {
+  mhlw_latest: { label: "介護保険最新情報", icon: "📖", color: "#0D686E", tint: "#E6F4F2" },
+  shingi: { label: "分科会かんたん解説", icon: "💡", color: "#B45309", tint: "#FDF3E7" },
+};
+
+// キャラクターの単体イラストが揃うまで、揃ったソースだけ表示する
+const WEEKLY_SOURCE_CHARACTER: Record<string, string | null> = {
+  mhlw_latest: null, // ミスグレーの単体イラスト待ち
+  shingi: "/LP_sozai/assets/mascot/gori-thinking.png",
 };
 
 const DECISION_STATUS_BADGE: Record<string, { label: string; bg: string; color: string }> = {
@@ -69,6 +76,30 @@ function paleBadgePill(text: string, bg: string, color: string): messagingApi.Fl
 function starText(stars: number | null): string {
   if (!stars) return "";
   return "★".repeat(stars) + "☆".repeat(5 - stars);
+}
+
+function statRow(icon: string, iconBg: string, label: string, stars: number | null): messagingApi.FlexBox {
+  return {
+    type: "box",
+    layout: "horizontal",
+    alignItems: "center",
+    spacing: "sm",
+    contents: [
+      {
+        type: "box",
+        layout: "vertical",
+        width: "22px",
+        height: "22px",
+        cornerRadius: "11px",
+        backgroundColor: iconBg,
+        justifyContent: "center",
+        alignItems: "center",
+        contents: [{ type: "text", text: icon, size: "xxs", color: "#ffffff", align: "center" } as messagingApi.FlexText],
+      } as messagingApi.FlexBox,
+      { type: "text", text: label, size: "xs", color: "#666666", flex: 0 } as messagingApi.FlexText,
+      { type: "text", text: starText(stars), size: "xs", color: "#F5A623", align: "end", flex: 1 } as messagingApi.FlexText,
+    ],
+  };
 }
 
 function badgePill(text: string, bg: string, color = "#ffffff"): messagingApi.FlexBox {
@@ -222,23 +253,44 @@ function weeklyLeadFlex(
   };
 }
 
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
 function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string): messagingApi.FlexBubble {
-  const src = WEEKLY_SOURCE_BADGE[doc.source] ?? { label: doc.source, color: "#555555" };
+  const src = WEEKLY_SOURCE_BADGE[doc.source] ?? { label: doc.source, icon: "📰", color: "#555555", tint: "#F5F5F5" };
+  const characterPath = WEEKLY_SOURCE_CHARACTER[doc.source];
   const displayTitle = doc.hookTitle || doc.title;
-
-  const badges: messagingApi.FlexComponent[] = [];
-  if (doc.isNew) badges.push(badgePill("新着", "#F5A623"));
-  badges.push(badgePill(src.label, src.color));
   const decisionBadge = doc.decisionStatus ? DECISION_STATUS_BADGE[doc.decisionStatus] : null;
-  if (decisionBadge) badges.push(paleBadgePill(decisionBadge.label, decisionBadge.bg, decisionBadge.color));
 
-  const starLines: messagingApi.FlexComponent[] = [];
-  if (doc.importanceStars) {
-    starLines.push({ type: "text", text: `重要度 ${starText(doc.importanceStars)}`, size: "xs", color: "#888888", margin: "sm" } as messagingApi.FlexText);
-  }
-  if (doc.urgencyStars) {
-    starLines.push({ type: "text", text: `緊急度 ${starText(doc.urgencyStars)}`, size: "xs", color: "#888888" } as messagingApi.FlexText);
-  }
+  const headerBadges: messagingApi.FlexComponent[] = [
+    {
+      type: "box",
+      layout: "horizontal",
+      paddingAll: "4px",
+      paddingStart: "8px",
+      paddingEnd: "8px",
+      backgroundColor: src.color,
+      cornerRadius: "20px",
+      spacing: "xs",
+      contents: [
+        { type: "text", text: src.icon, size: "xxs", flex: 0 } as messagingApi.FlexText,
+        { type: "text", text: src.label, size: "xxs", weight: "bold", color: "#ffffff", flex: 0 } as messagingApi.FlexText,
+      ],
+    } as messagingApi.FlexBox,
+  ];
+  if (doc.isNew) headerBadges.push(badgePill("新着", "#F5A623"));
+  if (decisionBadge) headerBadges.push(paleBadgePill(decisionBadge.label, decisionBadge.bg, decisionBadge.color));
+
+  const MAX_TAGS = 5;
+  const visibleTags = doc.tags.slice(0, MAX_TAGS);
+  const overflowCount = doc.tags.length - visibleTags.length;
+  const tagLabels = [...visibleTags, ...(overflowCount > 0 ? [`+${overflowCount}`] : [])];
+  const tagRows = chunk(tagLabels, 3).map(
+    (row) => ({ type: "box", layout: "horizontal", spacing: "xs", contents: row.map(tagChip) }) as messagingApi.FlexBox
+  );
 
   return {
     type: "bubble",
@@ -248,28 +300,52 @@ function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string): messagingApi.Flex
       layout: "vertical",
       paddingAll: "16px",
       contents: [
-        { type: "box", layout: "horizontal", spacing: "xs", contents: badges } as messagingApi.FlexBox,
+        { type: "box", layout: "horizontal", spacing: "xs", contents: headerBadges } as messagingApi.FlexBox,
         {
-          type: "text",
-          text: displayTitle,
-          wrap: true,
-          weight: "bold",
-          size: "md",
-          color: "#1a1a1a",
-          margin: "sm",
-          maxLines: 3,
-        } as messagingApi.FlexText,
-        ...starLines,
-        ...(doc.tags.length > 0
-          ? [
-              {
-                type: "box",
-                layout: "horizontal",
-                spacing: "xs",
-                margin: "sm",
-                contents: doc.tags.slice(0, 2).map(tagChip),
-              } as messagingApi.FlexBox,
-            ]
+          type: "box",
+          layout: "horizontal",
+          margin: "md",
+          spacing: "sm",
+          alignItems: "flex-end",
+          contents: [
+            { type: "text", text: displayTitle, wrap: true, weight: "bold", size: "md", color: "#1a1a1a", maxLines: 4, flex: 1 } as messagingApi.FlexText,
+            ...(characterPath
+              ? [
+                  {
+                    type: "box",
+                    layout: "vertical",
+                    width: "56px",
+                    height: "64px",
+                    flex: 0,
+                    contents: [
+                      { type: "image", url: `${appUrl}${characterPath}`, size: "full", aspectMode: "fit" } as messagingApi.FlexImage,
+                    ],
+                  } as messagingApi.FlexBox,
+                ]
+              : []),
+          ],
+        } as messagingApi.FlexBox,
+        {
+          type: "box",
+          layout: "vertical",
+          backgroundColor: src.tint,
+          cornerRadius: "8px",
+          paddingAll: "10px",
+          margin: "md",
+          contents: [{ type: "text", text: doc.summary, wrap: true, size: "xs", color: "#555555", maxLines: 3 } as messagingApi.FlexText],
+        } as messagingApi.FlexBox,
+        {
+          type: "box",
+          layout: "vertical",
+          margin: "md",
+          spacing: "sm",
+          contents: [
+            ...(doc.importanceStars ? [statRow("★", "#F5A623", "重要度", doc.importanceStars)] : []),
+            ...(doc.urgencyStars ? [statRow("!", "#E4572E", "緊急度", doc.urgencyStars)] : []),
+          ],
+        } as messagingApi.FlexBox,
+        ...(tagRows.length > 0
+          ? [{ type: "box", layout: "vertical", margin: "md", spacing: "xs", contents: tagRows } as messagingApi.FlexBox]
           : []),
       ],
     },
