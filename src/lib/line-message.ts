@@ -91,7 +91,9 @@ function weeklyLeadFlex(
   digestText: string,
   digestUrl: string
 ): messagingApi.FlexMessage {
-  const iconUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com"}/icons/icon-gori-editor.jpg`;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
+  const iconUrl = `${baseUrl}/icons/icon-gori-editor.jpg`;
+  const pointerImageUrl = `${baseUrl}/line/weekly-pointer.jpg`;
 
   return {
     type: "flex",
@@ -184,14 +186,16 @@ function weeklyLeadFlex(
       footer: {
         type: "box",
         layout: "vertical",
-        paddingAll: "16px",
+        paddingAll: "12px",
         contents: [
           {
-            type: "button",
-            action: { type: "uri", label: "この後にカード一覧が届きます →", uri: digestUrl },
-            style: "primary",
-            color: "#0D686E",
-          } as messagingApi.FlexButton,
+            type: "image",
+            url: pointerImageUrl,
+            size: "full",
+            aspectRatio: "495:347",
+            aspectMode: "cover",
+            action: { type: "uri", uri: digestUrl },
+          } as messagingApi.FlexImage,
         ],
       },
     } as messagingApi.FlexBubble,
