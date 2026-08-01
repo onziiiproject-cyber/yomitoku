@@ -100,10 +100,17 @@ export default function MangaSection() {
         {/* マンガ表示エリア */}
         {selected.pages.length > 0 ? (
           <div>
+            <style>{`
+              @media (min-width: 769px) {
+                .manga-scroller { height: min(64vh, 740px); width: auto; aspect-ratio: 3 / 4; margin: 0 auto; }
+                .manga-frame { flex-basis: 100%; aspect-ratio: auto !important; height: 100%; }
+              }
+            `}</style>
             <div style={{ position: "relative" }}>
               <div
                 ref={scrollerRef}
                 onScroll={handleScroll}
+                className="no-scrollbar manga-scroller"
                 style={{
                   display: "flex",
                   overflowX: "auto",
@@ -112,10 +119,9 @@ export default function MangaSection() {
                   border: `1px solid ${P.border}`,
                   boxShadow: "0 8px 32px rgba(13,104,110,0.1)",
                 }}
-                className="no-scrollbar"
               >
                 {selected.pages.map((src, i) => (
-                  <div key={src} style={{ flex: "0 0 100%", scrollSnapAlign: "start", position: "relative", aspectRatio: "3 / 4" }}>
+                  <div key={src} className="manga-frame" style={{ flex: "0 0 100%", scrollSnapAlign: "start", position: "relative", aspectRatio: "3 / 4" }}>
                     <Image src={src} alt={`${selected.label}編 ${i + 1}ページ目`} fill sizes="(max-width: 900px) 100vw, 900px" style={{ objectFit: "cover" }} priority={i === 0} />
                   </div>
                 ))}
