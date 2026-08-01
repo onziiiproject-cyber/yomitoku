@@ -121,7 +121,7 @@ export default function RegisterForm({ tags, referralCode, isAmbassador = false 
         )}
         {refStatus === "valid" && (
           <p style={{ fontSize: 12, fontWeight: 700, color: "#7B4F00", marginTop: 6 }}>
-            {refIsAmbassador ? "🎗️ アンバサダーコードを確認しました。お支払い情報の入力は不要です" : "🎁 紹介コードを確認しました。初月無料が適用されます"}
+            {refIsAmbassador ? "🎗️ アンバサダーコードを確認しました。お支払い情報の入力は不要です" : "🎁 紹介コードを確認しました。30日間無料でご利用いただけます"}
           </p>
         )}
         {refStatus === "invalid" && (

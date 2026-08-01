@@ -98,7 +98,7 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
     const confirmed = window.confirm(
       currentlyDisabled
         ? `コード「${code}」を再度有効化しますか？`
-        : `コード「${code}」を無効化しますか？\nこのコードでの新規登録・初月無料の適用ができなくなります。`
+        : `コード「${code}」を無効化しますか？\nこのコードでの新規登録・30日無料の適用ができなくなります。`
     );
     if (!confirmed) return;
 
