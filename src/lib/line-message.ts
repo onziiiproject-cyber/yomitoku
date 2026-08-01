@@ -88,8 +88,7 @@ function weeklyLeadFlex(
   weekLabel: string,
   matchedCount: number,
   docCount: number,
-  digestText: string,
-  digestUrl: string
+  digestText: string
 ): messagingApi.FlexMessage {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
   const iconUrl = `${baseUrl}/icons/icon-gori-editor.jpg`;
@@ -194,7 +193,6 @@ function weeklyLeadFlex(
             size: "full",
             aspectRatio: "495:347",
             aspectMode: "cover",
-            action: { type: "uri", uri: digestUrl },
           } as messagingApi.FlexImage,
         ],
       },
@@ -534,14 +532,12 @@ export async function pushWeeklyDigestCards(
   weekLabel: string,
   docCount: number,
   digestText: string,
-  docs: WeeklyCardDoc[],
-  batchId: string
+  docs: WeeklyCardDoc[]
 ): Promise<string> {
   const client = getClient();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
-  const digestUrl = `${appUrl}/digest/${batchId}`;
 
-  const lead = weeklyLeadFlex(weekLabel, docs.length, docCount, digestText, digestUrl);
+  const lead = weeklyLeadFlex(weekLabel, docs.length, docCount, digestText);
   const carousel = docs.length > 0 ? weeklyCarouselFlex(docs, appUrl) : weeklyNoMatchFlex(weekLabel, appUrl);
 
   const res = await client.pushMessage({ to: lineUserId, messages: [lead, carousel] });
