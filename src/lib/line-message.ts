@@ -214,10 +214,11 @@ function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string): messagingApi.Flex
       contents: [
         { type: "text", text: displayTitle, wrap: true, weight: "bold", size: "md", color: "#1a1a1a", maxLines: 3 } as messagingApi.FlexText,
         { type: "text", text: doc.summary, wrap: true, size: "sm", color: "#666666", maxLines: 3, margin: "md" } as messagingApi.FlexText,
+        { type: "separator", margin: "32px", color: "#EEEEEE" } as messagingApi.FlexSeparator,
         {
           type: "box",
           layout: "horizontal",
-          margin: "xl",
+          margin: "32px",
           contents: [
             { type: "text", text: "この記事を詳しく見る", size: "sm", weight: "bold", color: src.color, flex: 0 } as messagingApi.FlexText,
             { type: "text", text: "→", size: "sm", weight: "bold", color: src.color, flex: 0, margin: "xs" } as messagingApi.FlexText,
