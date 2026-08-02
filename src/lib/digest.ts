@@ -5,6 +5,7 @@ import { pushWeeklyDigestCards, pushBreakingNews, pushShingiCover, pushShingiTop
 import { generateShingiCoverPDF, generateShingiTopicPDF, type ShingiThemeDetail } from "./pdf-shingi";
 import { generateCoverCardImage, generateSummaryCardImage, generateWeeklyCardHeroImage } from "./social-image";
 import { postArticleToSocial } from "./meta";
+import { extractPdfText } from "./pdf-text";
 import { put } from "@vercel/blob";
 
 // PDFがClaudeのページ数上限（100ページ）やトークン上限を超えている場合、
@@ -294,24 +295,36 @@ export async function runProcessPending(limit = 1): Promise<ProcessResult> {
         result = await analyzeDocument(doc.title, doc.rawText ?? "", pdfBase64);
         structured = await generateStructuredContent(doc.title, doc.rawText ?? "", pdfBase64);
       } catch (e) {
-        // PDFがページ数上限（100ページ）やトークン上限を超えている場合は、テキストのみに
-        // フォールバックせず（=中身のない要約を防ぐため）、正直に「対象外」として処理済みにする。
-        // これをしないと毎日のcronが同じ処理不能な文書を無限にリトライし続けてしまう。
-        if (isDocumentTooLargeError(e)) {
-          await prisma.siteDocument.update({
-            where: { id: doc.id },
-            data: {
-              summary: "この文書はページ数・分量が多いため自動要約の対象外です。原文PDFを直接ご確認ください。",
-              tags: [],
-              importance: "normal",
-              processedAt: new Date(),
-            },
-          });
-          errors.push(`文書サイズ上限のため要約対象外としてマーク: "${doc.title.slice(0, 30)}"`);
-          processed++;
-          continue;
+        // ClaudeのネイティブPDF読み込みはページ数上限（100ページ）がある。ここに当たった場合は
+        // 諦める前に、自前でPDFからテキストを抽出してテキストのみで再試行する
+        // （ページ数上限はなくなり、トークン上限だけが制約になる）。
+        if (isDocumentTooLargeError(e) && pdfBase64) {
+          try {
+            const extractedText = await extractPdfText(pdfBase64);
+            result = await analyzeDocument(doc.title, extractedText);
+            structured = await generateStructuredContent(doc.title, extractedText);
+          } catch (e2) {
+            // テキスト抽出後もトークン上限を超える場合のみ、正直に「対象外」として処理済みにする。
+            // これをしないと毎日のcronが同じ処理不能な文書を無限にリトライし続けてしまう。
+            if (isDocumentTooLargeError(e2)) {
+              await prisma.siteDocument.update({
+                where: { id: doc.id },
+                data: {
+                  summary: "この文書はページ数・分量が多いため自動要約の対象外です。原文PDFを直接ご確認ください。",
+                  tags: [],
+                  importance: "normal",
+                  processedAt: new Date(),
+                },
+              });
+              errors.push(`文書サイズ上限のため要約対象外としてマーク: "${doc.title.slice(0, 30)}"`);
+              processed++;
+              continue;
+            }
+            throw e2;
+          }
+        } else {
+          throw e;
         }
-        throw e;
       }
 
       // 一覧ページから発行日が拾えなかった場合（PDF本文にしか記載がないケースがある）、

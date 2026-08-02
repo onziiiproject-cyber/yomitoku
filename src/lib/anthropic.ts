@@ -39,7 +39,7 @@ export async function analyzeDocument(
   const prompt = `あなたは介護保険専門の情報アナリストです。以下の文書を分析してください。
 
 タイトル: ${title}
-${pdfBase64 ? "" : `内容: ${content.slice(0, 4000)}`}
+${pdfBase64 ? "" : `内容: ${content.slice(0, 150000)}`}
 
 以下のJSON形式のみで回答してください（他のテキスト不要）：
 {
@@ -392,7 +392,7 @@ export async function generateStructuredContent(
   const prompt = `あなたは介護保険の専門家アナリストです。以下の厚生労働省の発表資料を、忙しい介護事業所の管理者・経営者が「読まなくても内容を理解し、次の行動を起こせる」ように、思考プロセスを代わりに整理してカード形式にまとめてください。全文を要約するのではなく、読み手の頭の中にある疑問に、順番に答えていくイメージです。
 
 タイトル: ${title}
-${pdfBase64 ? "（添付PDFが本文です）" : `本文:\n${rawText.slice(0, 12000)}`}
+${pdfBase64 ? "（添付PDFが本文です）" : `本文:\n${rawText.slice(0, 150000)}`}
 
 以下のJSON形式のみで回答してください（他テキスト不要）:
 {
