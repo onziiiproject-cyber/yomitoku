@@ -41,84 +41,13 @@ export interface WeeklyCardDoc {
   urgencyStars: number | null;
   isNew: boolean;
   decisionStatus: string | null;
+  heroImageUrl: string;
 }
 
-const WEEKLY_SOURCE_BADGE: Record<
-  string,
-  { label: string; icon: string; color: string; tint: string; tagBg: string; tagColor: string; importanceIcon: string }
-> = {
-  mhlw_latest: {
-    label: "介護保険最新情報",
-    icon: "/LP_sozai/assets/icons/icon-document.png",
-    color: "#0D686E",
-    tint: "#E6F4F2",
-    tagBg: "#E6F4F2",
-    tagColor: "#0D686E",
-    importanceIcon: "/LP_sozai/assets/icons/icon-star-circle-teal.png",
-  },
-  shingi: {
-    label: "分科会かんたん解説",
-    icon: "/LP_sozai/assets/icons/icon-lightbulb.png",
-    color: "#B45309",
-    tint: "#FDF3E7",
-    tagBg: "#FDF3E7",
-    tagColor: "#B45309",
-    importanceIcon: "/LP_sozai/assets/icons/icon-star-circle-amber.png",
-  },
+const WEEKLY_SOURCE_BADGE: Record<string, { label: string; color: string }> = {
+  mhlw_latest: { label: "介護保険最新情報", color: "#0D686E" },
+  shingi: { label: "分科会かんたん解説", color: "#B45309" },
 };
-const URGENCY_ICON = "/LP_sozai/assets/icons/icon-alert-circle.png";
-
-const WEEKLY_SOURCE_CHARACTER: Record<string, string | null> = {
-  mhlw_latest: "/LP_sozai/assets/mascot/misugray-clipboard.png",
-  shingi: "/LP_sozai/assets/mascot/gori-thinking.png",
-};
-
-const DECISION_STATUS_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  discussion: { label: "議論中", bg: "#ffffff", color: "#B45309" },
-  decided: { label: "決定事項", bg: "#ffffff", color: "#0D686E" },
-};
-
-// 情報源バッジ（塗りつぶし）よりひとまわり小さい、白地×縁取りのアウトラインバッジ
-function paleBadgePill(text: string, bg: string, color: string): messagingApi.FlexBox {
-  return {
-    type: "box",
-    layout: "vertical",
-    paddingAll: "4px",
-    paddingStart: "10px",
-    paddingEnd: "10px",
-    backgroundColor: bg,
-    borderColor: color,
-    borderWidth: "1px",
-    cornerRadius: "20px",
-    contents: [{ type: "text", text, size: "xs", weight: "bold", color } as messagingApi.FlexText],
-  };
-}
-
-function starText(stars: number | null): string {
-  if (!stars) return "";
-  return "★".repeat(stars) + "☆".repeat(5 - stars);
-}
-
-function statRow(appUrl: string, iconPath: string, label: string, stars: number | null): messagingApi.FlexBox {
-  return {
-    type: "box",
-    layout: "horizontal",
-    alignItems: "center",
-    spacing: "sm",
-    contents: [
-      {
-        type: "box",
-        layout: "vertical",
-        width: "28px",
-        height: "28px",
-        flex: 0,
-        contents: [{ type: "image", url: `${appUrl}${iconPath}`, size: "full", aspectMode: "fit" } as messagingApi.FlexImage],
-      } as messagingApi.FlexBox,
-      { type: "text", text: label, size: "sm", weight: "bold", color: "#555555", flex: 0 } as messagingApi.FlexText,
-      { type: "text", text: starText(stars), size: "md", color: "#F5A623", align: "end", flex: 1 } as messagingApi.FlexText,
-    ],
-  };
-}
 
 function weeklySourceBreakdown(docs: WeeklyCardDoc[]): { label: string; count: number }[] {
   const counts = new Map<string, number>();
@@ -265,136 +194,37 @@ function chunk<T>(arr: T[], size: number): T[][] {
 }
 
 function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string): messagingApi.FlexBubble {
-  const src =
-    WEEKLY_SOURCE_BADGE[doc.source] ??
-    ({
-      label: doc.source,
-      icon: "/LP_sozai/assets/icons/icon-document.png",
-      color: "#555555",
-      tint: "#F5F5F5",
-      tagBg: "#F5F5F5",
-      tagColor: "#555555",
-      importanceIcon: "/LP_sozai/assets/icons/icon-star-circle-teal.png",
-    } as (typeof WEEKLY_SOURCE_BADGE)[string]);
-  const characterPath = WEEKLY_SOURCE_CHARACTER[doc.source];
+  const src = WEEKLY_SOURCE_BADGE[doc.source] ?? { label: doc.source, color: "#555555" };
   const displayTitle = doc.hookTitle || doc.title;
-  const decisionBadge = doc.decisionStatus ? DECISION_STATUS_BADGE[doc.decisionStatus] : null;
-
-  const headerBadges: messagingApi.FlexComponent[] = [
-    {
-      type: "box",
-      layout: "horizontal",
-      paddingAll: "6px",
-      paddingStart: "10px",
-      paddingEnd: "14px",
-      backgroundColor: src.color,
-      cornerRadius: "20px",
-      spacing: "xs",
-      alignItems: "center",
-      contents: [
-        {
-          type: "box",
-          layout: "vertical",
-          width: "18px",
-          height: "18px",
-          cornerRadius: "9px",
-          backgroundColor: "#ffffff",
-          flex: 0,
-          contents: [{ type: "image", url: `${appUrl}${src.icon}`, size: "full", aspectMode: "fit" } as messagingApi.FlexImage],
-        } as messagingApi.FlexBox,
-        { type: "text", text: src.label, size: "sm", weight: "bold", color: "#ffffff", flex: 0 } as messagingApi.FlexText,
-      ],
-    } as messagingApi.FlexBox,
-  ];
-  if (decisionBadge) headerBadges.push(paleBadgePill(decisionBadge.label, decisionBadge.bg, decisionBadge.color));
-
-  const MAX_TAGS = 5;
-  const visibleTags = doc.tags.slice(0, MAX_TAGS);
-  const overflowCount = doc.tags.length - visibleTags.length;
-  const tagLabels = [...visibleTags, ...(overflowCount > 0 ? [`+${overflowCount}`] : [])];
-  const tagRows = chunk(tagLabels, 3).map(
-    (row) =>
-      ({
-        type: "box",
-        layout: "horizontal",
-        spacing: "xs",
-        contents: row.map((t) => tagChip(t, src.tagBg, src.tagColor)),
-      }) as messagingApi.FlexBox
-  );
 
   return {
     type: "bubble",
     size: "kilo",
+    hero: {
+      type: "image",
+      url: doc.heroImageUrl,
+      size: "full",
+      aspectRatio: "1:1",
+      aspectMode: "cover",
+    } as messagingApi.FlexImage,
     body: {
       type: "box",
       layout: "vertical",
       paddingAll: "16px",
+      spacing: "sm",
       contents: [
-        { type: "box", layout: "horizontal", spacing: "xs", contents: headerBadges } as messagingApi.FlexBox,
+        { type: "text", text: displayTitle, wrap: true, weight: "bold", size: "md", color: "#1a1a1a", maxLines: 3 } as messagingApi.FlexText,
+        { type: "text", text: doc.summary, wrap: true, size: "sm", color: "#666666", maxLines: 3, margin: "sm" } as messagingApi.FlexText,
         {
           type: "box",
           layout: "horizontal",
           margin: "md",
-          spacing: "sm",
-          alignItems: "flex-end",
           contents: [
-            { type: "text", text: displayTitle, wrap: true, weight: "bold", size: "lg", color: "#1a1a1a", maxLines: 4, flex: 1 } as messagingApi.FlexText,
-            ...(characterPath
-              ? [
-                  {
-                    type: "box",
-                    layout: "vertical",
-                    width: "56px",
-                    height: "64px",
-                    flex: 0,
-                    contents: [
-                      { type: "image", url: `${appUrl}${characterPath}`, size: "full", aspectMode: "fit" } as messagingApi.FlexImage,
-                    ],
-                  } as messagingApi.FlexBox,
-                ]
-              : []),
+            { type: "text", text: "詳しく読む", size: "sm", weight: "bold", color: src.color, flex: 0 } as messagingApi.FlexText,
+            { type: "text", text: "→", size: "sm", weight: "bold", color: src.color, flex: 0, margin: "xs" } as messagingApi.FlexText,
           ],
+          action: { type: "uri", uri: `${appUrl}/base/articles/${doc.id}` },
         } as messagingApi.FlexBox,
-        {
-          type: "box",
-          layout: "vertical",
-          backgroundColor: src.tint,
-          cornerRadius: "8px",
-          paddingAll: "12px",
-          margin: "md",
-          contents: [{ type: "text", text: doc.summary, wrap: true, size: "sm", color: "#555555", maxLines: 3 } as messagingApi.FlexText],
-        } as messagingApi.FlexBox,
-        {
-          type: "box",
-          layout: "vertical",
-          backgroundColor: src.tint,
-          cornerRadius: "8px",
-          paddingAll: "12px",
-          margin: "md",
-          spacing: "sm",
-          contents: [
-            ...(doc.importanceStars ? [statRow(appUrl, src.importanceIcon, "重要度", doc.importanceStars)] : []),
-            ...(doc.importanceStars && doc.urgencyStars ? [{ type: "separator", color: "#ffffff" } as messagingApi.FlexSeparator] : []),
-            ...(doc.urgencyStars ? [statRow(appUrl, URGENCY_ICON, "緊急度", doc.urgencyStars)] : []),
-          ],
-        } as messagingApi.FlexBox,
-        ...(tagRows.length > 0
-          ? [{ type: "box", layout: "vertical", margin: "md", spacing: "xs", contents: tagRows } as messagingApi.FlexBox]
-          : []),
-      ],
-    },
-    footer: {
-      type: "box",
-      layout: "vertical",
-      paddingAll: "12px",
-      contents: [
-        {
-          type: "button",
-          action: { type: "uri", label: "編集室で読む →", uri: `${appUrl}/base/articles/${doc.id}` },
-          style: "primary",
-          color: src.color,
-          height: "sm",
-        } as messagingApi.FlexButton,
       ],
     },
   } as messagingApi.FlexBubble;

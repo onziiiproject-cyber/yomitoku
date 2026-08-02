@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pushWeeklyDigestCards, type WeeklyCardDoc } from "@/lib/line-message";
+import { generateWeeklyCardHeroImage } from "@/lib/social-image";
+import { put } from "@vercel/blob";
 import type { StructuredContent } from "@/lib/anthropic";
 
 export const maxDuration = 120;
@@ -40,21 +42,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No documents in DB yet" }, { status: 400 });
   }
 
-  const cardDocs: WeeklyCardDoc[] = docs.map((d) => {
-    const sc = d.structuredContent as unknown as StructuredContent | null;
-    return {
-      id: d.id,
-      title: d.title,
-      hookTitle: sc?.hookTitle ?? null,
-      summary: d.summary ?? "",
-      source: d.source,
-      tags: (d.tags as string[]) ?? [],
-      importanceStars: sc?.importanceStars ?? null,
-      urgencyStars: sc?.urgencyStars ?? null,
-      isNew: new Date().getTime() - new Date(d.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
-      decisionStatus: d.decisionStatus,
-    };
-  });
+  const cardDocs: WeeklyCardDoc[] = await Promise.all(
+    docs.map(async (d) => {
+      const sc = d.structuredContent as unknown as StructuredContent | null;
+      const heroBuffer = await generateWeeklyCardHeroImage({
+        source: d.source,
+        title: sc?.hookTitle || d.title,
+        decisionStatus: d.decisionStatus,
+        importanceStars: sc?.importanceStars ?? null,
+        urgencyStars: sc?.urgencyStars ?? null,
+      });
+      const heroBlob = await put(`weekly/test-${d.id}-hero-${Date.now()}.png`, heroBuffer, { access: "public", contentType: "image/png" });
+      return {
+        id: d.id,
+        title: d.title,
+        hookTitle: sc?.hookTitle ?? null,
+        summary: d.summary ?? "",
+        source: d.source,
+        tags: (d.tags as string[]) ?? [],
+        importanceStars: sc?.importanceStars ?? null,
+        urgencyStars: sc?.urgencyStars ?? null,
+        isNew: new Date().getTime() - new Date(d.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
+        decisionStatus: d.decisionStatus,
+        heroImageUrl: heroBlob.url,
+      };
+    })
+  );
 
   try {
     await pushWeeklyDigestCards(lineUserId, "テスト", cardDocs.length, cardDocs);

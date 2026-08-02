@@ -209,6 +209,101 @@ export async function generateSummaryCardImage(params: {
     .toBuffer();
 }
 
+// ── 週刊ヨミトク：個別通知カードのヒーロー画像 ─────────────────────────────
+// LINE Flexのbox/textだけでは「タイトル文字がキャラに回り込む」「行間調整」
+// 「フォントサイズの細かい指定」ができないため、それらを画像側に焼き込む。
+const CARD_ICON_PATH: Record<string, string> = {
+  mhlw_latest: path.join(process.cwd(), "public/LP_sozai/assets/icons/icon-document.png"),
+  shingi: path.join(process.cwd(), "public/LP_sozai/assets/icons/icon-lightbulb.png"),
+};
+const CARD_CHARACTER_PATH: Record<string, string> = {
+  mhlw_latest: path.join(process.cwd(), "public/LP_sozai/assets/mascot/misugray-clipboard.png"),
+  shingi: path.join(process.cwd(), "public/LP_sozai/assets/mascot/gori-thinking.png"),
+};
+
+function starPolygonPoints(cx: number, cy: number, rOuter: number, rInner: number): string {
+  const pts: string[] = [];
+  for (let i = 0; i < 10; i++) {
+    const angle = (Math.PI / 180) * (-90 + i * 36);
+    const r = i % 2 === 0 ? rOuter : rInner;
+    pts.push(`${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`);
+  }
+  return pts.join(" ");
+}
+
+function statRowSvg(y: number, cx: number, color: string, iconKind: "star" | "alert", label: string, stars: number): string {
+  const icon =
+    iconKind === "star"
+      ? `<polygon points="${starPolygonPoints(cx, y, 20, 8.5)}" fill="#ffffff" />`
+      : `<text x="${cx}" y="${y + 11}" font-family="${FONT}" font-size="34" font-weight="900" fill="#ffffff" text-anchor="middle">!</text>`;
+  const starLine = "★".repeat(stars) + "☆".repeat(5 - stars);
+  return `
+    <circle cx="${cx}" cy="${y}" r="30" fill="${color}" />
+    ${icon}
+    <text x="${cx + 60}" y="${y + 12}" font-family="${FONT}" font-size="32" font-weight="800" fill="#555555">${escapeXml(label)}</text>
+    <text x="1000" y="${y + 14}" font-family="${FONT}" font-size="38" fill="#F5A623" text-anchor="end">${starLine}</text>
+  `;
+}
+
+export async function generateWeeklyCardHeroImage(params: {
+  source: string;
+  title: string;
+  decisionStatus?: string | null;
+  importanceStars: number | null;
+  urgencyStars: number | null;
+}): Promise<Buffer> {
+  ensureFontconfig();
+  const src = SRC_LABEL[params.source] ?? { label: params.source, color: "#374151", bg: "#F3F4F6" };
+  const iconPath = CARD_ICON_PATH[params.source];
+  const characterPath = CARD_CHARACTER_PATH[params.source];
+  const decisionBadge = params.decisionStatus ? DECISION_STATUS_BADGE[params.decisionStatus] : null;
+
+  const iconDataUri = iconPath
+    ? `data:image/png;base64,${(await sharp(readFileSync(iconPath)).resize(48, 48, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()).toString("base64")}`
+    : null;
+  const characterDataUri = characterPath
+    ? `data:image/png;base64,${(await sharp(readFileSync(characterPath)).resize(340, 400, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()).toString("base64")}`
+    : null;
+
+  const typeBadgeWidth = src.label.length * 30 + 130;
+  const decisionBadgeWidth = decisionBadge ? decisionBadge.label.length * 28 + 70 : 0;
+
+  const titleLines = wrapText(params.title, 10, 4);
+  const titleTspans = titleLines
+    .map((line, i) => `<tspan x="60" dy="${i === 0 ? 0 : 68}">${escapeXml(line)}</tspan>`)
+    .join("");
+
+  const statsBoxTop = 620;
+  const statsBoxHeight = 400;
+
+  const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H}" fill="${src.bg ?? "#F3F4F6"}" />
+
+    <rect x="60" y="60" width="${typeBadgeWidth}" height="96" rx="48" fill="${src.color}" />
+    <circle cx="${60 + 68}" cy="${60 + 48}" r="34" fill="#ffffff" />
+    ${iconDataUri ? `<image href="${iconDataUri}" x="${60 + 68 - 24}" y="${60 + 48 - 24}" width="48" height="48" />` : ""}
+    <text x="${60 + 68 + 34 + 18}" y="${60 + 48 + 13}" font-family="${FONT}" font-size="34" font-weight="800" fill="#ffffff">${escapeXml(src.label)}</text>
+
+    ${
+      decisionBadge
+        ? `<rect x="${W - 60 - decisionBadgeWidth}" y="72" width="${decisionBadgeWidth}" height="72" rx="36" fill="#ffffff" stroke="${decisionBadge.color}" stroke-width="3" />
+           <text x="${W - 60 - decisionBadgeWidth / 2}" y="118" font-family="${FONT}" font-size="28" font-weight="800" fill="${decisionBadge.color}" text-anchor="middle">${escapeXml(decisionBadge.label)}</text>`
+        : ""
+    }
+
+    <text x="60" y="270" font-family="${FONT}" font-size="52" font-weight="900" fill="#1a1a1a">${titleTspans}</text>
+
+    ${characterDataUri ? `<image href="${characterDataUri}" x="${W - 360}" y="180" width="340" height="400" />` : ""}
+
+    <rect x="60" y="${statsBoxTop}" width="${W - 120}" height="${statsBoxHeight}" rx="20" fill="#ffffff" />
+    ${params.importanceStars ? statRowSvg(statsBoxTop + 110, 150, src.color, "star", "重要度", params.importanceStars) : ""}
+    ${params.importanceStars && params.urgencyStars ? `<line x1="90" y1="${statsBoxTop + 200}" x2="${W - 90}" y2="${statsBoxTop + 200}" stroke="#EEEEEE" stroke-width="2" />` : ""}
+    ${params.urgencyStars ? statRowSvg(statsBoxTop + 290, 150, "#E4572E", "alert", "緊急度", params.urgencyStars) : ""}
+  </svg>`;
+
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
 // ── ③ 放送室エピソード告知カード ───────────────────────────────────────────
 const PODCAST_COVER_PATH = path.join(process.cwd(), "public/podcast/cover.png");
 

@@ -3,7 +3,7 @@ import { scrapeMhlwLatest, scrapeShingi } from "./scraper";
 import { analyzeDocument, generateStructuredContent, generateDiscussionQuestion, extractPublishedDate, buildWeeklyDigest, buildShingiPDFData, type StructuredContent } from "./anthropic";
 import { pushWeeklyDigestCards, pushBreakingNews, pushShingiCover, pushShingiTopics, pushShingiNoMatch, pushWeeklyNoNewsWithPodcast, type DigestDoc, type WeeklyCardDoc } from "./line-message";
 import { generateShingiCoverPDF, generateShingiTopicPDF, type ShingiThemeDetail } from "./pdf-shingi";
-import { generateCoverCardImage, generateSummaryCardImage } from "./social-image";
+import { generateCoverCardImage, generateSummaryCardImage, generateWeeklyCardHeroImage } from "./social-image";
 import { postArticleToSocial } from "./meta";
 import { put } from "@vercel/blob";
 
@@ -477,6 +477,24 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
     return { newDocs: weekDocs.length, sentTo: 0, batchId: batch.id, errors };
   }
 
+  // ヒーロー画像は受信者ごとに変わらないので、記事ごとに1回だけ生成してBlobに上げる
+  // （LINE Flexのbox/textだけでは表現できないタイトル×キャラの回り込みや行間をここに焼き込む）
+  const heroImageUrls = await Promise.all(
+    weekDocs.map(async (d) => {
+      const sc = d.structuredContent as unknown as StructuredContent | null;
+      const buffer = await generateWeeklyCardHeroImage({
+        source: d.source,
+        title: sc?.hookTitle || d.title,
+        decisionStatus: d.decisionStatus,
+        importanceStars: sc?.importanceStars ?? null,
+        urgencyStars: sc?.urgencyStars ?? null,
+      });
+      const blob = await put(`weekly/${d.id}-hero-${Date.now()}.png`, buffer, { access: "public", contentType: "image/png" });
+      return [d.id, blob.url] as const;
+    })
+  );
+  const heroImageUrlByDocId = new Map(heroImageUrls);
+
   const cardDocs: WeeklyCardDoc[] = weekDocs.map((d) => {
     const sc = d.structuredContent as unknown as StructuredContent | null;
     return {
@@ -490,6 +508,7 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
       urgencyStars: sc?.urgencyStars ?? null,
       isNew: new Date().getTime() - new Date(d.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
       decisionStatus: d.decisionStatus,
+      heroImageUrl: heroImageUrlByDocId.get(d.id)!,
     };
   });
 
