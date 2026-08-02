@@ -184,6 +184,10 @@ model SiteDocument {
   themeNo        Int       @default(0)
   title          String
   source         String // "mhlw_latest" | "shingi"
+  // 分科会のみ使用。同じ回の資料版・議事録版を紐付けるための回次番号
+  shingiSessionNo Int?
+  // 分科会のみ使用。"materials"（資料PDFから生成）| "minutes"（議事録PDFから生成）
+  shingiVariant   String?
   publishedAt    DateTime?
   rawText        String    @db.Text
   summary        String?   @db.Text

@@ -42,9 +42,9 @@ export async function POST(req: NextRequest) {
 
   // hookTitle未対応（未生成 or 旧仕様）の記事を取得
   const docs = await prisma.$queryRaw<
-    { id: string; url: string; title: string; source: string; rawText: string; publishedAt: Date | null }[]
+    { id: string; url: string; title: string; source: string; rawText: string; publishedAt: Date | null; shingiSessionNo: number | null }[]
   >`
-    SELECT id, url, title, source, "rawText", "publishedAt"
+    SELECT id, url, title, source, "rawText", "publishedAt", "shingiSessionNo"
     FROM "SiteDocument"
     WHERE ("structuredContent" IS NULL OR "structuredContent"->>'hookTitle' IS NULL)
       AND "summary" IS NOT NULL

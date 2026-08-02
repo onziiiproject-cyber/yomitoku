@@ -110,7 +110,7 @@ export default async function BasePage({
       skip,
       select: {
         id: true, title: true, summary: true, structuredContent: true, tags: true,
-        source: true, publishedAt: true, importance: true, decisionStatus: true, url: true, createdAt: true,
+        source: true, publishedAt: true, importance: true, decisionStatus: true, shingiVariant: true, url: true, createdAt: true,
       },
     }),
     prisma.siteDocument.count({ where }),
@@ -243,6 +243,7 @@ export default async function BasePage({
                 createdAt={item.doc.createdAt.toISOString()}
                 importance={item.doc.importance}
                 decisionStatus={item.doc.decisionStatus}
+                shingiVariant={item.doc.shingiVariant}
                 url={item.doc.url}
                 initialRead={extras.readIds.has(item.doc.id)}
                 initialReadCount={extras.readCounts.get(item.doc.id) ?? 0}

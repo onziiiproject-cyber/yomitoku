@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
-import { scrapeMhlwLatest, scrapeShingi } from "./scraper";
-import { analyzeDocument, generateStructuredContent, generateDiscussionQuestion, extractPublishedDate, buildWeeklyDigest, buildShingiPDFData, type StructuredContent } from "./anthropic";
+import { scrapeMhlwLatest, scrapeShingi, extractShingiMaterialPdfLinks, extractShingiMinutesPdfUrl, findShingiMinutesLinks } from "./scraper";
+import { analyzeDocument, generateStructuredContent, generateDiscussionQuestion, extractPublishedDate, buildWeeklyDigest, buildShingiPDFData, type StructuredContent, type AnalysisResult } from "./anthropic";
 import { pushWeeklyDigestCards, pushBreakingNews, pushShingiCover, pushShingiTopics, pushShingiNoMatch, pushWeeklyNoNewsWithPodcast, type DigestDoc, type WeeklyCardDoc } from "./line-message";
 import { generateShingiCoverPDF, generateShingiTopicPDF, type ShingiThemeDetail } from "./pdf-shingi";
 import { generateCoverCardImage, generateSummaryCardImage, generateWeeklyCardHeroImage } from "./social-image";
@@ -29,6 +29,32 @@ async function fetchPdfBase64(url: string, label: string): Promise<string | null
     if (attempt < 3) await new Promise((r) => setTimeout(r, 1000 * attempt));
   }
   return null;
+}
+
+// analyzeDocument/generateStructuredContentを、ページ数上限フォールバック込みで実行する共通ヘルパー。
+// PDFがClaudeのネイティブ読み込み上限（100ページ）を超えていた場合、自前でテキスト抽出して
+// テキストのみで再試行する。それでもトークン上限を超える場合のみ tooLarge:true を返す。
+async function analyzeGrounded(
+  title: string,
+  content: string,
+  pdfBase64?: string
+): Promise<{ tooLarge: false; result: AnalysisResult; structured: StructuredContent } | { tooLarge: true }> {
+  try {
+    const result = await analyzeDocument(title, content, pdfBase64);
+    const structured = await generateStructuredContent(title, content, pdfBase64);
+    return { tooLarge: false, result, structured };
+  } catch (e) {
+    if (!(isDocumentTooLargeError(e) && pdfBase64)) throw e;
+    try {
+      const extractedText = await extractPdfText(pdfBase64);
+      const result = await analyzeDocument(title, extractedText);
+      const structured = await generateStructuredContent(title, extractedText);
+      return { tooLarge: false, result, structured };
+    } catch (e2) {
+      if (isDocumentTooLargeError(e2)) return { tooLarge: true };
+      throw e2;
+    }
+  }
 }
 
 export interface DigestResult {
@@ -134,72 +160,211 @@ function buildShingiThemeText(detail: ShingiThemeDetail): string {
 
 // 分科会1回の会合（1URL）を、buildShingiPDFDataで検出したトピック数ぶんのSiteDocumentに分割保存する。
 // pendingの元レコード（doc.id）は最初に成功したテーマで再利用し、残りは新規行として作成する。
+// 1テーマぶんの資料PDF（または議事録PDF）を分析し、doc.id（count===0の場合）か新規行に保存する。
+// 資料版・議事録版どちらの保存処理も同じ形なので、processShingiSession/processShingiMinutesの両方から呼ぶ。
+async function saveShingiTheme(params: {
+  doc: { id: string; url: string; publishedAt: Date | null };
+  themeNo: number;
+  title: string;
+  rawText: string;
+  isFirst: boolean;
+  shingiSessionNo: number | null;
+  shingiVariant: "materials" | "minutes";
+  result: AnalysisResult;
+  structured: StructuredContent;
+}): Promise<string> {
+  const { doc, themeNo, title, rawText, isFirst, shingiSessionNo, shingiVariant, result, structured } = params;
+  const commonData = {
+    themeNo,
+    title,
+    rawText,
+    summary: result.summary,
+    tags: result.tags,
+    importance: result.importance,
+    decisionStatus: result.decisionStatus,
+    structuredContent: structured as object,
+    shingiSessionNo,
+    shingiVariant,
+    processedAt: new Date(),
+  };
+
+  const id = isFirst
+    ? (await prisma.siteDocument.update({ where: { id: doc.id }, data: commonData })).id
+    : (
+        await prisma.siteDocument.create({
+          data: { url: doc.url, source: "shingi", publishedAt: doc.publishedAt, ...commonData },
+        })
+      ).id;
+
+  await postEditorComment(id, title, structured);
+  await postToSocial(
+    { id, title, source: "shingi", tags: result.tags, publishedAt: doc.publishedAt, decisionStatus: result.decisionStatus },
+    structured,
+    result.summary
+  );
+  return id;
+}
+
+// 分科会1回の会合（1URL）を、資料PDF（【資料N】形式で個別リンクされている実PDF）を1本ずつ
+// Claudeに直接読ませてSiteDocumentに分割保存する（テーマ数ぶん）。
+// pendingの元レコード（doc.id）は最初に成功したテーマで再利用し、残りは新規行として作成する。
 export async function processShingiSession(doc: {
   id: string;
   url: string;
   title: string;
   rawText: string;
   publishedAt: Date | null;
+  shingiSessionNo: number | null;
 }): Promise<{ count: number; errors: string[] }> {
   const errors: string[] = [];
-  const pdfData = await buildShingiPDFData(doc.title, doc.rawText, doc.url);
+
+  let materials: { no: number; title: string; url: string }[] = [];
+  try {
+    const html = await (await fetch(doc.url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; YomitokuBot/1.0)" } })).text();
+    materials = extractShingiMaterialPdfLinks(html, doc.url);
+  } catch (e) {
+    errors.push(`資料ページ取得失敗 "${doc.title.slice(0, 30)}": ${e}`);
+  }
 
   let count = 0;
-  for (const detail of pdfData.theme_details) {
-    try {
-      const themeText = buildShingiThemeText(detail);
-      const title = detail.name;
-      const result = await analyzeDocument(title, themeText);
-      const structured = await generateStructuredContent(title, themeText);
 
-      if (count === 0) {
-        await prisma.siteDocument.update({
-          where: { id: doc.id },
-          data: {
-            themeNo: detail.no,
-            title,
-            rawText: themeText,
-            summary: result.summary,
-            tags: result.tags,
-            importance: result.importance,
-            decisionStatus: result.decisionStatus,
-            structuredContent: structured as object,
-            processedAt: new Date(),
-          },
+  // 【資料N】形式の個別PDFが見つからない場合（フォーマット崩れ等の想定外パターン）は、
+  // 資料ページのテキストからAIにテーマ一覧を推測させる旧来のフォールバックに切り替える
+  // （PDF本文を読まないぶん要約の質は落ちるが、cronが完全に止まるよりはまし）。
+  if (materials.length === 0) {
+    const pdfData = await buildShingiPDFData(doc.title, doc.rawText, doc.url);
+    for (const detail of pdfData.theme_details) {
+      try {
+        const themeText = buildShingiThemeText(detail);
+        const analysis = await analyzeGrounded(detail.name, themeText);
+        if (analysis.tooLarge) continue; // テキストのみのフォールバックでは通常発生しない
+        await saveShingiTheme({
+          doc,
+          themeNo: detail.no,
+          title: detail.name,
+          rawText: themeText,
+          isFirst: count === 0,
+          shingiSessionNo: doc.shingiSessionNo,
+          shingiVariant: "materials",
+          result: analysis.result,
+          structured: analysis.structured,
         });
-        await postEditorComment(doc.id, title, structured);
-        await postToSocial(
-          { id: doc.id, title, source: "shingi", tags: result.tags, publishedAt: doc.publishedAt, decisionStatus: result.decisionStatus },
-          structured,
-          result.summary
-        );
-      } else {
-        const created = await prisma.siteDocument.create({
-          data: {
-            url: doc.url,
-            themeNo: detail.no,
-            title,
-            source: "shingi",
-            publishedAt: doc.publishedAt,
-            rawText: themeText,
-            summary: result.summary,
-            tags: result.tags,
-            importance: result.importance,
-            decisionStatus: result.decisionStatus,
-            structuredContent: structured as object,
-            processedAt: new Date(),
-          },
-        });
-        await postEditorComment(created.id, title, structured);
-        await postToSocial(
-          { id: created.id, title, source: "shingi", tags: result.tags, publishedAt: doc.publishedAt, decisionStatus: result.decisionStatus },
-          structured,
-          result.summary
-        );
+        count++;
+      } catch (e) {
+        errors.push(`Shingi theme failed "${detail.name}": ${e}`);
       }
+    }
+    return { count, errors };
+  }
+
+  for (const material of materials) {
+    try {
+      const pdfBase64 = await fetchPdfBase64(material.url, material.title.slice(0, 40));
+      if (!pdfBase64) {
+        errors.push(`資料PDF取得失敗のためスキップ: "${material.title.slice(0, 30)}"`);
+        continue;
+      }
+
+      const analysis = await analyzeGrounded(material.title, "", pdfBase64);
+      if (analysis.tooLarge) {
+        errors.push(`資料PDFがサイズ上限のためスキップ: "${material.title.slice(0, 30)}"`);
+        continue;
+      }
+
+      await saveShingiTheme({
+        doc,
+        themeNo: material.no,
+        title: material.title,
+        rawText: `${material.title}（資料PDF: ${material.url}）`,
+        isFirst: count === 0,
+        shingiSessionNo: doc.shingiSessionNo,
+        shingiVariant: "materials",
+        result: analysis.result,
+        structured: analysis.structured,
+      });
       count++;
     } catch (e) {
-      errors.push(`Shingi theme failed "${detail.name}": ${e}`);
+      errors.push(`Shingi theme failed "${material.title}": ${e}`);
+    }
+  }
+  return { count, errors };
+}
+
+// 議事録が後日公開された回について、議事録PDF（会合全体の逐語録1本）を各テーマの文脈として
+// 使い回し、資料版と同じテーマ構成で議事録ベースの記事を生成する。
+// テーマ構成は既存の資料版（shingiVariant="materials", shingiSessionNo一致）のものを踏襲する
+// ことで、同じ回の資料版・議事録版が同じテーマ数・同じテーマ名で並び、見比べやすくなる。
+export async function processShingiMinutes(doc: {
+  id: string;
+  url: string;
+  title: string;
+  rawText: string;
+  publishedAt: Date | null;
+  shingiSessionNo: number | null;
+}): Promise<{ count: number; errors: string[] }> {
+  const errors: string[] = [];
+
+  if (doc.shingiSessionNo == null) {
+    errors.push(`議事録処理スキップ（回次番号不明）: "${doc.title.slice(0, 30)}"`);
+    return { count: 0, errors };
+  }
+
+  const materialThemes = await prisma.siteDocument.findMany({
+    where: { source: "shingi", shingiVariant: "materials", shingiSessionNo: doc.shingiSessionNo },
+    select: { themeNo: true, title: true },
+    orderBy: { themeNo: "asc" },
+  });
+  if (materialThemes.length === 0) {
+    errors.push(`議事録処理スキップ（対応する資料版が見つからない）: 第${doc.shingiSessionNo}回`);
+    return { count: 0, errors };
+  }
+
+  let minutesPdfUrl: string | null = null;
+  try {
+    const html = await (await fetch(doc.url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; YomitokuBot/1.0)" } })).text();
+    minutesPdfUrl = extractShingiMinutesPdfUrl(html, doc.url);
+  } catch (e) {
+    errors.push(`議事録ページ取得失敗 "${doc.title.slice(0, 30)}": ${e}`);
+  }
+  if (!minutesPdfUrl) {
+    errors.push(`議事録PDFリンクが見つかりません: 第${doc.shingiSessionNo}回`);
+    return { count: 0, errors };
+  }
+
+  const pdfBase64 = await fetchPdfBase64(minutesPdfUrl, `第${doc.shingiSessionNo}回議事録`);
+  if (!pdfBase64) {
+    errors.push(`議事録PDF取得失敗のためスキップ: 第${doc.shingiSessionNo}回`);
+    return { count: 0, errors };
+  }
+
+  let count = 0;
+  for (const theme of materialThemes) {
+    try {
+      const title = `${theme.title}（議事録より）`;
+      const analysis = await analyzeGrounded(
+        `第${doc.shingiSessionNo}回 社会保障審議会介護給付費分科会 議事録のうち「${theme.title}」に関する議論`,
+        "",
+        pdfBase64
+      );
+      if (analysis.tooLarge) {
+        errors.push(`議事録PDFがサイズ上限のためスキップ: 第${doc.shingiSessionNo}回`);
+        continue;
+      }
+
+      await saveShingiTheme({
+        doc,
+        themeNo: theme.themeNo,
+        title,
+        rawText: `${title}（議事録PDF: ${minutesPdfUrl}）`,
+        isFirst: count === 0,
+        shingiSessionNo: doc.shingiSessionNo,
+        shingiVariant: "minutes",
+        result: analysis.result,
+        structured: analysis.structured,
+      });
+      count++;
+    } catch (e) {
+      errors.push(`Shingi minutes theme failed "${theme.title}": ${e}`);
     }
   }
   return { count, errors };
@@ -242,6 +407,7 @@ export async function runScrapeAndSave(since?: Date): Promise<ScrapeResult> {
           source: item.source,
           publishedAt: item.publishedAt,
           rawText: item.rawText,
+          ...(item.source === "shingi" ? { shingiSessionNo: item.shingiSessionNo, shingiVariant: "materials" } : {}),
           // summary / tags / importance / structuredContent は Phase 2 で埋める
         },
       });
@@ -254,12 +420,73 @@ export async function runScrapeAndSave(since?: Date): Promise<ScrapeResult> {
   return { saved, skipped: existingUrls.size, errors };
 }
 
+export interface ShingiMinutesCheckResult {
+  scanned: number;
+  saved: number;
+  errors: string[];
+}
+
+// 分科会一覧ページを走査し、資料版は既にある（＝処理済み）が議事録版はまだ無い回を見つけて
+// pendingのプレースホルダー行を保存する（Claude呼び出しはPhase 2のprocessShingiMinutesで行う）。
+// 議事録は資料より数週間〜数ヶ月遅れて公開されるため、日次スクレイプとは別に毎回この走査が必要。
+export async function runShingiMinutesCheck(): Promise<ShingiMinutesCheckResult> {
+  const errors: string[] = [];
+  const found = await findShingiMinutesLinks();
+
+  const existingMinutesUrls = new Set(
+    (await prisma.siteDocument.findMany({
+      where: { url: { in: found.map((f) => f.minutesUrl) } },
+      select: { url: true },
+    })).map((d) => d.url)
+  );
+
+  const candidates = found.filter((f) => !existingMinutesUrls.has(f.minutesUrl));
+  if (candidates.length === 0) return { scanned: found.length, saved: 0, errors };
+
+  const materialSessions = await prisma.siteDocument.findMany({
+    where: {
+      source: "shingi",
+      shingiVariant: "materials",
+      shingiSessionNo: { in: candidates.map((c) => c.sessionNo) },
+    },
+    select: { shingiSessionNo: true, publishedAt: true },
+    distinct: ["shingiSessionNo"],
+  });
+  const materialSessionMap = new Map(materialSessions.map((m) => [m.shingiSessionNo, m.publishedAt]));
+
+  let saved = 0;
+  for (const candidate of candidates) {
+    // 対応する資料版がまだ処理されていない回はスキップ（processShingiMinutesが前提とする
+    // テーマ構成が存在しないため）。資料版の処理が進んだ次回の実行で改めて拾われる。
+    if (!materialSessionMap.has(candidate.sessionNo)) continue;
+    try {
+      await prisma.siteDocument.create({
+        data: {
+          url: candidate.minutesUrl,
+          title: candidate.title,
+          source: "shingi",
+          publishedAt: materialSessionMap.get(candidate.sessionNo) ?? null,
+          rawText: candidate.title,
+          shingiSessionNo: candidate.sessionNo,
+          shingiVariant: "minutes",
+          // summary / tags / structuredContent は Phase 2（processShingiMinutes）で埋める
+        },
+      });
+      saved++;
+    } catch (e) {
+      errors.push(`議事録プレースホルダー保存失敗 "第${candidate.sessionNo}回": ${e}`);
+    }
+  }
+
+  return { scanned: found.length, saved, errors };
+}
+
 // Phase 2: summary=null の記事を1件ずつClaude処理
 export async function runProcessPending(limit = 1): Promise<ProcessResult> {
   const errors: string[] = [];
 
-  const pending = await prisma.$queryRaw<{ id: string; url: string; title: string; source: string; rawText: string; publishedAt: Date | null }[]>`
-    SELECT id, url, title, source, "rawText", "publishedAt"
+  const pending = await prisma.$queryRaw<{ id: string; url: string; title: string; source: string; rawText: string; publishedAt: Date | null; shingiSessionNo: number | null; shingiVariant: string | null }[]>`
+    SELECT id, url, title, source, "rawText", "publishedAt", "shingiSessionNo", "shingiVariant"
     FROM "SiteDocument"
     WHERE summary IS NULL AND "rawText" IS NOT NULL
     ORDER BY "publishedAt" DESC NULLS LAST, "createdAt" DESC
@@ -269,6 +496,12 @@ export async function runProcessPending(limit = 1): Promise<ProcessResult> {
   let processed = 0;
   for (const doc of pending) {
     try {
+      if (doc.source === "shingi" && doc.shingiVariant === "minutes") {
+        const { count, errors: themeErrors } = await processShingiMinutes(doc);
+        errors.push(...themeErrors);
+        if (count > 0) processed++;
+        continue;
+      }
       if (doc.source === "shingi") {
         const { count, errors: themeErrors } = await processShingiSession(doc);
         errors.push(...themeErrors);
@@ -289,43 +522,24 @@ export async function runProcessPending(limit = 1): Promise<ProcessResult> {
         pdfBase64 = fetched;
       }
 
-      let result: Awaited<ReturnType<typeof analyzeDocument>>;
-      let structured: StructuredContent;
-      try {
-        result = await analyzeDocument(doc.title, doc.rawText ?? "", pdfBase64);
-        structured = await generateStructuredContent(doc.title, doc.rawText ?? "", pdfBase64);
-      } catch (e) {
-        // ClaudeのネイティブPDF読み込みはページ数上限（100ページ）がある。ここに当たった場合は
-        // 諦める前に、自前でPDFからテキストを抽出してテキストのみで再試行する
-        // （ページ数上限はなくなり、トークン上限だけが制約になる）。
-        if (isDocumentTooLargeError(e) && pdfBase64) {
-          try {
-            const extractedText = await extractPdfText(pdfBase64);
-            result = await analyzeDocument(doc.title, extractedText);
-            structured = await generateStructuredContent(doc.title, extractedText);
-          } catch (e2) {
-            // テキスト抽出後もトークン上限を超える場合のみ、正直に「対象外」として処理済みにする。
-            // これをしないと毎日のcronが同じ処理不能な文書を無限にリトライし続けてしまう。
-            if (isDocumentTooLargeError(e2)) {
-              await prisma.siteDocument.update({
-                where: { id: doc.id },
-                data: {
-                  summary: "この文書はページ数・分量が多いため自動要約の対象外です。原文PDFを直接ご確認ください。",
-                  tags: [],
-                  importance: "normal",
-                  processedAt: new Date(),
-                },
-              });
-              errors.push(`文書サイズ上限のため要約対象外としてマーク: "${doc.title.slice(0, 30)}"`);
-              processed++;
-              continue;
-            }
-            throw e2;
-          }
-        } else {
-          throw e;
-        }
+      const analysis = await analyzeGrounded(doc.title, doc.rawText ?? "", pdfBase64);
+      if (analysis.tooLarge) {
+        // テキスト抽出後もトークン上限を超える場合のみ、正直に「対象外」として処理済みにする。
+        // これをしないと毎日のcronが同じ処理不能な文書を無限にリトライし続けてしまう。
+        await prisma.siteDocument.update({
+          where: { id: doc.id },
+          data: {
+            summary: "この文書はページ数・分量が多いため自動要約の対象外です。原文PDFを直接ご確認ください。",
+            tags: [],
+            importance: "normal",
+            processedAt: new Date(),
+          },
+        });
+        errors.push(`文書サイズ上限のため要約対象外としてマーク: "${doc.title.slice(0, 30)}"`);
+        processed++;
+        continue;
       }
+      const { result, structured } = analysis;
 
       // 一覧ページから発行日が拾えなかった場合（PDF本文にしか記載がないケースがある）、
       // 週刊ダイジェストが「直近7日以内」をpublishedAt基準で絞り込むため、ここで埋めないと

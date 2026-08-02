@@ -15,6 +15,7 @@ interface FeedArticleCardProps {
   createdAt: string;
   importance: string;
   decisionStatus?: string | null;
+  shingiVariant?: string | null;
   url: string;
   initialRead: boolean;
   initialReadCount: number;
@@ -28,7 +29,7 @@ interface FeedArticleCardProps {
 
 export default function FeedArticleCard(props: FeedArticleCardProps) {
   const {
-    id, title, summary, structuredContent, tags, source, publishedAt, createdAt, importance, decisionStatus, url,
+    id, title, summary, structuredContent, tags, source, publishedAt, createdAt, importance, decisionStatus, shingiVariant, url,
     initialRead, initialReadCount, initialLiked, initialLikeCount,
     initialFavorited, initialComments, isLoggedIn, showScrollHint,
   } = props;
@@ -48,6 +49,7 @@ export default function FeedArticleCard(props: FeedArticleCardProps) {
           createdAt={createdAt}
           importance={importance}
           decisionStatus={decisionStatus}
+          shingiVariant={shingiVariant}
           url={url}
           initialRead={initialRead}
           initialReadCount={initialReadCount}

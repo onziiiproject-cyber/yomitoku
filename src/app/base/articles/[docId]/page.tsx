@@ -114,6 +114,7 @@ export default async function ArticleDetailPage({
       createdAt={doc.createdAt.toISOString()}
       importance={doc.importance}
       decisionStatus={doc.decisionStatus}
+      shingiVariant={doc.shingiVariant}
       url={doc.url}
       initialRead={!!readRecord}
       initialReadCount={readCount}

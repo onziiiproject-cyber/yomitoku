@@ -5,6 +5,14 @@ export interface ScrapedItem {
   source: "mhlw_latest" | "shingi";
   rawText: string;
   pdfBase64?: string; // PDF articles: base64 binary for Claude Document API
+  shingiSessionNo?: number; // shingi only: 第N回
+  shingiMinutesUrl?: string; // shingi only: 議事録の索引ページURL（公開されていれば）
+}
+
+export interface ShingiMaterialLink {
+  no: number;
+  title: string;
+  url: string;
 }
 
 async function fetchPage(url: string): Promise<string> {
@@ -157,6 +165,70 @@ export async function scrapeMhlwLatest(
   return items;
 }
 
+// 全角数字を含む「【資料N】タイトル」形式の全角数字→半角変換
+function toHalfWidthDigits(s: string): string {
+  return s.replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0));
+}
+
+// 資料の索引ページ（例: newpage_74599.html）から【資料N】形式の個別PDFリンクを抽出する。
+// 議事次第・委員名簿は資料そのものではないため除外する。
+export function extractShingiMaterialPdfLinks(html: string, baseUrl: string): ShingiMaterialLink[] {
+  const links: ShingiMaterialLink[] = [];
+  const re = /href="([^"]+\.pdf)"[^>]*>\s*【資料([0-9０-９]+)】\s*([^［<]+?)\s*(?:［[^］]*］)?\s*</g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const href = m[1];
+    const no = parseInt(toHalfWidthDigits(m[2]));
+    const title = m[3].trim();
+    if (!title) continue;
+    links.push({
+      no,
+      title,
+      url: href.startsWith("http") ? href : `https://www.mhlw.go.jp${href}`,
+    });
+  }
+  return links;
+}
+
+// 議事録の索引ページ（例: newpage_75206.html）から議事録本体PDFのURLを抽出する。
+// このページは通常、議事録PDF1本のみをリンクしている。
+export function extractShingiMinutesPdfUrl(html: string, baseUrl: string): string | null {
+  const match = html.match(/href="([^"]+\.pdf)"/);
+  if (!match) return null;
+  const href = match[1];
+  return href.startsWith("http") ? href : `https://www.mhlw.go.jp${href}`;
+}
+
+// 分科会一覧ページを走査し、「議事録」リンクを持つ回を全件返す（sinceによる絞り込みなし）。
+// 議事録は資料より数週間〜数ヶ月遅れて公開されるため、日次スクレイプの新着検知（scrapeShingi）とは
+// 別に、既存の資料版に議事録が後から追加されていないかを確認する専用の走査を行う。
+export async function findShingiMinutesLinks(): Promise<{ sessionNo: number; minutesUrl: string; title: string }[]> {
+  const html = await fetchPage(SHINGI_LIST_URL);
+  const rows = html.split("<tr");
+  const results: { sessionNo: number; minutesUrl: string; title: string }[] = [];
+
+  for (const row of rows) {
+    const sessionMatch = row.match(/第(\d+)回/);
+    if (!sessionMatch) continue;
+    const sessionNo = parseInt(sessionMatch[1]);
+
+    const minutesMatch = row.match(/href="([^"]+newpage_[^"]+)"[^>]*>\s*議事録/);
+    if (!minutesMatch) continue;
+    const minutesHref = minutesMatch[1];
+    const minutesUrl = minutesHref.startsWith("http")
+      ? minutesHref
+      : `https://www.mhlw.go.jp${minutesHref}`;
+
+    results.push({
+      sessionNo,
+      minutesUrl,
+      title: `社会保障審議会介護給付費分科会 第${sessionNo}回`,
+    });
+  }
+
+  return results;
+}
+
 export async function scrapeShingi(since?: Date): Promise<ScrapedItem[]> {
   const html = await fetchPage(SHINGI_LIST_URL);
 
@@ -201,6 +273,7 @@ export async function scrapeShingi(since?: Date): Promise<ScrapedItem[]> {
       publishedAt,
       source: "shingi",
       rawText,
+      shingiSessionNo: sessionNo,
     });
 
     if (items.length >= 3) break;
