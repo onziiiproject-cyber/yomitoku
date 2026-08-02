@@ -241,23 +241,35 @@ function starPolygonPoints(cx: number, cy: number, rOuter: number, rInner: numbe
   return pts.join(" ");
 }
 
-// 重要度/緊急度を1行にまとめた白背景ピル（縦の区切り線で2項目を並べる）
-function statPillSvg(x: number, y: number, color: string, label: string, stars: number | null, iconKind: "star" | "alert"): { svg: string; width: number } {
-  const starLine = stars ? "★".repeat(stars) + "☆".repeat(5 - stars) : "";
+// 重要度/緊急度それぞれ単体の、コンパクトな白背景ピル（縦2段に積む）
+function statPillSvg(x: number, y: number, color: string, label: string, stars: number, iconKind: "star" | "alert"): { svg: string; width: number } {
+  const starLine = "★".repeat(stars) + "☆".repeat(5 - stars);
   const icon =
     iconKind === "star"
-      ? `<polygon points="${starPolygonPoints(x + 30, y + 32, 11, 4.5)}" fill="${color}" />`
-      : `<text x="${x + 30}" y="${y + 40}" font-family="${FONT}" font-size="26" font-weight="900" fill="${color}" text-anchor="middle">!</text>`;
-  const width = 60 + label.length * 32 + starLine.length * 26 + 20;
+      ? `<polygon points="${starPolygonPoints(x + 34, y + 32, 11, 4.5)}" fill="${color}" />`
+      : `<text x="${x + 34}" y="${y + 40}" font-family="${FONT}" font-size="26" font-weight="900" fill="${color}" text-anchor="middle">!</text>`;
+  const width = 68 + label.length * 32 + starLine.length * 27 + 24;
   return {
     width,
     svg: `
-      <circle cx="${x + 30}" cy="${y + 32}" r="17" fill="#ffffff" stroke="${color}" stroke-width="2.5" />
+      <rect x="${x}" y="${y}" width="${width}" height="64" rx="32" fill="rgba(255,255,255,0.94)" />
+      <circle cx="${x + 34}" cy="${y + 32}" r="17" fill="#ffffff" stroke="${color}" stroke-width="2.5" />
       ${icon}
-      <text x="${x + 60}" y="${y + 42}" font-family="${FONT}" font-size="28" font-weight="800" fill="#444444">${escapeXml(label)}</text>
-      <text x="${x + 60 + label.length * 32}" y="${y + 42}" font-family="${FONT}" font-size="30" fill="#F5A623">${starLine}</text>
+      <text x="${x + 64}" y="${y + 42}" font-family="${FONT}" font-size="28" font-weight="800" fill="#444444">${escapeXml(label)}</text>
+      <text x="${x + 64 + label.length * 32}" y="${y + 42}" font-family="${FONT}" font-size="30" fill="#F5A623">${starLine}</text>
     `,
   };
+}
+
+// 透過PNGの余白をトリムしてから指定サイズに収める（素材ごとに内側の余白がバラバラで、
+// トリムしないとアイコンの見た目のバランスが崩れるため）
+async function loadTrimmedIconDataUri(filePath: string, size: number): Promise<string> {
+  const buf = await sharp(readFileSync(filePath))
+    .trim()
+    .resize(size, size, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+  return `data:image/png;base64,${buf.toString("base64")}`;
 }
 
 export async function generateWeeklyCardHeroImage(params: {
@@ -276,40 +288,36 @@ export async function generateWeeklyCardHeroImage(params: {
   const decisionBadge = params.decisionStatus ? DECISION_STATUS_BADGE[params.decisionStatus] : null;
 
   const HERO_H = 780;
+  const CHAR_H = 560;
+  const CHAR_W = 500;
 
   const bgDataUri = bgPath
     ? `data:image/png;base64,${(await sharp(readFileSync(bgPath)).resize(W, HERO_H, { fit: "cover" }).png().toBuffer()).toString("base64")}`
     : null;
-  const iconDataUri = iconPath
-    ? `data:image/png;base64,${(await sharp(readFileSync(iconPath)).resize(48, 48, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()).toString("base64")}`
-    : null;
+  const iconDataUri = iconPath ? await loadTrimmedIconDataUri(iconPath, 44) : null;
   const characterDataUri = characterPath
-    ? `data:image/png;base64,${(await sharp(readFileSync(characterPath)).resize(400, 400, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()).toString("base64")}`
+    ? `data:image/png;base64,${(await sharp(readFileSync(characterPath)).trim().resize(CHAR_W, CHAR_H, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()).toString("base64")}`
     : null;
 
-  const typeBadgeWidth = src.label.length * 30 + 130;
-  const decisionBadgeWidth = decisionBadge ? decisionBadge.label.length * 28 + 70 : 0;
+  // 太字34pxの日本語は1文字あたり約38px（実測ベース）。狭く見積もるとバッジ枠からテキストがはみ出す。
+  const typeBadgeWidth = src.label.length * 38 + 130;
+  const decisionBadgeWidth = decisionBadge ? decisionBadge.label.length * 32 + 70 : 0;
 
   const titleLines = wrapText(params.title, 10, 3);
   const titleTspans = titleLines
     .map((line, i) => `<tspan x="60" dy="${i === 0 ? 0 : 68}">${escapeXml(line)}</tspan>`)
     .join("");
 
-  const pillY = 560;
-  const importancePill = params.importanceStars
-    ? statPillSvg(60, pillY, heroColor, "重要度", params.importanceStars, "star")
-    : null;
-  const urgencyPill = params.urgencyStars
-    ? statPillSvg(60 + (importancePill?.width ?? 0) + 40, pillY, "#E4572E", "緊急度", params.urgencyStars, "alert")
-    : null;
-  const pillsTotalWidth = (importancePill?.width ?? 0) + (urgencyPill ? 40 + urgencyPill.width : 0);
+  const pillGap = 16;
+  const importancePill = params.importanceStars ? statPillSvg(60, HERO_H - 64 * 2 - pillGap - 24, heroColor, "重要度", params.importanceStars, "star") : null;
+  const urgencyPill = params.urgencyStars ? statPillSvg(60, HERO_H - 64 - 24, "#E4572E", "緊急度", params.urgencyStars, "alert") : null;
 
   const svg = `<svg width="${W}" height="${HERO_H}" xmlns="http://www.w3.org/2000/svg">
     ${bgDataUri ? `<image href="${bgDataUri}" x="0" y="0" width="${W}" height="${HERO_H}" />` : `<rect x="0" y="0" width="${W}" height="${HERO_H}" fill="${src.bg ?? "#F3F4F6"}" />`}
 
     <rect x="60" y="60" width="${typeBadgeWidth}" height="96" rx="48" fill="${heroColor}" />
     <circle cx="${60 + 68}" cy="${60 + 48}" r="34" fill="#ffffff" />
-    ${iconDataUri ? `<image href="${iconDataUri}" x="${60 + 68 - 24}" y="${60 + 48 - 24}" width="48" height="48" />` : ""}
+    ${iconDataUri ? `<image href="${iconDataUri}" x="${60 + 68 - 22}" y="${60 + 48 - 22}" width="44" height="44" />` : ""}
     <text x="${60 + 68 + 34 + 18}" y="${60 + 48 + 13}" font-family="${FONT}" font-size="34" font-weight="800" fill="#ffffff">${escapeXml(src.label)}</text>
 
     ${
@@ -321,9 +329,8 @@ export async function generateWeeklyCardHeroImage(params: {
 
     <text x="60" y="270" font-family="${FONT}" font-size="52" font-weight="900" fill="#14171f">${titleTspans}</text>
 
-    ${characterDataUri ? `<image href="${characterDataUri}" x="${W - 440}" y="160" width="400" height="400" />` : ""}
+    ${characterDataUri ? `<image href="${characterDataUri}" x="${W - CHAR_W - 20}" y="${HERO_H - CHAR_H}" width="${CHAR_W}" height="${CHAR_H}" />` : ""}
 
-    ${pillsTotalWidth > 0 ? `<rect x="44" y="${pillY - 16}" width="${pillsTotalWidth + 32}" height="80" rx="40" fill="rgba(255,255,255,0.94)" />` : ""}
     ${importancePill?.svg ?? ""}
     ${urgencyPill?.svg ?? ""}
   </svg>`;

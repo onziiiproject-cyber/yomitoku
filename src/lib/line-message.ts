@@ -220,10 +220,20 @@ function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string): messagingApi.Flex
           layout: "horizontal",
           margin: "md",
           contents: [
-            { type: "text", text: "詳しく読む", size: "sm", weight: "bold", color: src.color, flex: 0 } as messagingApi.FlexText,
+            { type: "text", text: "この記事を詳しく見る", size: "sm", weight: "bold", color: src.color, flex: 0 } as messagingApi.FlexText,
             { type: "text", text: "→", size: "sm", weight: "bold", color: src.color, flex: 0, margin: "xs" } as messagingApi.FlexText,
           ],
           action: { type: "uri", uri: `${appUrl}/base/articles/${doc.id}` },
+        } as messagingApi.FlexBox,
+        {
+          type: "box",
+          layout: "horizontal",
+          margin: "sm",
+          contents: [
+            { type: "text", text: "週刊記事をすべて見る", size: "sm", weight: "bold", color: "#888888", flex: 0 } as messagingApi.FlexText,
+            { type: "text", text: "→", size: "sm", weight: "bold", color: "#888888", flex: 0, margin: "xs" } as messagingApi.FlexText,
+          ],
+          action: { type: "uri", uri: `${appUrl}/base` },
         } as messagingApi.FlexBox,
       ],
     },
