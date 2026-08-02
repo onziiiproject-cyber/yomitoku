@@ -262,6 +262,68 @@ export async function generateRadioScript(
   return { title: parsed.title, description: parsed.description, script: parsed.script };
 }
 
+// 分科会「議事録版」記事の音声解説（議事録ラジオ解説）台本を、実際の議事録PDFを読ませて生成する。
+// 放送室（generateRadioScript）と違い、これはログイン必須の記事に紐づく非公開コンテンツなので、
+// 分析・論点の深掘りなど有料コンテンツ相当の中身を含めてよい（むしろそれが目的）。
+export async function generateShingiAudioScript(
+  themeTitle: string,
+  sessionLabel: string,
+  pdfBase64: string
+): Promise<RadioScriptDraft> {
+  const client = getClient();
+
+  const prompt = `あなたは「ヨミトク編集部」の音声コンテンツ「議事録ラジオ解説」の台本作家です。
+
+登場人物:
+- ゴリ編集長（speaker: "gori"）: 介護保険制度に詳しいベテラン編集長。頼れるがフランクな口調。
+- ミスグレー（speaker: "gray"）: 新人記者（猫キャラ）。委員の発言や議論の流れを気になったところから聞いていく。
+
+添付した議事録PDF（${sessionLabel}）のうち、「${themeTitle}」というテーマに関する部分を中心に、実際にどんな意見が出たか・どんなやり取りがあったかを、ラジオのように振り返る台本を作成してください。
+
+条件:
+- これは記事本文を補完する音声コンテンツなので、放送室と違って分析・論点の深掘りを積極的に含めてよい。委員の発言の温度感、賛成/反対の意見、議論が紛糾した点なども具体的に紹介する
+- ただし議事録に書かれていないことを推測で補わない。実際の発言・やり取りに基づいて紹介する
+- ミスグレーが聞き役になり、ゴリ編集長が実際の議論を要約・解説しながら紹介していく掛け合い形式
+- 台本は28〜36行程度、合計1800〜2500字程度（6〜9分程度の尺を想定）
+- 締めのサービス紹介パートは含めない。最後はミスグレーの一言で軽く締めてよい
+- 事業所固有の対応や助言は含めない（それは記事本文の役割）
+
+以下のJSON形式のみで回答してください（他のテキスト不要）:
+{
+  "title": "「${themeTitle}」議事録ラジオ解説",
+  "description": "80字程度の紹介文（今回の会議でどんな話が出たかが伝わるトーン）",
+  "script": [
+    { "speaker": "gray", "text": "..." },
+    { "speaker": "gori", "text": "..." }
+  ]
+}`;
+
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 4096,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 } },
+          { type: "text", text: prompt },
+        ],
+      },
+    ],
+  });
+
+  const text = response.content[0].type === "text" ? response.content[0].text : "{}";
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("議事録ラジオ解説台本の生成に失敗しました");
+
+  const parsed = JSON.parse(match[0]);
+  if (!parsed.title || !parsed.description || !Array.isArray(parsed.script)) {
+    throw new Error("議事録ラジオ解説台本の結果が不正な形式です");
+  }
+
+  return { title: parsed.title, description: parsed.description, script: parsed.script };
+}
+
 export interface ArticleQAMessage {
   role: "user" | "assistant";
   text: string;

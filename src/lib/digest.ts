@@ -6,6 +6,7 @@ import { generateShingiCoverPDF, generateShingiTopicPDF, type ShingiThemeDetail 
 import { generateCoverCardImage, generateSummaryCardImage, generateWeeklyCardHeroImage } from "./social-image";
 import { postArticleToSocial } from "./meta";
 import { extractPdfText } from "./pdf-text";
+import { draftShingiAudioBriefing } from "./audio-briefing";
 import { put } from "@vercel/blob";
 
 // PDFがClaudeのページ数上限（100ページ）やトークン上限を超えている場合、
@@ -351,7 +352,7 @@ export async function processShingiMinutes(doc: {
         continue;
       }
 
-      await saveShingiTheme({
+      const savedId = await saveShingiTheme({
         doc,
         themeNo: theme.themeNo,
         title,
@@ -363,6 +364,20 @@ export async function processShingiMinutes(doc: {
         structured: analysis.structured,
       });
       count++;
+
+      // 議事録版記事に紐づく音声解説（議事録ラジオ解説）の台本も同時に用意する。
+      // 既に読み込み済みのpdfBase64を使い回すので追加のPDF取得は発生しない。
+      try {
+        await draftShingiAudioBriefing({
+          siteDocumentId: savedId,
+          articleTitle: title,
+          themeTitle: theme.title,
+          sessionLabel: `第${doc.shingiSessionNo}回 社会保障審議会介護給付費分科会`,
+          minutesPdfBase64: pdfBase64,
+        });
+      } catch (e) {
+        errors.push(`音声解説の台本生成失敗 "${theme.title}": ${e}`);
+      }
     } catch (e) {
       errors.push(`Shingi minutes theme failed "${theme.title}": ${e}`);
     }

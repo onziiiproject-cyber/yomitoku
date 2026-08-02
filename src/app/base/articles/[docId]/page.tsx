@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import GuestHeader from "../../_components/GuestHeader";
 import ArticleSwiper from "../../_components/ArticleSwiper";
+import ArticleAudioBriefingCard from "../../_components/ArticleAudioBriefingCard";
 import { redactStructuredContentForGuest, type StructuredContent } from "@/lib/anthropic";
 
 const SITE_URL = "https://yomitoku-base.com";
@@ -44,7 +45,7 @@ export default async function ArticleDetailPage({
   const [session, { docId }] = await Promise.all([getSession(), params]);
 
   const [doc, favoriteRecord, readRecord, readCount, likeRecord, likeCount, comments] = await Promise.all([
-    prisma.siteDocument.findUnique({ where: { id: docId } }),
+    prisma.siteDocument.findUnique({ where: { id: docId }, include: { audioBriefing: true } }),
     session
       ? prisma.favorite.findUnique({
           where: { companyId_siteDocumentId: { companyId: session.companyId, siteDocumentId: docId } },
@@ -138,10 +139,23 @@ export default async function ArticleDetailPage({
     );
   }
 
+  const audioBriefing =
+    doc.audioBriefing && doc.audioBriefing.status === "PUBLISHED" && doc.audioBriefing.audioUrl && doc.audioBriefing.durationSec
+      ? (
+          <ArticleAudioBriefingCard
+            title={doc.audioBriefing.title}
+            description={doc.audioBriefing.description}
+            audioUrl={doc.audioBriefing.audioUrl}
+            durationSec={doc.audioBriefing.durationSec}
+          />
+        )
+      : null;
+
   return (
     <>
       {jsonLdScript}
       {swiper}
+      {audioBriefing}
     </>
   );
 }

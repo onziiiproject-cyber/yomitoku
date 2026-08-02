@@ -488,6 +488,88 @@ export async function pushPodcastDraftReady(
   });
 }
 
+// 議事録ラジオ解説の台本ドラフトができた時に管理者へ1通だけ送る通知（放送室と同じ枠組み）。
+export async function pushAudioBriefingDraftReady(
+  lineUserId: string,
+  articleTitle: string,
+  briefingTitle: string,
+  description: string
+): Promise<void> {
+  const client = getClient();
+  await client.pushMessage({
+    to: lineUserId,
+    messages: [
+      {
+        type: "text",
+        text: `🎙 議事録ラジオ解説の新しい台本ができました\n\n記事: 「${articleTitle}」\n台本: 「${briefingTitle}」\n${description}\n\nClaude Codeで内容を確認・相談してください。`,
+      },
+    ],
+  });
+}
+
+function formatBriefingDuration(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}分${String(s).padStart(2, "0")}秒`;
+}
+
+function audioBriefingBubble(params: {
+  docId: string;
+  briefingTitle: string;
+  description: string;
+  durationSec: number;
+  appUrl: string;
+}): messagingApi.FlexBubble {
+  return {
+    type: "bubble",
+    size: "kilo",
+    body: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "20px",
+      backgroundColor: "#F5F0FF",
+      contents: [
+        { type: "text", text: "🎙 議事録ラジオ解説", size: "xs", weight: "bold", color: "#6D28D9" } as messagingApi.FlexText,
+        { type: "text", text: params.briefingTitle, wrap: true, weight: "bold", size: "md", color: "#1a1a1a", margin: "md", maxLines: 3 } as messagingApi.FlexText,
+        { type: "text", text: params.description, wrap: true, size: "sm", color: "#666666", margin: "md", maxLines: 4 } as messagingApi.FlexText,
+        { type: "text", text: `再生時間: ${formatBriefingDuration(params.durationSec)}`, size: "xs", color: "#999999", margin: "md" } as messagingApi.FlexText,
+        {
+          type: "box",
+          layout: "horizontal",
+          margin: "xl",
+          contents: [
+            { type: "text", text: "▶ 音声を聴く", size: "sm", weight: "bold", color: "#6D28D9", flex: 0 } as messagingApi.FlexText,
+            { type: "text", text: "→", size: "sm", weight: "bold", color: "#6D28D9", flex: 0, margin: "xs" } as messagingApi.FlexText,
+          ],
+          action: { type: "uri", uri: `${params.appUrl}/base/articles/${params.docId}` },
+        } as messagingApi.FlexBox,
+      ],
+    },
+  } as messagingApi.FlexBubble;
+}
+
+// 議事録ラジオ解説が公開された時に、対象記事のタグにマッチする購読者へ配信する。
+// 週刊ヨミトクのカードと同じFlexカード形式・同じタグマッチング基準に揃える。
+// 記事自体はログイン必須なので、リンク先で自然にログインが求められる。
+export async function pushAudioBriefingReady(
+  lineUserId: string,
+  params: { docId: string; briefingTitle: string; description: string; durationSec: number }
+): Promise<string> {
+  const client = getClient();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
+  const res = await client.pushMessage({
+    to: lineUserId,
+    messages: [
+      {
+        type: "flex",
+        altText: `🎙 議事録ラジオ解説「${params.briefingTitle}」が公開されました`,
+        contents: audioBriefingBubble({ ...params, appUrl }),
+      },
+    ],
+  });
+  return res.sentMessages?.[0]?.id ?? "";
+}
+
 export async function pushWeeklyNoNewsWithPodcast(
   lineUserId: string,
   weekLabel: string,

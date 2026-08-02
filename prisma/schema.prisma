@@ -207,6 +207,7 @@ model SiteDocument {
   comments        ArticleComment[]
   reports         ArticleReport[]
   podcastEpisodes PodcastEpisode[]
+  audioBriefing   ArticleAudioBriefing?
 
   @@unique([url, themeNo])
 }
@@ -330,6 +331,30 @@ model PodcastEpisode {
 
   sourceDocId String?
   sourceDoc   SiteDocument? @relation(fields: [sourceDocId], references: [id], onDelete: SetNull)
+}
+
+enum ArticleAudioBriefingStatus {
+  DRAFT // 台本のみ生成済み・音声化前
+  PUBLISHED // 承認済み、記事詳細ページにプレーヤーが表示される
+  REJECTED // 見送り
+}
+
+// 分科会「議事録版」記事に紐づく音声解説（1記事=1本）。PodcastEpisodeと違い公開Podcastフィード
+// には載らず、ログイン必須の記事詳細ページ内だけで再生される非公開コンテンツ。
+// 台本はAIが実際の議事録PDFを読んで生成するが、音声合成（VOICEVOX）はローカル実行前提のため、
+// DRAFT作成時点ではaudioUrl/durationSecは未確定（null）でよい。
+model ArticleAudioBriefing {
+  id             String                      @id @default(cuid())
+  siteDocumentId String                      @unique
+  siteDocument   SiteDocument                @relation(fields: [siteDocumentId], references: [id], onDelete: Cascade)
+  title          String
+  description    String                      @db.Text
+  script         Json // ダイアログ台本（[{speaker, text}]）
+  audioUrl       String? // Vercel Blob上のmp3 URL。音声合成後にセット
+  durationSec    Int?
+  status         ArticleAudioBriefingStatus  @default(DRAFT)
+  publishedAt    DateTime?
+  createdAt      DateTime                    @default(now())
 }
 
 // 記事の内容についての誤り・わかりにくさの報告（ユーザーによる分散QA）
