@@ -352,6 +352,7 @@ model ArticleAudioBriefing {
   script         Json // ダイアログ台本（[{speaker, text}]）
   audioUrl       String? // Vercel Blob上のmp3 URL。音声合成後にセット
   durationSec    Int?
+  heroImageUrl   String? // LINEカード・編集室サムネ共通のヒーロー画像。durationSec確定後（公開時）に生成
   status         ArticleAudioBriefingStatus  @default(DRAFT)
   publishedAt    DateTime?
   createdAt      DateTime                    @default(now())

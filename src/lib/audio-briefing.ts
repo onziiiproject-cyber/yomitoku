@@ -1,6 +1,8 @@
 import { prisma } from "./prisma";
 import { generateShingiAudioScript } from "./anthropic";
 import { pushAudioBriefingDraftReady, pushAudioBriefingReady } from "./line-message";
+import { generateAudioBriefingHeroImage } from "./social-image";
+import { put } from "@vercel/blob";
 
 export interface AudioBriefingDraftResult {
   created: boolean;
@@ -61,11 +63,25 @@ export async function publishArticleAudioBriefing(params: {
 }): Promise<AudioBriefingPublishResult> {
   const errors: string[] = [];
 
+  const draftBriefing = await prisma.articleAudioBriefing.findUniqueOrThrow({ where: { id: params.briefingId } });
+
+  // ヒーロー画像は音声の長さ（durationSec）が確定する公開時に生成する
+  // （台本ドラフト時点ではまだVOICEVOX合成前で長さが分からないため）
+  const heroBuffer = await generateAudioBriefingHeroImage({
+    title: draftBriefing.title,
+    durationSec: params.durationSec,
+  });
+  const heroBlob = await put(`audio-briefing/${params.briefingId}-hero-${Date.now()}.png`, heroBuffer, {
+    access: "public",
+    contentType: "image/png",
+  });
+
   const briefing = await prisma.articleAudioBriefing.update({
     where: { id: params.briefingId },
     data: {
       audioUrl: params.audioUrl,
       durationSec: params.durationSec,
+      heroImageUrl: heroBlob.url,
       status: "PUBLISHED",
       publishedAt: new Date(),
     },
@@ -92,7 +108,7 @@ export async function publishArticleAudioBriefing(params: {
         docId: briefing.siteDocumentId,
         briefingTitle: briefing.title,
         description: briefing.description,
-        durationSec: params.durationSec,
+        heroImageUrl: heroBlob.url,
       });
       sentTo++;
     } catch (e) {

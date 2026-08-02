@@ -140,13 +140,13 @@ export default async function ArticleDetailPage({
   }
 
   const audioBriefing =
-    doc.audioBriefing && doc.audioBriefing.status === "PUBLISHED" && doc.audioBriefing.audioUrl && doc.audioBriefing.durationSec
+    doc.audioBriefing && doc.audioBriefing.status === "PUBLISHED" && doc.audioBriefing.audioUrl
       ? (
           <ArticleAudioBriefingCard
             title={doc.audioBriefing.title}
             description={doc.audioBriefing.description}
             audioUrl={doc.audioBriefing.audioUrl}
-            durationSec={doc.audioBriefing.durationSec}
+            heroImageUrl={doc.audioBriefing.heroImageUrl}
           />
         )
       : null;
