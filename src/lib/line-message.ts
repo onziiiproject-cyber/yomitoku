@@ -210,15 +210,14 @@ function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string): messagingApi.Flex
     body: {
       type: "box",
       layout: "vertical",
-      paddingAll: "16px",
-      spacing: "sm",
+      paddingAll: "20px",
       contents: [
         { type: "text", text: displayTitle, wrap: true, weight: "bold", size: "md", color: "#1a1a1a", maxLines: 3 } as messagingApi.FlexText,
-        { type: "text", text: doc.summary, wrap: true, size: "sm", color: "#666666", maxLines: 3, margin: "sm" } as messagingApi.FlexText,
+        { type: "text", text: doc.summary, wrap: true, size: "sm", color: "#666666", maxLines: 3, margin: "md" } as messagingApi.FlexText,
         {
           type: "box",
           layout: "horizontal",
-          margin: "md",
+          margin: "xl",
           contents: [
             { type: "text", text: "この記事を詳しく見る", size: "sm", weight: "bold", color: src.color, flex: 0 } as messagingApi.FlexText,
             { type: "text", text: "→", size: "sm", weight: "bold", color: src.color, flex: 0, margin: "xs" } as messagingApi.FlexText,
@@ -228,7 +227,7 @@ function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string): messagingApi.Flex
         {
           type: "box",
           layout: "horizontal",
-          margin: "sm",
+          margin: "md",
           contents: [
             { type: "text", text: "週刊記事をすべて見る", size: "sm", weight: "bold", color: "#888888", flex: 0 } as messagingApi.FlexText,
             { type: "text", text: "→", size: "sm", weight: "bold", color: "#888888", flex: 0, margin: "xs" } as messagingApi.FlexText,

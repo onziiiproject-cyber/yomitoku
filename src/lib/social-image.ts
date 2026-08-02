@@ -288,8 +288,8 @@ export async function generateWeeklyCardHeroImage(params: {
   const decisionBadge = params.decisionStatus ? DECISION_STATUS_BADGE[params.decisionStatus] : null;
 
   const HERO_H = 780;
-  const CHAR_H = 560;
-  const CHAR_W = 500;
+  const CHAR_H = 340;
+  const CHAR_W = 320;
 
   const bgDataUri = bgPath
     ? `data:image/png;base64,${(await sharp(readFileSync(bgPath)).resize(W, HERO_H, { fit: "cover" }).png().toBuffer()).toString("base64")}`
@@ -303,9 +303,9 @@ export async function generateWeeklyCardHeroImage(params: {
   const typeBadgeWidth = src.label.length * 38 + 130;
   const decisionBadgeWidth = decisionBadge ? decisionBadge.label.length * 32 + 70 : 0;
 
-  const titleLines = wrapText(params.title, 10, 3);
+  const titleLines = wrapText(params.title, 13, 3);
   const titleTspans = titleLines
-    .map((line, i) => `<tspan x="60" dy="${i === 0 ? 0 : 68}">${escapeXml(line)}</tspan>`)
+    .map((line, i) => `<tspan x="60" dy="${i === 0 ? 0 : 78}">${escapeXml(line)}</tspan>`)
     .join("");
 
   const pillGap = 16;
@@ -327,9 +327,9 @@ export async function generateWeeklyCardHeroImage(params: {
         : ""
     }
 
-    <text x="60" y="270" font-family="${FONT}" font-size="52" font-weight="900" fill="#14171f">${titleTspans}</text>
+    <text x="60" y="280" font-family="${FONT}" font-size="62" font-weight="900" fill="#14171f">${titleTspans}</text>
 
-    ${characterDataUri ? `<image href="${characterDataUri}" x="${W - CHAR_W - 20}" y="${HERO_H - CHAR_H}" width="${CHAR_W}" height="${CHAR_H}" />` : ""}
+    ${characterDataUri ? `<image href="${characterDataUri}" x="${W - CHAR_W - 40}" y="${HERO_H - CHAR_H}" width="${CHAR_W}" height="${CHAR_H}" />` : ""}
 
     ${importancePill?.svg ?? ""}
     ${urgencyPill?.svg ?? ""}
