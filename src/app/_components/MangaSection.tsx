@@ -16,7 +16,11 @@ const PERSONAS: Persona[] = [
     label: "経営者",
     pages: Array.from({ length: 9 }, (_, i) => `/manga/keieisha/${String(i + 1).padStart(3, "0")}.jpg`),
   },
-  { key: "kanrisha", label: "管理者", pages: [] },
+  {
+    key: "kanrisha",
+    label: "管理者",
+    pages: Array.from({ length: 9 }, (_, i) => `/manga/kanrisha/${String(i + 1).padStart(3, "0")}.jpg`),
+  },
   { key: "soudanin", label: "相談員", pages: [] },
   { key: "shinjin-kanrisha", label: "新人管理者", pages: [] },
 ];
