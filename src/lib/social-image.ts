@@ -220,6 +220,16 @@ const CARD_CHARACTER_PATH: Record<string, string> = {
   mhlw_latest: path.join(process.cwd(), "public/LP_sozai/assets/mascot/misugray-clipboard.png"),
   shingi: path.join(process.cwd(), "public/LP_sozai/assets/mascot/gori-thinking.png"),
 };
+const CARD_BG_PATH: Record<string, string> = {
+  mhlw_latest: path.join(process.cwd(), "public/LP_sozai/assets/backgrounds/card-bg-green.png"),
+  shingi: path.join(process.cwd(), "public/LP_sozai/assets/backgrounds/card-bg-blue.png"),
+};
+// ユーザー提供モックアップから実測した色（既存のSRC_LABELはSNS投稿用カードと共有のため、
+// ここでは別テーマとして定義し他のカード種別に影響させない）
+const WEEKLY_HERO_COLOR: Record<string, string> = {
+  mhlw_latest: "#1E6F4A",
+  shingi: "#1D4B98",
+};
 
 function starPolygonPoints(cx: number, cy: number, rOuter: number, rInner: number): string {
   const pts: string[] = [];
@@ -231,18 +241,23 @@ function starPolygonPoints(cx: number, cy: number, rOuter: number, rInner: numbe
   return pts.join(" ");
 }
 
-function statRowSvg(y: number, cx: number, color: string, iconKind: "star" | "alert", label: string, stars: number): string {
+// 重要度/緊急度を1行にまとめた白背景ピル（縦の区切り線で2項目を並べる）
+function statPillSvg(x: number, y: number, color: string, label: string, stars: number | null, iconKind: "star" | "alert"): { svg: string; width: number } {
+  const starLine = stars ? "★".repeat(stars) + "☆".repeat(5 - stars) : "";
   const icon =
     iconKind === "star"
-      ? `<polygon points="${starPolygonPoints(cx, y, 20, 8.5)}" fill="#ffffff" />`
-      : `<text x="${cx}" y="${y + 11}" font-family="${FONT}" font-size="34" font-weight="900" fill="#ffffff" text-anchor="middle">!</text>`;
-  const starLine = "★".repeat(stars) + "☆".repeat(5 - stars);
-  return `
-    <circle cx="${cx}" cy="${y}" r="30" fill="${color}" />
-    ${icon}
-    <text x="${cx + 60}" y="${y + 12}" font-family="${FONT}" font-size="32" font-weight="800" fill="#555555">${escapeXml(label)}</text>
-    <text x="1000" y="${y + 14}" font-family="${FONT}" font-size="38" fill="#F5A623" text-anchor="end">${starLine}</text>
-  `;
+      ? `<polygon points="${starPolygonPoints(x + 30, y + 32, 11, 4.5)}" fill="${color}" />`
+      : `<text x="${x + 30}" y="${y + 40}" font-family="${FONT}" font-size="26" font-weight="900" fill="${color}" text-anchor="middle">!</text>`;
+  const width = 60 + label.length * 32 + starLine.length * 26 + 20;
+  return {
+    width,
+    svg: `
+      <circle cx="${x + 30}" cy="${y + 32}" r="17" fill="#ffffff" stroke="${color}" stroke-width="2.5" />
+      ${icon}
+      <text x="${x + 60}" y="${y + 42}" font-family="${FONT}" font-size="28" font-weight="800" fill="#444444">${escapeXml(label)}</text>
+      <text x="${x + 60 + label.length * 32}" y="${y + 42}" font-family="${FONT}" font-size="30" fill="#F5A623">${starLine}</text>
+    `,
+  };
 }
 
 export async function generateWeeklyCardHeroImage(params: {
@@ -254,51 +269,63 @@ export async function generateWeeklyCardHeroImage(params: {
 }): Promise<Buffer> {
   ensureFontconfig();
   const src = SRC_LABEL[params.source] ?? { label: params.source, color: "#374151", bg: "#F3F4F6" };
+  const heroColor = WEEKLY_HERO_COLOR[params.source] ?? src.color;
   const iconPath = CARD_ICON_PATH[params.source];
   const characterPath = CARD_CHARACTER_PATH[params.source];
+  const bgPath = CARD_BG_PATH[params.source];
   const decisionBadge = params.decisionStatus ? DECISION_STATUS_BADGE[params.decisionStatus] : null;
 
+  const HERO_H = 780;
+
+  const bgDataUri = bgPath
+    ? `data:image/png;base64,${(await sharp(readFileSync(bgPath)).resize(W, HERO_H, { fit: "cover" }).png().toBuffer()).toString("base64")}`
+    : null;
   const iconDataUri = iconPath
     ? `data:image/png;base64,${(await sharp(readFileSync(iconPath)).resize(48, 48, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()).toString("base64")}`
     : null;
   const characterDataUri = characterPath
-    ? `data:image/png;base64,${(await sharp(readFileSync(characterPath)).resize(340, 400, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()).toString("base64")}`
+    ? `data:image/png;base64,${(await sharp(readFileSync(characterPath)).resize(400, 400, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()).toString("base64")}`
     : null;
 
   const typeBadgeWidth = src.label.length * 30 + 130;
   const decisionBadgeWidth = decisionBadge ? decisionBadge.label.length * 28 + 70 : 0;
 
-  const titleLines = wrapText(params.title, 10, 4);
+  const titleLines = wrapText(params.title, 10, 3);
   const titleTspans = titleLines
     .map((line, i) => `<tspan x="60" dy="${i === 0 ? 0 : 68}">${escapeXml(line)}</tspan>`)
     .join("");
 
-  const statsBoxTop = 620;
-  const statsBoxHeight = 400;
+  const pillY = 560;
+  const importancePill = params.importanceStars
+    ? statPillSvg(60, pillY, heroColor, "重要度", params.importanceStars, "star")
+    : null;
+  const urgencyPill = params.urgencyStars
+    ? statPillSvg(60 + (importancePill?.width ?? 0) + 40, pillY, "#E4572E", "緊急度", params.urgencyStars, "alert")
+    : null;
+  const pillsTotalWidth = (importancePill?.width ?? 0) + (urgencyPill ? 40 + urgencyPill.width : 0);
 
-  const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${W}" height="${H}" fill="${src.bg ?? "#F3F4F6"}" />
+  const svg = `<svg width="${W}" height="${HERO_H}" xmlns="http://www.w3.org/2000/svg">
+    ${bgDataUri ? `<image href="${bgDataUri}" x="0" y="0" width="${W}" height="${HERO_H}" />` : `<rect x="0" y="0" width="${W}" height="${HERO_H}" fill="${src.bg ?? "#F3F4F6"}" />`}
 
-    <rect x="60" y="60" width="${typeBadgeWidth}" height="96" rx="48" fill="${src.color}" />
+    <rect x="60" y="60" width="${typeBadgeWidth}" height="96" rx="48" fill="${heroColor}" />
     <circle cx="${60 + 68}" cy="${60 + 48}" r="34" fill="#ffffff" />
     ${iconDataUri ? `<image href="${iconDataUri}" x="${60 + 68 - 24}" y="${60 + 48 - 24}" width="48" height="48" />` : ""}
     <text x="${60 + 68 + 34 + 18}" y="${60 + 48 + 13}" font-family="${FONT}" font-size="34" font-weight="800" fill="#ffffff">${escapeXml(src.label)}</text>
 
     ${
       decisionBadge
-        ? `<rect x="${W - 60 - decisionBadgeWidth}" y="72" width="${decisionBadgeWidth}" height="72" rx="36" fill="#ffffff" stroke="${decisionBadge.color}" stroke-width="3" />
-           <text x="${W - 60 - decisionBadgeWidth / 2}" y="118" font-family="${FONT}" font-size="28" font-weight="800" fill="${decisionBadge.color}" text-anchor="middle">${escapeXml(decisionBadge.label)}</text>`
+        ? `<rect x="${W - 60 - decisionBadgeWidth}" y="72" width="${decisionBadgeWidth}" height="72" rx="36" fill="#ffffff" stroke="${heroColor}" stroke-width="3" />
+           <text x="${W - 60 - decisionBadgeWidth / 2}" y="118" font-family="${FONT}" font-size="28" font-weight="800" fill="${heroColor}" text-anchor="middle">${escapeXml(decisionBadge.label)}</text>`
         : ""
     }
 
-    <text x="60" y="270" font-family="${FONT}" font-size="52" font-weight="900" fill="#1a1a1a">${titleTspans}</text>
+    <text x="60" y="270" font-family="${FONT}" font-size="52" font-weight="900" fill="#14171f">${titleTspans}</text>
 
-    ${characterDataUri ? `<image href="${characterDataUri}" x="${W - 360}" y="180" width="340" height="400" />` : ""}
+    ${characterDataUri ? `<image href="${characterDataUri}" x="${W - 440}" y="160" width="400" height="400" />` : ""}
 
-    <rect x="60" y="${statsBoxTop}" width="${W - 120}" height="${statsBoxHeight}" rx="20" fill="#ffffff" />
-    ${params.importanceStars ? statRowSvg(statsBoxTop + 110, 150, src.color, "star", "重要度", params.importanceStars) : ""}
-    ${params.importanceStars && params.urgencyStars ? `<line x1="90" y1="${statsBoxTop + 200}" x2="${W - 90}" y2="${statsBoxTop + 200}" stroke="#EEEEEE" stroke-width="2" />` : ""}
-    ${params.urgencyStars ? statRowSvg(statsBoxTop + 290, 150, "#E4572E", "alert", "緊急度", params.urgencyStars) : ""}
+    ${pillsTotalWidth > 0 ? `<rect x="44" y="${pillY - 16}" width="${pillsTotalWidth + 32}" height="80" rx="40" fill="rgba(255,255,255,0.94)" />` : ""}
+    ${importancePill?.svg ?? ""}
+    ${urgencyPill?.svg ?? ""}
   </svg>`;
 
   return sharp(Buffer.from(svg)).png().toBuffer();

@@ -204,7 +204,7 @@ function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string): messagingApi.Flex
       type: "image",
       url: doc.heroImageUrl,
       size: "full",
-      aspectRatio: "1:1",
+      aspectRatio: "18:13",
       aspectMode: "cover",
     } as messagingApi.FlexImage,
     body: {
