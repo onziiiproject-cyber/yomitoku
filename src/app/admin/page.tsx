@@ -162,14 +162,14 @@ export default async function AdminPage() {
                       <a href={`mailto:${c.email}`} style={{ color: "#0D686E", textDecoration: "none" }}>{c.email}</a>
                     </td>
                     <td style={{ padding: "14px" }}>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, maxWidth: 220, alignItems: "center" }}>
                         {c.tags.slice(0, 3).map((ct) => (
-                          <span key={ct.tagId} style={{ fontSize: 11, background: "#E6F4F2", color: "#0D686E", padding: "2px 7px", borderRadius: 6 }}>
+                          <span key={ct.tagId} style={{ fontSize: 11, background: "#E6F4F2", color: "#0D686E", padding: "2px 7px", borderRadius: 6, whiteSpace: "nowrap" }}>
                             {ct.tag.label}
                           </span>
                         ))}
                         {c.tags.length > 3 && (
-                          <span style={{ fontSize: 11, color: "#aaa" }}>+{c.tags.length - 3}</span>
+                          <span style={{ fontSize: 11, color: "#aaa", whiteSpace: "nowrap" }}>+{c.tags.length - 3}</span>
                         )}
                       </div>
                     </td>
