@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { RegistrationChart, LoginRateChart } from "./AdminCharts";
 
+// このページはDBの最新状態を常に表示する必要があるため、ビルド時の静的スナップショットに
+// ならないよう強制的に動的レンダリングする（登録企業一覧が更新されない不具合の原因だった）
+export const dynamic = "force-dynamic";
+
 const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
   ACTIVE:          { label: "有効",         color: "#0D686E", bg: "#E6F4F2" },
   PENDING_PAYMENT: { label: "お支払い待ち", color: "#D97706", bg: "#FEF3C7" },

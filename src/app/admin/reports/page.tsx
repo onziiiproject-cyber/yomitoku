@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/prisma";
 
+// ビルド時の静的スナップショットにならないよう強制的に動的レンダリングする
+export const dynamic = "force-dynamic";
+
 function formatDateTime(d: Date) {
   return new Date(d).toLocaleString("ja-JP", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }

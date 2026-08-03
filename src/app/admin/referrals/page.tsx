@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import ReferralCodeManager from "./ReferralCodeManager";
 
+// ビルド時の静的スナップショットにならないよう強制的に動的レンダリングする
+export const dynamic = "force-dynamic";
+
 export default async function AdminReferralsPage() {
   const codes = await prisma.referralCode.findMany({
     orderBy: { createdAt: "desc" },
