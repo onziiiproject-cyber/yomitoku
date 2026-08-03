@@ -27,8 +27,8 @@ export default async function AdminReportsPage() {
       <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1F2E2A", margin: 0 }}>報告一覧</h1>
       <p style={{ fontSize: 13, color: "#888", margin: 0 }}>直近{reports.length}件の、記事内容についての報告です。</p>
 
-      <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #E8F0EE", overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #E8F0EE", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+        <table style={{ width: "100%", minWidth: 700, borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "#F5F7F6", borderBottom: "1.5px solid #E8F0EE" }}>
               {["日時", "事業所", "記事", "カテゴリ", "詳細"].map((h) => (
@@ -48,7 +48,7 @@ export default async function AdminReportsPage() {
                 return (
                   <tr key={r.id} style={{ borderBottom: i < reports.length - 1 ? "1px solid #F0F0F0" : "none", verticalAlign: "top" }}>
                     <td style={{ padding: "14px", color: "#888", whiteSpace: "nowrap" }}>{formatDateTime(r.createdAt)}</td>
-                    <td style={{ padding: "14px", color: "#333" }}>{r.company.facilityName ?? r.company.name}</td>
+                    <td style={{ padding: "14px", color: "#333", whiteSpace: "nowrap" }}>{r.company.facilityName ?? r.company.name}</td>
                     <td style={{ padding: "14px", color: "#1a1a1a", maxWidth: 260 }}>
                       <a href={`/base/articles/${r.siteDocument.id}`} target="_blank" rel="noopener noreferrer" style={{ color: "#0D686E", textDecoration: "none" }}>
                         {sc?.hookTitle || r.siteDocument.title}

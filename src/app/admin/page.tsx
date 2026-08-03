@@ -93,7 +93,7 @@ export default async function AdminPage() {
       <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1F2E2A", margin: 0 }}>登録企業一覧</h1>
 
       {/* 統計カード */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 16 }}>
         {[
           { label: "総登録数",        value: total,     color: "#0D686E" },
           { label: "有効（課金中）",  value: active,    color: "#059669" },
@@ -109,7 +109,14 @@ export default async function AdminPage() {
       </div>
 
       {/* グラフ */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <style>{`
+        .admin-charts-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 700px) {
+          .admin-charts-grid { grid-template-columns: 1fr 1fr; }
+        }
+        .admin-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      `}</style>
+      <div className="admin-charts-grid">
         <div style={{ background: "#fff", borderRadius: 14, padding: "20px 24px", border: "1.5px solid #E8F0EE" }}>
           <p style={{ fontSize: 14, fontWeight: 700, color: "#1F2E2A", margin: "0 0 4px" }}>登録推移（週別）</p>
           <p style={{ fontSize: 12, color: "#aaa", margin: "0 0 16px" }}>直近12週の新規登録数</p>
@@ -123,8 +130,8 @@ export default async function AdminPage() {
       </div>
 
       {/* テーブル */}
-      <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #E8F0EE", overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #E8F0EE" }} className="admin-table-scroll">
+        <table style={{ width: "100%", minWidth: 1280, borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "#F5F7F6", borderBottom: "1.5px solid #E8F0EE" }}>
               {["法人名", "事業所名", "担当者", "役職", "都道府県", "メール", "タグ", "LINE人数", "ステータス", "登録日"].map((h) => (
@@ -142,12 +149,12 @@ export default async function AdminPage() {
                 const st = getDisplayStatus(c);
                 return (
                   <tr key={c.id} style={{ borderBottom: i < companies.length - 1 ? "1px solid #F0F0F0" : "none" }}>
-                    <td style={{ padding: "14px", fontWeight: 600, color: "#1a1a1a" }}>{c.name}</td>
-                    <td style={{ padding: "14px", color: "#333" }}>{c.facilityName ?? "—"}</td>
-                    <td style={{ padding: "14px", color: "#333" }}>{c.contactName}</td>
-                    <td style={{ padding: "14px", color: "#555" }}>{c.contactRole ?? "—"}</td>
-                    <td style={{ padding: "14px", color: "#555" }}>{c.prefecture ?? "—"}</td>
-                    <td style={{ padding: "14px", color: "#555" }}>
+                    <td style={{ padding: "14px", fontWeight: 600, color: "#1a1a1a", whiteSpace: "nowrap" }}>{c.name}</td>
+                    <td style={{ padding: "14px", color: "#333", whiteSpace: "nowrap" }}>{c.facilityName ?? "—"}</td>
+                    <td style={{ padding: "14px", color: "#333", whiteSpace: "nowrap" }}>{c.contactName}</td>
+                    <td style={{ padding: "14px", color: "#555", whiteSpace: "nowrap" }}>{c.contactRole ?? "—"}</td>
+                    <td style={{ padding: "14px", color: "#555", whiteSpace: "nowrap" }}>{c.prefecture ?? "—"}</td>
+                    <td style={{ padding: "14px", color: "#555", whiteSpace: "nowrap" }}>
                       <a href={`mailto:${c.email}`} style={{ color: "#0D686E", textDecoration: "none" }}>{c.email}</a>
                     </td>
                     <td style={{ padding: "14px" }}>

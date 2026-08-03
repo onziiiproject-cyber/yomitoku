@@ -171,8 +171,8 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
         {error && <p style={{ fontSize: 12, color: "#DC2626", marginTop: 8, marginBottom: 0 }}>{error}</p>}
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #E8F0EE", overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #E8F0EE", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+        <table style={{ width: "100%", minWidth: 900, borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "#F5F7F6", borderBottom: "1.5px solid #E8F0EE" }}>
               {["QR", "発行日", "キャンペーン名", "コード", "リンク", "有効期限", "登録数", "有効数", ""].map((h) => (

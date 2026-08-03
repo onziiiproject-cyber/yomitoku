@@ -10,7 +10,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   return (
     <div style={{ minHeight: "100vh", background: "#F5F7F6", fontFamily: "'Hiragino Sans', sans-serif" }}>
       <AdminHeader />
-      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px" }}>
+      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "20px 16px" }}>
         {children}
       </main>
     </div>

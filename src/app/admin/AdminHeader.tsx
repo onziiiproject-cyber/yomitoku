@@ -21,6 +21,8 @@ export default function AdminHeader() {
         textDecoration: "none",
         borderBottom: pathname === href ? "2px solid #fff" : "2px solid transparent",
         paddingBottom: 2,
+        whiteSpace: "nowrap",
+        flexShrink: 0,
       }}
     >
       {label}
@@ -28,10 +30,39 @@ export default function AdminHeader() {
   );
 
   return (
-    <header style={{ background: "#0D686E", padding: "0 32px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
-        <span style={{ color: "#fff", fontWeight: 800, fontSize: 18, letterSpacing: "0.05em" }}>YOMITOKU 管理画面</span>
-        <nav style={{ display: "flex", gap: 20 }}>
+    <header className="admin-header">
+      <style>{`
+        .admin-header {
+          background: #0D686E;
+          padding: 12px 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        .admin-header__left {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          min-width: 0;
+        }
+        .admin-header__nav {
+          display: flex;
+          gap: 16px;
+          overflow-x: auto;
+          white-space: nowrap;
+          -webkit-overflow-scrolling: touch;
+        }
+        @media (min-width: 700px) {
+          .admin-header { padding: 0 32px; height: 56px; flex-wrap: nowrap; }
+          .admin-header__left { gap: 28px; }
+          .admin-header__nav { gap: 20px; }
+        }
+      `}</style>
+      <div className="admin-header__left">
+        <span style={{ color: "#fff", fontWeight: 800, fontSize: 16, letterSpacing: "0.05em", whiteSpace: "nowrap" }}>YOMITOKU 管理画面</span>
+        <nav className="admin-header__nav">
           {navLink("/admin", "登録企業一覧")}
           {navLink("/admin/reports", "報告一覧")}
           {navLink("/admin/referrals", "紹介実績")}
@@ -39,7 +70,7 @@ export default function AdminHeader() {
       </div>
       <button
         onClick={handleLogout}
-        style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6, color: "#fff", fontSize: 13, padding: "6px 14px", cursor: "pointer" }}
+        style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6, color: "#fff", fontSize: 13, padding: "6px 14px", cursor: "pointer", flexShrink: 0 }}
       >
         ログアウト
       </button>
