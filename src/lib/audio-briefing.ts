@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { generateShingiAudioScript } from "./anthropic";
-import { pushAudioBriefingDraftReady, pushAudioBriefingReady } from "./line-message";
+import { pushAudioBriefingDraftReady } from "./line-message";
 import { generateAudioBriefingHeroImage } from "./social-image";
 import { put } from "@vercel/blob";
 
@@ -48,12 +48,13 @@ export async function draftShingiAudioBriefing(params: {
 }
 
 export interface AudioBriefingPublishResult {
-  sentTo: number;
-  errors: string[];
+  status: "PUBLISHED";
 }
 
-// 音声合成（VOICEVOXでのローカル作業）が終わった音声解説をPUBLISHEDにし、
-// 対象記事のタグにマッチするLINE購読者へ配信する（週刊ヨミトクと同じタグマッチング基準）。
+// 音声合成（VOICEVOXでのローカル作業）が終わった音声解説をPUBLISHEDにする。
+// 以前はここで即座にLINE個別配信していたが、水曜の週刊ヨミトクと別タイミングで
+// 届くと事故のように見えるため廃止。以後は次回のrunWeeklyDigest実行時に、
+// status:PUBLISHED かつ直近1週間以内のものが週刊カルーセルへ自動的に乗る。
 // 放送室と異なり公開Podcastフィードには載せず、Facebook/Instagram投稿も行わない
 // （ログイン必須の記事に紐づく非公開コンテンツのため）。
 export async function publishArticleAudioBriefing(params: {
@@ -61,8 +62,6 @@ export async function publishArticleAudioBriefing(params: {
   audioUrl: string;
   durationSec: number;
 }): Promise<AudioBriefingPublishResult> {
-  const errors: string[] = [];
-
   const draftBriefing = await prisma.articleAudioBriefing.findUniqueOrThrow({ where: { id: params.briefingId } });
 
   // ヒーロー画像は音声の長さ（durationSec）が確定する公開時に生成する
@@ -76,7 +75,7 @@ export async function publishArticleAudioBriefing(params: {
     contentType: "image/png",
   });
 
-  const briefing = await prisma.articleAudioBriefing.update({
+  await prisma.articleAudioBriefing.update({
     where: { id: params.briefingId },
     data: {
       audioUrl: params.audioUrl,
@@ -85,36 +84,7 @@ export async function publishArticleAudioBriefing(params: {
       status: "PUBLISHED",
       publishedAt: new Date(),
     },
-    include: { siteDocument: { select: { tags: true } } },
   });
 
-  const articleTags = (briefing.siteDocument?.tags as string[] | undefined) ?? [];
-
-  const recipients = await prisma.lineRecipient.findMany({
-    where: { unfollowedAt: null, company: { status: "ACTIVE" } },
-    include: { user: { include: { tags: { include: { tag: true } } } } },
-  });
-
-  let sentTo = 0;
-  for (const recipient of recipients) {
-    const recipientTagKeys = recipient.user?.tags.map((ut) => ut.tag.key) ?? [];
-    // タグ未設定の購読者には全件、設定している場合は記事タグとの一致がある場合だけ送る
-    // （ボーナスコンテンツ的な位置づけのため、不一致者には無理に送らない）
-    const matches = recipientTagKeys.length === 0 || articleTags.some((t) => recipientTagKeys.includes(t));
-    if (!matches) continue;
-
-    try {
-      await pushAudioBriefingReady(recipient.lineUserId, {
-        docId: briefing.siteDocumentId,
-        briefingTitle: briefing.title,
-        description: briefing.description,
-        heroImageUrl: heroBlob.url,
-      });
-      sentTo++;
-    } catch (e) {
-      errors.push(`LINE送信失敗 (${recipient.lineUserId}): ${e}`);
-    }
-  }
-
-  return { sentTo, errors };
+  return { status: "PUBLISHED" };
 }

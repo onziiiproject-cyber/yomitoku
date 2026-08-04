@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 import { scrapeMhlwLatest, scrapeShingi, extractShingiMaterialPdfLinks, extractShingiMinutesPdfUrl, findShingiMinutesLinks } from "./scraper";
 import { analyzeDocument, generateStructuredContent, generateDiscussionQuestion, extractPublishedDate, buildWeeklyDigest, buildShingiPDFData, type StructuredContent, type AnalysisResult } from "./anthropic";
-import { pushWeeklyDigestCards, pushBreakingNews, pushShingiCover, pushShingiTopics, pushShingiNoMatch, pushWeeklyNoNewsWithPodcast, type DigestDoc, type WeeklyCardDoc } from "./line-message";
+import { pushWeeklyDigestCards, pushBreakingNews, pushShingiCover, pushShingiTopics, pushShingiNoMatch, pushWeeklyNoNewsWithPodcast, type DigestDoc, type WeeklyCardDoc, type WeeklyAudioBriefingDoc } from "./line-message";
 import { generateShingiCoverPDF, generateShingiTopicPDF, type ShingiThemeDetail } from "./pdf-shingi";
 import { generateCoverCardImage, generateSummaryCardImage, generateWeeklyCardHeroImage } from "./social-image";
 import { postArticleToSocial } from "./meta";
@@ -827,11 +827,24 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
     };
   });
 
-  // 議事録ラジオは週刊カルーセルには乗らず公開時に個別配信されるため、内訳の3段目として
-  // 件数だけ知らせる（全員共通の値なので受信者ループの外で1回だけ数える）
-  const audioBriefingCount = await prisma.articleAudioBriefing.count({
+  // 議事録ラジオは個別配信をやめ、週刊ヨミトクのカルーセルに記事カードと一緒に乗せる
+  // （水曜の通知とは別タイミングで届くと事故に見えるため、まとめて1回にした）
+  const weekAudioBriefings = await prisma.articleAudioBriefing.findMany({
     where: { status: "PUBLISHED", publishedAt: { gte: since } },
+    include: { siteDocument: { select: { tags: true } } },
+    orderBy: { publishedAt: "desc" },
   });
+  // heroImageUrlは公開時（publishArticleAudioBriefing）に必ず生成されるが、
+  // 万一欠けたままLINE Flexのhero.urlに空文字を渡すとAPIエラーになるため念のため除外する
+  const audioBriefingDocs: WeeklyAudioBriefingDoc[] = weekAudioBriefings
+    .filter((b) => !!b.heroImageUrl)
+    .map((b) => ({
+      docId: b.siteDocumentId,
+      title: b.title,
+      description: b.description,
+      heroImageUrl: b.heroImageUrl!,
+      tags: (b.siteDocument?.tags as string[] | undefined) ?? [],
+    }));
 
   let sentTo = 0;
   for (const recipient of recipients) {
@@ -841,6 +854,10 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
       recipientTagKeys.length === 0
         ? cardDocs
         : cardDocs.filter((c) => c.tags.some((t) => recipientTagKeys.includes(t)));
+    const audioBriefingsToSend =
+      recipientTagKeys.length === 0
+        ? audioBriefingDocs
+        : audioBriefingDocs.filter((b) => b.tags.some((t) => recipientTagKeys.includes(t)));
 
     try {
       const messageId = await pushWeeklyDigestCards(
@@ -848,7 +865,7 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
         weekLabel,
         weekDocs.length,
         cardsToSend,
-        audioBriefingCount
+        audioBriefingsToSend
       );
       await prisma.messageSend.create({
         data: {

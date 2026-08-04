@@ -3,8 +3,8 @@ import { publishArticleAudioBriefing } from "@/lib/audio-briefing";
 
 export const maxDuration = 120;
 
-// 音声合成（ローカルVOICEVOX作業）が終わった議事録ラジオ解説を公開し、
-// 対象記事のタグにマッチするLINE購読者へ配信する。
+// 音声合成（ローカルVOICEVOX作業）が終わった議事録ラジオ解説を公開する。
+// LINE配信はここでは行わず、次回の週刊ヨミトク送信（水曜）でカルーセルに自動的に乗る。
 // audioUrlはVercel Blobに事前アップロード済みのものを渡す想定。
 export async function POST(req: NextRequest) {
   const auth = req.headers.get("x-admin-secret");

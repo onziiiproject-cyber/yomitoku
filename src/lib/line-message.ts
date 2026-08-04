@@ -45,6 +45,14 @@ export interface WeeklyCardDoc {
   shingiVariant: string | null;
 }
 
+export interface WeeklyAudioBriefingDoc {
+  docId: string;
+  title: string;
+  description: string;
+  heroImageUrl: string;
+  tags: string[];
+}
+
 const WEEKLY_SOURCE_BADGE: Record<string, { label: string; color: string }> = {
   mhlw_latest: { label: "介護保険最新情報", color: "#0D686E" },
   shingi: { label: "分科会かんたん解説", color: "#B45309" },
@@ -59,8 +67,7 @@ function weeklySourceBreakdown(docs: WeeklyCardDoc[], audioBriefingCount: number
     { label: WEEKLY_SOURCE_BADGE.mhlw_latest.label, count: mhlwCount },
     { label: "分科会かんたん解説（資料版）", count: materialsCount },
     { label: "分科会かんたん解説（議事録版）", count: minutesCount },
-    // 議事録ラジオは週刊カルーセルには乗らず公開時に個別配信されるため、docsではなく
-    // ArticleAudioBriefing側から件数を渡してもらい、内訳の最後に表示する。
+    // 議事録ラジオはdocsに含まれないため、カルーセルに乗せる件数をそのまま内訳にも使う。
     { label: "分科会議事録ラジオ", count: audioBriefingCount },
   ];
 }
@@ -246,12 +253,70 @@ function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string): messagingApi.Flex
   } as messagingApi.FlexBubble;
 }
 
-function weeklyCarouselFlex(docs: WeeklyCardDoc[], appUrl: string): messagingApi.FlexMessage {
-  const bubbles = docs.slice(0, 10).map((d) => weeklyCardBubble(d, appUrl));
+// LINE Flexカルーセルの上限は12枚。うち1枚は「すべて見る」カード用に確保しておき、
+// コンテンツ（記事＋ラジオ）は最大11枚までとする。
+const CAROUSEL_CONTENT_CAP = 11;
+
+function weeklySeeAllBubble(appUrl: string, overflowCount: number): messagingApi.FlexBubble {
   return {
-    type: "flex",
-    altText: `【週刊ヨミトク】今週の記事一覧（${docs.length}件）`,
-    contents: { type: "carousel", contents: bubbles },
+    type: "bubble",
+    size: "kilo",
+    body: {
+      type: "box",
+      layout: "vertical",
+      justifyContent: "center",
+      alignItems: "center",
+      paddingAll: "20px",
+      action: { type: "uri", uri: `${appUrl}/base` },
+      contents: [
+        {
+          type: "text",
+          text: overflowCount > 0 ? `ほか${overflowCount}件` : "すべて見る",
+          weight: "bold",
+          size: "lg",
+          color: "#0D686E",
+          align: "center",
+        } as messagingApi.FlexText,
+        {
+          type: "text",
+          text: "編集室で今週の記事をまとめて見る →",
+          size: "sm",
+          color: "#666666",
+          align: "center",
+          wrap: true,
+          margin: "md",
+        } as messagingApi.FlexText,
+      ],
+    } as messagingApi.FlexBox,
+  } as messagingApi.FlexBubble;
+}
+
+function weeklyCarouselFlex(
+  docs: WeeklyCardDoc[],
+  appUrl: string,
+  audioBriefings: WeeklyAudioBriefingDoc[]
+): { message: messagingApi.FlexMessage; adoptedAudioCount: number } {
+  // 議事録ラジオは個別配信をやめ、週刊ヨミトクのカルーセルに記事カードと一緒に並べて配信する
+  // （水曜の週刊通知とは別タイミングでLINEが届くと「事故っぽく」見えるため、まとめて1回にした）。
+  // ラジオは週数本で安定、記事は週によって変動が大きいため、11枚の上限に収まりきらない時は
+  // 変動の大きい記事側から溢れるよう、ラジオを先頭に並べる。
+  const audioBubbles = audioBriefings.map((b) =>
+    audioBriefingBubble({ docId: b.docId, briefingTitle: b.title, description: b.description, heroImageUrl: b.heroImageUrl, appUrl })
+  );
+  const articleBubbles = docs.map((d) => weeklyCardBubble(d, appUrl));
+  const combined = [...audioBubbles, ...articleBubbles];
+  const shown = combined.slice(0, CAROUSEL_CONTENT_CAP);
+  const overflowCount = combined.length - shown.length;
+  const adoptedAudioCount = Math.min(audioBubbles.length, shown.length);
+  const bubbles = [...shown, weeklySeeAllBubble(appUrl, overflowCount)];
+
+  return {
+    message: {
+      type: "flex",
+      altText: `【週刊ヨミトク】今週の記事一覧（${docs.length + audioBriefings.length}件）`,
+      contents: { type: "carousel", contents: bubbles },
+    },
+    adoptedAudioCount,
   };
 }
 
@@ -552,28 +617,6 @@ function audioBriefingBubble(params: {
   } as messagingApi.FlexBubble;
 }
 
-// 議事録ラジオ解説が公開された時に、対象記事のタグにマッチする購読者へ配信する。
-// 週刊ヨミトクのカードと同じFlexカード形式・同じタグマッチング基準に揃える。
-// 記事自体はログイン必須なので、リンク先で自然にログインが求められる。
-export async function pushAudioBriefingReady(
-  lineUserId: string,
-  params: { docId: string; briefingTitle: string; description: string; heroImageUrl: string }
-): Promise<string> {
-  const client = getClient();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
-  const res = await client.pushMessage({
-    to: lineUserId,
-    messages: [
-      {
-        type: "flex",
-        altText: `🎙 議事録ラジオ解説「${params.briefingTitle}」が公開されました`,
-        contents: audioBriefingBubble({ ...params, appUrl }),
-      },
-    ],
-  });
-  return res.sentMessages?.[0]?.id ?? "";
-}
-
 export async function pushWeeklyNoNewsWithPodcast(
   lineUserId: string,
   weekLabel: string,
@@ -590,13 +633,18 @@ export async function pushWeeklyDigestCards(
   weekLabel: string,
   docCount: number,
   docs: WeeklyCardDoc[],
-  audioBriefingCount: number
+  audioBriefings: WeeklyAudioBriefingDoc[]
 ): Promise<string> {
   const client = getClient();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
 
-  const lead = weeklyLeadFlex(weekLabel, docs, docCount, audioBriefingCount);
-  const carousel = docs.length > 0 ? weeklyCarouselFlex(docs, appUrl) : weeklyNoMatchFlex(weekLabel, appUrl);
+  // リード文の内訳件数は、カルーセルへ実際に採用された件数と一致させる
+  // （切り詰められて0件と表示ズレを起こさないように、weeklyCarouselFlexの結果から取る）
+  const carouselResult = docs.length > 0 || audioBriefings.length > 0 ? weeklyCarouselFlex(docs, appUrl, audioBriefings) : null;
+  const adoptedAudioCount = carouselResult?.adoptedAudioCount ?? 0;
+
+  const lead = weeklyLeadFlex(weekLabel, docs, docCount, adoptedAudioCount);
+  const carousel = carouselResult?.message ?? weeklyNoMatchFlex(weekLabel, appUrl);
 
   const res = await client.pushMessage({ to: lineUserId, messages: [lead, carousel] });
   return res.sentMessages?.[0]?.id ?? "";

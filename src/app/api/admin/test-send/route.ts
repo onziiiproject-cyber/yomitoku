@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { pushWeeklyDigestCards, type WeeklyCardDoc } from "@/lib/line-message";
+import { pushWeeklyDigestCards, type WeeklyCardDoc, type WeeklyAudioBriefingDoc } from "@/lib/line-message";
 import { generateWeeklyCardHeroImage } from "@/lib/social-image";
 import { put } from "@vercel/blob";
 import type { StructuredContent } from "@/lib/anthropic";
@@ -30,15 +30,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `LineRecipient not found for lineUserId=${lineUserId}` }, { status: 404 });
   }
 
-  // DBから直近ドキュメントを取得（本番の週刊ダイジェストと同じ条件。
-  // publishedAtがない記事は記事詳細ページが404を返すため除外する）
+  // DBから直近ドキュメントを取得（本番の週刊ダイジェスト runWeeklyDigest と全く同じ条件・並び順。
+  // 以前はimportance desc（文字列の辞書順ソートで"normal"が"high"より上に来てしまうバグ）＋
+  // 直近7日フィルタなしのtake:8だったため、本番では届くはずの記事がテストでは0件に見えることがあった）
+  const since = new Date();
+  since.setDate(since.getDate() - 7);
   const docs = await prisma.siteDocument.findMany({
-    where: { summary: { not: null }, publishedAt: { not: null } },
-    orderBy: [{ importance: "desc" }, { createdAt: "desc" }],
-    take: 8,
+    where: { publishedAt: { gte: since }, summary: { not: null } },
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
   });
 
-  if (docs.length === 0) {
+  const weekAudioBriefings = await prisma.articleAudioBriefing.findMany({
+    where: { status: "PUBLISHED", publishedAt: { gte: since } },
+    include: { siteDocument: { select: { tags: true } } },
+    orderBy: { publishedAt: "desc" },
+  });
+  const audioBriefingDocs: WeeklyAudioBriefingDoc[] = weekAudioBriefings
+    .filter((b) => !!b.heroImageUrl)
+    .map((b) => ({
+      docId: b.siteDocumentId,
+      title: b.title,
+      description: b.description,
+      heroImageUrl: b.heroImageUrl!,
+      tags: (b.siteDocument?.tags as string[] | undefined) ?? [],
+    }));
+
+  if (docs.length === 0 && audioBriefingDocs.length === 0) {
     return NextResponse.json({ error: "No documents in DB yet" }, { status: 400 });
   }
 
@@ -71,10 +88,8 @@ export async function POST(req: NextRequest) {
     })
   );
 
-  const audioBriefingCount = await prisma.articleAudioBriefing.count({ where: { status: "PUBLISHED" } });
-
   try {
-    await pushWeeklyDigestCards(lineUserId, "テスト", cardDocs.length, cardDocs, audioBriefingCount);
+    await pushWeeklyDigestCards(lineUserId, "テスト", cardDocs.length, cardDocs, audioBriefingDocs);
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
   }
