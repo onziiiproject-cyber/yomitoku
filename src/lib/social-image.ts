@@ -215,20 +215,24 @@ export async function generateSummaryCardImage(params: {
 const CARD_ICON_PATH: Record<string, string> = {
   mhlw_latest: path.join(process.cwd(), "public/LP_sozai/assets/icons/icon-document.png"),
   shingi: path.join(process.cwd(), "public/LP_sozai/assets/icons/icon-lightbulb.png"),
+  shingiMaterials: path.join(process.cwd(), "public/LP_sozai/assets/icons/icon-lightbulb.png"),
 };
 const CARD_CHARACTER_PATH: Record<string, string> = {
   mhlw_latest: path.join(process.cwd(), "public/LP_sozai/assets/mascot/misugray-clipboard.png"),
-  shingi: path.join(process.cwd(), "public/LP_sozai/assets/mascot/gori-thinking.png"),
+  shingi: path.join(process.cwd(), "public/LP_sozai/assets/mascot/gori-thumbsup.png"),
+  shingiMaterials: path.join(process.cwd(), "public/LP_sozai/assets/mascot/gori-laptop.png"),
 };
 const CARD_BG_PATH: Record<string, string> = {
   mhlw_latest: path.join(process.cwd(), "public/LP_sozai/assets/backgrounds/card-bg-green.png"),
   shingi: path.join(process.cwd(), "public/LP_sozai/assets/backgrounds/card-bg-blue.png"),
+  shingiMaterials: path.join(process.cwd(), "public/LP_sozai/assets/backgrounds/card-bg-orange.png"),
 };
 // ユーザー提供モックアップから実測した色（既存のSRC_LABELはSNS投稿用カードと共有のため、
 // ここでは別テーマとして定義し他のカード種別に影響させない）
 const WEEKLY_HERO_COLOR: Record<string, string> = {
   mhlw_latest: "#1E6F4A",
   shingi: "#1D4B98",
+  shingiMaterials: "#B45309",
 };
 
 function starPolygonPoints(cx: number, cy: number, rOuter: number, rInner: number): string {
@@ -278,13 +282,15 @@ export async function generateWeeklyCardHeroImage(params: {
   decisionStatus?: string | null;
   importanceStars: number | null;
   urgencyStars: number | null;
+  shingiVariant?: string | null;
 }): Promise<Buffer> {
   ensureFontconfig();
+  const themeKey = params.source === "shingi" && params.shingiVariant === "materials" ? "shingiMaterials" : params.source;
   const src = SRC_LABEL[params.source] ?? { label: params.source, color: "#374151", bg: "#F3F4F6" };
-  const heroColor = WEEKLY_HERO_COLOR[params.source] ?? src.color;
-  const iconPath = CARD_ICON_PATH[params.source];
-  const characterPath = CARD_CHARACTER_PATH[params.source];
-  const bgPath = CARD_BG_PATH[params.source];
+  const heroColor = WEEKLY_HERO_COLOR[themeKey] ?? src.color;
+  const iconPath = CARD_ICON_PATH[themeKey];
+  const characterPath = CARD_CHARACTER_PATH[themeKey];
+  const bgPath = CARD_BG_PATH[themeKey];
   const decisionBadge = params.decisionStatus ? DECISION_STATUS_BADGE[params.decisionStatus] : null;
 
   const HERO_H = 780;
@@ -302,6 +308,9 @@ export async function generateWeeklyCardHeroImage(params: {
   // 太字34pxの日本語は1文字あたり約38px（実測ベース）。狭く見積もるとバッジ枠からテキストがはみ出す。
   const typeBadgeWidth = src.label.length * 38 + 130;
   const decisionBadgeWidth = decisionBadge ? decisionBadge.label.length * 32 + 70 : 0;
+  const variantLabel = params.shingiVariant === "minutes" ? "議事録版" : params.shingiVariant === "materials" ? "資料版" : null;
+  const variantBadgeWidth = variantLabel ? variantLabel.length * 30 + 56 : 0;
+  const variantBadgeY = 60 + 96 + 18;
 
   const titleLines = wrapText(params.title, 13, 3);
   const titleTspans = titleLines
@@ -327,7 +336,14 @@ export async function generateWeeklyCardHeroImage(params: {
         : ""
     }
 
-    <text x="60" y="280" font-family="${FONT}" font-size="62" font-weight="900" fill="#14171f">${titleTspans}</text>
+    ${
+      variantLabel
+        ? `<rect x="60" y="${variantBadgeY}" width="${variantBadgeWidth}" height="60" rx="12" fill="${heroColor}" stroke="#ffffff" stroke-width="2.5" />
+           <text x="${60 + variantBadgeWidth / 2}" y="${variantBadgeY + 40}" font-family="${FONT}" font-size="26" font-weight="800" fill="#ffffff" text-anchor="middle">${escapeXml(variantLabel)}</text>`
+        : ""
+    }
+
+    <text x="60" y="${variantLabel ? 356 : 280}" font-family="${FONT}" font-size="62" font-weight="900" fill="#14171f">${titleTspans}</text>
 
     ${characterDataUri ? `<image href="${characterDataUri}" x="${W - CHAR_W - 40}" y="${HERO_H - CHAR_H}" width="${CHAR_W}" height="${CHAR_H}" />` : ""}
 
@@ -373,13 +389,13 @@ export async function generateAudioBriefingHeroImage(params: {
   ensureFontconfig();
 
   const HERO_H = 780;
-  const CHAR_W = 580;
-  const CHAR_H = 387;
+  const CHAR_W = 700;
+  const CHAR_H = 467;
 
   const bgDataUri = `data:image/png;base64,${(await sharp(readFileSync(AUDIO_BRIEFING_BG_PATH)).resize(W, HERO_H, { fit: "cover" }).png().toBuffer()).toString("base64")}`;
   const characterDataUri = `data:image/png;base64,${(await sharp(readFileSync(AUDIO_BRIEFING_CHARACTER_PATH)).trim().resize(CHAR_W, CHAR_H, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()).toString("base64")}`;
 
-  const badgeLabel = "分科会議事録ラジオ";
+  const badgeLabel = "分科会かんたん音声解説";
   const typeBadgeWidth = badgeLabel.length * 34 + 130;
 
   const titleLines = wrapText(params.title, 13, 3);
@@ -388,8 +404,8 @@ export async function generateAudioBriefingHeroImage(params: {
     .join("");
 
   const durationLabel = formatHeroDuration(params.durationSec);
-  const durationBadgeY = HERO_H - 64 - 116;
-  const durationBadgeWidth = 320;
+  const durationBadgeY = HERO_H - 64 - 100;
+  const durationBadgeWidth = 300;
 
   const svg = `<svg width="${W}" height="${HERO_H}" xmlns="http://www.w3.org/2000/svg">
     <image href="${bgDataUri}" x="0" y="0" width="${W}" height="${HERO_H}" />
@@ -401,11 +417,11 @@ export async function generateAudioBriefingHeroImage(params: {
 
     <text x="60" y="280" font-family="${FONT}" font-size="62" font-weight="900" fill="#14171f">${titleTspans}</text>
 
-    <rect x="60" y="${durationBadgeY}" width="${durationBadgeWidth}" height="116" rx="20" fill="rgba(255,255,255,0.95)" />
-    <circle cx="${60 + 54}" cy="${durationBadgeY + 58}" r="27" fill="#ffffff" stroke="${AUDIO_BRIEFING_COLOR}" stroke-width="3" />
-    ${clockIconSvg(60 + 54, durationBadgeY + 58, AUDIO_BRIEFING_COLOR)}
-    <text x="${60 + 100}" y="${durationBadgeY + 42}" font-family="${FONT}" font-size="22" fill="#888888">音声の長さ</text>
-    <text x="${60 + 100}" y="${durationBadgeY + 92}" font-family="${FONT}" font-size="44" font-weight="800" fill="#14171f">${escapeXml(durationLabel)}</text>
+    <rect x="60" y="${durationBadgeY}" width="${durationBadgeWidth}" height="100" rx="20" fill="rgba(255,255,255,0.95)" />
+    <circle cx="${60 + 50}" cy="${durationBadgeY + 50}" r="24" fill="#ffffff" stroke="${AUDIO_BRIEFING_COLOR}" stroke-width="3" />
+    ${clockIconSvg(60 + 50, durationBadgeY + 50, AUDIO_BRIEFING_COLOR)}
+    <text x="${60 + 92}" y="${durationBadgeY + 40}" font-family="${FONT}" font-size="22" fill="#888888">音声の長さ</text>
+    <text x="${60 + 92}" y="${durationBadgeY + 76}" font-family="${FONT}" font-size="32" font-weight="800" fill="#14171f">${escapeXml(durationLabel)}</text>
 
     <image href="${characterDataUri}" x="${W - CHAR_W - 20}" y="${HERO_H - CHAR_H}" width="${CHAR_W}" height="${CHAR_H}" />
   </svg>`;

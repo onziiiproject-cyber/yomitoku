@@ -801,6 +801,7 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
         decisionStatus: d.decisionStatus,
         importanceStars: sc?.importanceStars ?? null,
         urgencyStars: sc?.urgencyStars ?? null,
+        shingiVariant: d.shingiVariant,
       });
       const blob = await put(`weekly/${d.id}-hero-${Date.now()}.png`, buffer, { access: "public", contentType: "image/png" });
       return [d.id, blob.url] as const;

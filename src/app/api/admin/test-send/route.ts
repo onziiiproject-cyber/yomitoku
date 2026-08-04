@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
         decisionStatus: d.decisionStatus,
         importanceStars: sc?.importanceStars ?? null,
         urgencyStars: sc?.urgencyStars ?? null,
+        shingiVariant: d.shingiVariant,
       });
       const heroBlob = await put(`weekly/test-${d.id}-hero-${Date.now()}.png`, heroBuffer, { access: "public", contentType: "image/png" });
       return {
