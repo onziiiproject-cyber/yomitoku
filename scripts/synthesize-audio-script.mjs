@@ -4,10 +4,14 @@
  *
  * 事前にVOICEVOX（エンジン）を起動しておくこと。ffmpeg/ffprobeも必要。
  *
+ * 放送室と議事録ラジオ解説は別セッションで作業しているため、種別の取り違えを防ぐべく
+ * --kind か --id のどちらかを必ず指定させる（引数なしで別種別を拾わせない）。
+ *
  * Usage:
- *   npx tsx scripts/synthesize-audio-script.mjs                    # 最新のDRAFT台本を合成
- *   npx tsx scripts/synthesize-audio-script.mjs --id <id>          # ID指定（status不問）
- *   npx tsx scripts/synthesize-audio-script.mjs --out <dir>        # 出力先（既定: ./tmp/audio）
+ *   npx tsx scripts/synthesize-audio-script.mjs --kind radio       # 最新のDRAFT放送室台本を合成
+ *   npx tsx scripts/synthesize-audio-script.mjs --kind briefing    # 最新のDRAFT議事録ラジオ解説を合成
+ *   npx tsx scripts/synthesize-audio-script.mjs --id <id>          # ID指定（status不問・種別自動判別）
+ *   npx tsx scripts/synthesize-audio-script.mjs --kind radio --out <dir>  # 出力先（既定: ./tmp/audio）
  *
  * 出力:
  *   <out>/<タイトル>.mp3        音声本体
@@ -40,7 +44,18 @@ const getOpt = (name) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const targetId = getOpt("--id");
+const kind = getOpt("--kind");
 const outDir = path.resolve(getOpt("--out") ?? path.join(ROOT, "tmp/audio"));
+
+if (!targetId && !kind) {
+  console.error("--kind radio（放送室）か --kind briefing（議事録ラジオ解説）、または --id を指定してください。");
+  console.error("種別の取り違えを防ぐため、引数なしでの自動選択はしません。");
+  process.exit(1);
+}
+if (kind && !["radio", "briefing"].includes(kind)) {
+  console.error(`--kind は radio か briefing を指定してください: ${kind}`);
+  process.exit(1);
+}
 
 const versionRes = await fetch(`${ENGINE}/version`).catch(() => null);
 if (!versionRes?.ok) {
@@ -50,12 +65,17 @@ if (!versionRes?.ok) {
 
 const { prisma } = await import("../src/lib/prisma.ts");
 
-// 放送室・議事録ラジオ解説のどちらでも同じ形式（[{speaker, text}]）なので両方から探す
+// 放送室・議事録ラジオ解説のどちらでも同じ形式（[{speaker, text}]）。
+// --kind 指定時はその種別だけを見る。--id 指定時のみ、どちらのテーブルかを自動判別する
 async function findTarget() {
   const where = targetId ? { id: targetId } : { status: "DRAFT" };
   const order = { createdAt: "desc" };
-  const ep = await prisma.podcastEpisode.findFirst({ where, orderBy: order });
-  if (ep) return { kind: "放送室", item: ep };
+
+  if (kind !== "briefing") {
+    const ep = await prisma.podcastEpisode.findFirst({ where, orderBy: order });
+    if (ep) return { kind: "放送室", item: ep };
+    if (kind === "radio") return null;
+  }
   const br = await prisma.articleAudioBriefing.findFirst({ where, orderBy: order });
   if (br) return { kind: "議事録解説", item: br };
   return null;
@@ -65,12 +85,14 @@ const target = await findTarget();
 await prisma.$disconnect();
 
 if (!target) {
-  console.error(targetId ? `台本が見つかりません: ${targetId}` : "未収録（DRAFT）の台本はありません。");
+  const label = kind === "radio" ? "放送室" : kind === "briefing" ? "議事録ラジオ解説" : "";
+  console.error(targetId ? `台本が見つかりません: ${targetId}` : `未収録（DRAFT）の${label}台本はありません。`);
   process.exit(1);
 }
 
-const { kind, item } = target;
-console.log(`${kind}: ${item.title}（${item.script.length}行）`);
+// 引数の --kind と名前が衝突するため、出力ラベル側は kindLabel で受ける
+const { kind: kindLabel, item } = target;
+console.log(`${kindLabel}: ${item.title}（${item.script.length}行）`);
 
 fs.mkdirSync(outDir, { recursive: true });
 const work = fs.mkdtempSync(path.join(outDir, ".synth-"));
@@ -106,7 +128,7 @@ try {
   const listFile = path.join(work, "list.txt");
   fs.writeFileSync(listFile, wavs.map((f) => `file '${f}'`).join("\n"), "utf8");
 
-  const mp3 = path.join(outDir, `${kind}_${safeTitle}.mp3`);
+  const mp3 = path.join(outDir, `${kindLabel}_${safeTitle}.mp3`);
   execFileSync("ffmpeg", ["-y", "-f", "concat", "-safe", "0", "-i", listFile,
     "-ar", "44100", "-ac", "1", "-b:a", "128k", mp3], { stdio: "pipe" });
 
@@ -114,7 +136,7 @@ try {
     ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", mp3],
     { encoding: "utf8" }).trim()));
 
-  const kanaFile = path.join(outDir, `${kind}_${safeTitle}_カナ.txt`);
+  const kanaFile = path.join(outDir, `${kindLabel}_${safeTitle}_カナ.txt`);
   fs.writeFileSync(kanaFile, kana.join("\n") + "\n", "utf8");
 
   console.log(`\nmp3      : ${mp3}`);

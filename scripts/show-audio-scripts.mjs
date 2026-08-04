@@ -3,8 +3,11 @@
  * 台本はファイルではなくDB（PodcastEpisode.script / ArticleAudioBriefing.script）にしか
  * 存在しないため、収録前のレビューはこのスクリプトで行う。
  *
+ * 放送室と議事録ラジオ解説は別セッションで作業しているため、--kind で扱う種別を絞れる。
+ *
  * Usage:
- *   npx tsx scripts/show-audio-scripts.mjs                 # DRAFTの台本を全文表示
+ *   npx tsx scripts/show-audio-scripts.mjs                 # DRAFTの台本を全文表示（両方の種別）
+ *   npx tsx scripts/show-audio-scripts.mjs --kind radio    # 放送室だけ（briefing で議事録ラジオ解説だけ）
  *   npx tsx scripts/show-audio-scripts.mjs --all           # PUBLISHED済みも含める
  *   npx tsx scripts/show-audio-scripts.mjs --id <id>       # ID指定（statusを問わない）
  *   npx tsx scripts/show-audio-scripts.mjs --out <dir>     # VOICEVOX読み込み用テキストも書き出す
@@ -44,16 +47,22 @@ const getOpt = (name) => {
 const targetId = getOpt("--id");
 const showAll = hasFlag("--all");
 const outDir = getOpt("--out");
+const kind = getOpt("--kind");
+
+if (kind && !["radio", "briefing"].includes(kind)) {
+  console.error(`--kind は radio（放送室）か briefing（議事録ラジオ解説）を指定してください: ${kind}`);
+  process.exit(1);
+}
 
 const statusFilter = targetId || showAll ? {} : { status: "DRAFT" };
 
-const episodes = await prisma.podcastEpisode.findMany({
+const episodes = kind === "briefing" ? [] : await prisma.podcastEpisode.findMany({
   where: targetId ? { id: targetId } : statusFilter,
   orderBy: { createdAt: "desc" },
   include: { sourceDoc: { select: { title: true, url: true } } },
 });
 
-const briefings = await prisma.articleAudioBriefing.findMany({
+const briefings = kind === "radio" ? [] : await prisma.articleAudioBriefing.findMany({
   where: targetId ? { id: targetId } : statusFilter,
   orderBy: { createdAt: "desc" },
   include: { siteDocument: { select: { title: true, url: true } } },
