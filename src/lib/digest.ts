@@ -227,6 +227,24 @@ export async function processShingiSession(doc: {
     errors.push(`資料ページ取得失敗 "${doc.title.slice(0, 30)}": ${e}`);
   }
 
+  // テーマ数が多いセッションはClaude呼び出しの合計時間がVercelの関数タイムアウトを超える
+  // ことがあり、その場合は途中までしか処理されない。再実行時に完了済みテーマを重複生成・
+  // 重複SNS投稿しないよう、既に資料版が存在するテーマ番号は除外する。
+  const doneThemeNos = new Set(
+    doc.shingiSessionNo != null
+      ? (
+          await prisma.siteDocument.findMany({
+            where: { source: "shingi", shingiVariant: "materials", shingiSessionNo: doc.shingiSessionNo },
+            select: { themeNo: true },
+          })
+        ).map((d) => d.themeNo)
+      : []
+  );
+  // doc.id（pendingキューのプレースホルダー行）が前回の途中実行で既にいずれかのテーマに
+  // 使われてしまっている場合、そのidはもう「空き」ではないので新規作成側に回す。
+  const placeholderDoc = await prisma.siteDocument.findUnique({ where: { id: doc.id }, select: { summary: true } });
+  let placeholderAvailable = placeholderDoc?.summary == null;
+
   let count = 0;
 
   // 【資料N】形式の個別PDFが見つからない場合（フォーマット崩れ等の想定外パターン）は、
@@ -235,21 +253,24 @@ export async function processShingiSession(doc: {
   if (materials.length === 0) {
     const pdfData = await buildShingiPDFData(doc.title, doc.rawText, doc.url);
     for (const detail of pdfData.theme_details) {
+      if (doneThemeNos.has(detail.no)) continue;
       try {
         const themeText = buildShingiThemeText(detail);
         const analysis = await analyzeGrounded(detail.name, themeText);
         if (analysis.tooLarge) continue; // テキストのみのフォールバックでは通常発生しない
+        const useAsPlaceholder = placeholderAvailable;
         await saveShingiTheme({
           doc,
           themeNo: detail.no,
           title: detail.name,
           rawText: themeText,
-          isFirst: count === 0,
+          isFirst: useAsPlaceholder,
           shingiSessionNo: doc.shingiSessionNo,
           shingiVariant: "materials",
           result: analysis.result,
           structured: analysis.structured,
         });
+        if (useAsPlaceholder) placeholderAvailable = false;
         count++;
       } catch (e) {
         errors.push(`Shingi theme failed "${detail.name}": ${e}`);
@@ -259,6 +280,7 @@ export async function processShingiSession(doc: {
   }
 
   for (const material of materials) {
+    if (doneThemeNos.has(material.no)) continue;
     try {
       const pdfBase64 = await fetchPdfBase64(material.url, material.title.slice(0, 40));
       if (!pdfBase64) {
@@ -272,17 +294,19 @@ export async function processShingiSession(doc: {
         continue;
       }
 
+      const useAsPlaceholder = placeholderAvailable;
       await saveShingiTheme({
         doc,
         themeNo: material.no,
         title: material.title,
         rawText: `${material.title}（資料PDF: ${material.url}）`,
-        isFirst: count === 0,
+        isFirst: useAsPlaceholder,
         shingiSessionNo: doc.shingiSessionNo,
         shingiVariant: "materials",
         result: analysis.result,
         structured: analysis.structured,
       });
+      if (useAsPlaceholder) placeholderAvailable = false;
       count++;
     } catch (e) {
       errors.push(`Shingi theme failed "${material.title}": ${e}`);
@@ -320,6 +344,26 @@ export async function processShingiMinutes(doc: {
     return { count: 0, errors };
   }
 
+  // テーマ数が多いセッションはClaude呼び出しの合計時間がVercelの関数タイムアウトを
+  // 超えることがあり、その場合は途中までしか処理されない。再実行時に完了済みテーマを
+  // 重複生成・重複SNS投稿しないよう、既に議事録版が存在するテーマは除外する。
+  const doneThemeNos = new Set(
+    (
+      await prisma.siteDocument.findMany({
+        where: { source: "shingi", shingiVariant: "minutes", shingiSessionNo: doc.shingiSessionNo },
+        select: { themeNo: true },
+      })
+    ).map((d) => d.themeNo)
+  );
+  const pendingThemes = materialThemes.filter((t) => !doneThemeNos.has(t.themeNo));
+  if (pendingThemes.length === 0) {
+    return { count: 0, errors };
+  }
+  // doc.id（pendingキューのプレースホルダー行）が前回の途中実行で既にいずれかのテーマに
+  // 使われてしまっている場合、そのidはもう「空き」ではないので新規作成側に回す。
+  const placeholderDoc = await prisma.siteDocument.findUnique({ where: { id: doc.id }, select: { summary: true } });
+  let placeholderAvailable = placeholderDoc?.summary == null;
+
   let minutesPdfUrl: string | null = null;
   try {
     const html = await (await fetch(doc.url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; YomitokuBot/1.0)" } })).text();
@@ -339,7 +383,7 @@ export async function processShingiMinutes(doc: {
   }
 
   let count = 0;
-  for (const theme of materialThemes) {
+  for (const theme of pendingThemes) {
     try {
       const title = `${theme.title}（議事録より）`;
       const analysis = await analyzeGrounded(
@@ -352,17 +396,19 @@ export async function processShingiMinutes(doc: {
         continue;
       }
 
+      const useAsPlaceholder = placeholderAvailable;
       const savedId = await saveShingiTheme({
         doc,
         themeNo: theme.themeNo,
         title,
         rawText: `${title}（議事録PDF: ${minutesPdfUrl}）`,
-        isFirst: count === 0,
+        isFirst: useAsPlaceholder,
         shingiSessionNo: doc.shingiSessionNo,
         shingiVariant: "minutes",
         result: analysis.result,
         structured: analysis.structured,
       });
+      if (useAsPlaceholder) placeholderAvailable = false;
       count++;
 
       // 議事録版記事に紐づく音声解説（議事録ラジオ解説）の台本も同時に用意する。
