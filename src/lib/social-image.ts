@@ -373,13 +373,13 @@ export async function generateAudioBriefingHeroImage(params: {
   ensureFontconfig();
 
   const HERO_H = 780;
-  const CHAR_W = 700;
-  const CHAR_H = 467;
+  const CHAR_W = 580;
+  const CHAR_H = 387;
 
   const bgDataUri = `data:image/png;base64,${(await sharp(readFileSync(AUDIO_BRIEFING_BG_PATH)).resize(W, HERO_H, { fit: "cover" }).png().toBuffer()).toString("base64")}`;
   const characterDataUri = `data:image/png;base64,${(await sharp(readFileSync(AUDIO_BRIEFING_CHARACTER_PATH)).trim().resize(CHAR_W, CHAR_H, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()).toString("base64")}`;
 
-  const badgeLabel = "分科会かんたん音声解説";
+  const badgeLabel = "分科会議事録ラジオ";
   const typeBadgeWidth = badgeLabel.length * 34 + 130;
 
   const titleLines = wrapText(params.title, 13, 3);
@@ -388,8 +388,8 @@ export async function generateAudioBriefingHeroImage(params: {
     .join("");
 
   const durationLabel = formatHeroDuration(params.durationSec);
-  const durationBadgeY = HERO_H - 64 - 100;
-  const durationBadgeWidth = 300;
+  const durationBadgeY = HERO_H - 64 - 116;
+  const durationBadgeWidth = 320;
 
   const svg = `<svg width="${W}" height="${HERO_H}" xmlns="http://www.w3.org/2000/svg">
     <image href="${bgDataUri}" x="0" y="0" width="${W}" height="${HERO_H}" />
@@ -401,11 +401,11 @@ export async function generateAudioBriefingHeroImage(params: {
 
     <text x="60" y="280" font-family="${FONT}" font-size="62" font-weight="900" fill="#14171f">${titleTspans}</text>
 
-    <rect x="60" y="${durationBadgeY}" width="${durationBadgeWidth}" height="100" rx="20" fill="rgba(255,255,255,0.95)" />
-    <circle cx="${60 + 50}" cy="${durationBadgeY + 50}" r="24" fill="#ffffff" stroke="${AUDIO_BRIEFING_COLOR}" stroke-width="3" />
-    ${clockIconSvg(60 + 50, durationBadgeY + 50, AUDIO_BRIEFING_COLOR)}
-    <text x="${60 + 92}" y="${durationBadgeY + 40}" font-family="${FONT}" font-size="22" fill="#888888">音声の長さ</text>
-    <text x="${60 + 92}" y="${durationBadgeY + 76}" font-family="${FONT}" font-size="32" font-weight="800" fill="#14171f">${escapeXml(durationLabel)}</text>
+    <rect x="60" y="${durationBadgeY}" width="${durationBadgeWidth}" height="116" rx="20" fill="rgba(255,255,255,0.95)" />
+    <circle cx="${60 + 54}" cy="${durationBadgeY + 58}" r="27" fill="#ffffff" stroke="${AUDIO_BRIEFING_COLOR}" stroke-width="3" />
+    ${clockIconSvg(60 + 54, durationBadgeY + 58, AUDIO_BRIEFING_COLOR)}
+    <text x="${60 + 100}" y="${durationBadgeY + 42}" font-family="${FONT}" font-size="22" fill="#888888">音声の長さ</text>
+    <text x="${60 + 100}" y="${durationBadgeY + 92}" font-family="${FONT}" font-size="44" font-weight="800" fill="#14171f">${escapeXml(durationLabel)}</text>
 
     <image href="${characterDataUri}" x="${W - CHAR_W - 20}" y="${HERO_H - CHAR_H}" width="${CHAR_W}" height="${CHAR_H}" />
   </svg>`;
