@@ -42,6 +42,7 @@ interface ArticleSwiperProps {
 const SRC: Record<string, { label: string; color: string; bg: string; grad: string; coverBg: string }> = {
   mhlw_latest: { label: "介護保険最新情報", color: "#0D686E", bg: "#E8F5F1", grad: "linear-gradient(150deg,#E8F5F1 0%,#F3FBF9 100%)", coverBg: "/covers/mhlw-bg.jpg" },
   shingi:       { label: "分科会かんたん解説", color: "#B45309", bg: "#FEF3C7", grad: "linear-gradient(150deg,#FEF3C7 0%,#FFFBF0 100%)", coverBg: "/covers/shingi-bg.jpg" },
+  shingiMinutes:{ label: "分科会かんたん解説", color: "#1E3C6E", bg: "#E8F0FE", grad: "linear-gradient(150deg,#E8F0FE 0%,#F7FAFF 100%)", coverBg: "/covers/shingi-minutes-bg.jpg" },
 };
 const DEFAULT_SRC = { label: "情報", color: "#374151", bg: "#F3F4F6", grad: "linear-gradient(150deg,#F3F4F6 0%,#FAFAFA 100%)", coverBg: "" };
 
@@ -207,7 +208,8 @@ export default function ArticleSwiper(props: ArticleSwiperProps) {
     initialFavorited, initialComments, isLoggedIn, hideBackLink,
   } = props;
 
-  const src = SRC[source] ?? DEFAULT_SRC;
+  const srcKey = source === "shingi" && shingiVariant === "minutes" ? "shingiMinutes" : source;
+  const src = SRC[srcKey] ?? DEFAULT_SRC;
   const sections = structuredContent?.sections ?? [];
   const points = structuredContent?.points ?? null;
   const hookTitle = structuredContent?.hookTitle || title;
@@ -286,10 +288,10 @@ export default function ArticleSwiper(props: ArticleSwiperProps) {
                   )}
                   <span style={{ fontSize: 11, color: src.color, fontWeight: 700, background: "rgba(255,255,255,0.85)", padding: "3px 9px", borderRadius: 4, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>{src.label}</span>
                   {shingiVariant === "minutes" && (
-                    <span style={{ fontSize: 10, color: "#6D28D9", fontWeight: 800, background: "rgba(255,255,255,0.9)", padding: "3px 9px", borderRadius: 4, width: "fit-content" }}>議事録版</span>
+                    <span style={{ fontSize: 10, color: "#fff", fontWeight: 800, background: "#1E3C6E", padding: "3px 10px", borderRadius: 4, width: "fit-content", border: "1.5px solid rgba(255,255,255,0.85)", boxShadow: "0 2px 6px rgba(0,0,0,0.25)" }}>🎙️ 議事録版</span>
                   )}
                   {shingiVariant === "materials" && (
-                    <span style={{ fontSize: 10, color: "#0369A1", fontWeight: 800, background: "rgba(255,255,255,0.9)", padding: "3px 9px", borderRadius: 4, width: "fit-content" }}>資料版</span>
+                    <span style={{ fontSize: 10, color: "#fff", fontWeight: 800, background: "#B45309", padding: "3px 10px", borderRadius: 4, width: "fit-content", border: "1.5px solid rgba(255,255,255,0.85)", boxShadow: "0 2px 6px rgba(0,0,0,0.25)" }}>資料版</span>
                   )}
                   {decisionStatus === "discussion" && (
                     <span style={{ fontSize: 10, color: "#B45309", fontWeight: 800, background: "rgba(255,255,255,0.9)", padding: "3px 9px", borderRadius: 4, width: "fit-content" }}>議論中</span>
