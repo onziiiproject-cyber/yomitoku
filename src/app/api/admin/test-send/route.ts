@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
         isNew: new Date().getTime() - new Date(d.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
         decisionStatus: d.decisionStatus,
         heroImageUrl: heroBlob.url,
+        shingiVariant: d.shingiVariant,
       };
     })
   );

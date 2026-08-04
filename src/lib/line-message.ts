@@ -42,6 +42,7 @@ export interface WeeklyCardDoc {
   isNew: boolean;
   decisionStatus: string | null;
   heroImageUrl: string;
+  shingiVariant: string | null;
 }
 
 const WEEKLY_SOURCE_BADGE: Record<string, { label: string; color: string }> = {
@@ -50,18 +51,18 @@ const WEEKLY_SOURCE_BADGE: Record<string, { label: string; color: string }> = {
 };
 
 function weeklySourceBreakdown(docs: WeeklyCardDoc[], audioBriefingCount: number): { label: string; count: number }[] {
-  const counts = new Map<string, number>();
-  for (const doc of docs) {
-    counts.set(doc.source, (counts.get(doc.source) ?? 0) + 1);
-  }
-  const rows = Object.entries(WEEKLY_SOURCE_BADGE).map(([source, { label }]) => ({
-    label,
-    count: counts.get(source) ?? 0,
-  }));
-  // 議事録ラジオは週刊カルーセルには乗らず公開時に個別配信されるため、docsではなく
-  // ArticleAudioBriefing側から件数を渡してもらい、内訳の3段目として表示する。
-  rows.push({ label: "分科会議事録ラジオ", count: audioBriefingCount });
-  return rows;
+  const mhlwCount = docs.filter((d) => d.source === "mhlw_latest").length;
+  const materialsCount = docs.filter((d) => d.source === "shingi" && d.shingiVariant === "materials").length;
+  const minutesCount = docs.filter((d) => d.source === "shingi" && d.shingiVariant === "minutes").length;
+
+  return [
+    { label: WEEKLY_SOURCE_BADGE.mhlw_latest.label, count: mhlwCount },
+    { label: "分科会かんたん解説（資料版）", count: materialsCount },
+    { label: "分科会かんたん解説（議事録版）", count: minutesCount },
+    // 議事録ラジオは週刊カルーセルには乗らず公開時に個別配信されるため、docsではなく
+    // ArticleAudioBriefing側から件数を渡してもらい、内訳の最後に表示する。
+    { label: "分科会議事録ラジオ", count: audioBriefingCount },
+  ];
 }
 
 function weeklyLeadFlex(

@@ -823,6 +823,7 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
       isNew: new Date().getTime() - new Date(d.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
       decisionStatus: d.decisionStatus,
       heroImageUrl: heroImageUrlByDocId.get(d.id)!,
+      shingiVariant: d.shingiVariant,
     };
   });
 
