@@ -69,8 +69,10 @@ export async function POST(req: NextRequest) {
     })
   );
 
+  const audioBriefingCount = await prisma.articleAudioBriefing.count({ where: { status: "PUBLISHED" } });
+
   try {
-    await pushWeeklyDigestCards(lineUserId, "テスト", cardDocs.length, cardDocs);
+    await pushWeeklyDigestCards(lineUserId, "テスト", cardDocs.length, cardDocs, audioBriefingCount);
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
   }

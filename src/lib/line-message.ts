@@ -49,27 +49,32 @@ const WEEKLY_SOURCE_BADGE: Record<string, { label: string; color: string }> = {
   shingi: { label: "分科会かんたん解説", color: "#B45309" },
 };
 
-function weeklySourceBreakdown(docs: WeeklyCardDoc[]): { label: string; count: number }[] {
+function weeklySourceBreakdown(docs: WeeklyCardDoc[], audioBriefingCount: number): { label: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const doc of docs) {
     counts.set(doc.source, (counts.get(doc.source) ?? 0) + 1);
   }
-  return Object.entries(WEEKLY_SOURCE_BADGE).map(([source, { label }]) => ({
+  const rows = Object.entries(WEEKLY_SOURCE_BADGE).map(([source, { label }]) => ({
     label,
     count: counts.get(source) ?? 0,
   }));
+  // 議事録ラジオは週刊カルーセルには乗らず公開時に個別配信されるため、docsではなく
+  // ArticleAudioBriefing側から件数を渡してもらい、内訳の3段目として表示する。
+  rows.push({ label: "分科会議事録ラジオ", count: audioBriefingCount });
+  return rows;
 }
 
 function weeklyLeadFlex(
   weekLabel: string,
   docs: WeeklyCardDoc[],
-  docCount: number
+  docCount: number,
+  audioBriefingCount: number
 ): messagingApi.FlexMessage {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
   const iconUrl = `${baseUrl}/icons/icon-gori-editor.jpg`;
   const pointerImageUrl = `${baseUrl}/line/weekly-pointer.jpg`;
   const matchedCount = docs.length;
-  const breakdown = weeklySourceBreakdown(docs);
+  const breakdown = weeklySourceBreakdown(docs, audioBriefingCount);
 
   return {
     type: "flex",
@@ -583,12 +588,13 @@ export async function pushWeeklyDigestCards(
   lineUserId: string,
   weekLabel: string,
   docCount: number,
-  docs: WeeklyCardDoc[]
+  docs: WeeklyCardDoc[],
+  audioBriefingCount: number
 ): Promise<string> {
   const client = getClient();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
 
-  const lead = weeklyLeadFlex(weekLabel, docs, docCount);
+  const lead = weeklyLeadFlex(weekLabel, docs, docCount, audioBriefingCount);
   const carousel = docs.length > 0 ? weeklyCarouselFlex(docs, appUrl) : weeklyNoMatchFlex(weekLabel, appUrl);
 
   const res = await client.pushMessage({ to: lineUserId, messages: [lead, carousel] });

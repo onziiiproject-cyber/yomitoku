@@ -800,6 +800,12 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
     };
   });
 
+  // 議事録ラジオは週刊カルーセルには乗らず公開時に個別配信されるため、内訳の3段目として
+  // 件数だけ知らせる（全員共通の値なので受信者ループの外で1回だけ数える）
+  const audioBriefingCount = await prisma.articleAudioBriefing.count({
+    where: { status: "PUBLISHED", publishedAt: { gte: since } },
+  });
+
   let sentTo = 0;
   for (const recipient of recipients) {
     const recipientTagKeys = recipient.user?.tags.map((ut) => ut.tag.key) ?? [];
@@ -814,7 +820,8 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
         recipient.lineUserId,
         weekLabel,
         weekDocs.length,
-        cardsToSend
+        cardsToSend,
+        audioBriefingCount
       );
       await prisma.messageSend.create({
         data: {
