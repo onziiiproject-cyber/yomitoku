@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
   );
 
   try {
-    await pushWeeklyDigestCards(lineUserId, "テスト", cardDocs.length, cardDocs, audioBriefingDocs);
+    await pushWeeklyDigestCards(lineUserId, "テスト", cardDocs.length + audioBriefingDocs.length, cardDocs, audioBriefingDocs);
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
   }

@@ -1,9 +1,11 @@
 const TABS: { key: "mine" | "all"; label: string }[] = [
-  { key: "mine", label: "あなたにオススメの投稿一覧" },
-  { key: "all", label: "全ての投稿一覧" },
+  { key: "mine", label: "オススメ" },
+  { key: "all", label: "すべて" },
 ];
 
-export default function FeedTabs({ active }: { active: "mine" | "all" }) {
+// 週刊ダイジェスト（/digest/[batchId]）はモード切替ではなく別ページへの導線だが、
+// スマホでは右サイドバーごと非表示になり他に入り口が無いため、ここに並べて常設する。
+export default function FeedTabs({ active, latestDigestId }: { active: "mine" | "all"; latestDigestId: string | null }) {
   return (
     <div
       style={{
@@ -41,6 +43,25 @@ export default function FeedTabs({ active }: { active: "mine" | "all" }) {
           </a>
         );
       })}
+      {latestDigestId && (
+        <a
+          href={`/digest/${latestDigestId}`}
+          style={{
+            flex: 1,
+            textAlign: "center",
+            padding: "10px 12px",
+            borderRadius: 9,
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#6B8A85",
+            background: "transparent",
+            textDecoration: "none",
+            transition: "all 0.15s",
+          }}
+        >
+          週刊ダイジェスト
+        </a>
+      )}
     </div>
   );
 }

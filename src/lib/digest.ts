@@ -863,9 +863,10 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
       const messageId = await pushWeeklyDigestCards(
         recipient.lineUserId,
         weekLabel,
-        weekDocs.length,
+        weekDocs.length + audioBriefingDocs.length,
         cardsToSend,
-        audioBriefingsToSend
+        audioBriefingsToSend,
+        `${process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com"}/digest/${batch.id}`
       );
       await prisma.messageSend.create({
         data: {

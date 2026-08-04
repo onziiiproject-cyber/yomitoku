@@ -3,11 +3,15 @@ interface ArticleAudioBriefingCardProps {
   description: string;
   audioUrl: string;
   heroImageUrl: string | null;
+  articleId?: string;
 }
 
-export default function ArticleAudioBriefingCard({ title, description, audioUrl, heroImageUrl }: ArticleAudioBriefingCardProps) {
+export default function ArticleAudioBriefingCard({ title, description, audioUrl, heroImageUrl, articleId }: ArticleAudioBriefingCardProps) {
   return (
-    <article style={{ background: "#fff", borderRadius: 16, border: "1.5px solid #E8F0EE", padding: 0, marginTop: 16, overflow: "hidden" }}>
+    // LINEの「視聴する」ボタンはこのidへの#リンクで直接ジャンプさせるため、記事本文を
+    // 読み飛ばしてすぐ再生できるようscroll-margin-topも付けている。
+    // articleId指定時（タイムライン等、1ページに複数並びうる文脈）はid重複を避けて付けない。
+    <article id={articleId ? undefined : "audio-briefing"} style={{ background: "#fff", borderRadius: 16, border: "1.5px solid #E8F0EE", padding: 0, marginTop: 16, overflow: "hidden", scrollMarginTop: 16 }}>
       {heroImageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -23,6 +27,12 @@ export default function ArticleAudioBriefingCard({ title, description, audioUrl,
 
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <audio controls src={audioUrl} style={{ width: "100%", height: 36 }} />
+
+        {articleId && (
+          <a href={`/base/articles/${articleId}`} style={{ display: "inline-block", marginTop: 12, fontSize: 13, fontWeight: 700, color: "#1E3C6E", textDecoration: "none" }}>
+            元の記事を読む →
+          </a>
+        )}
       </div>
     </article>
   );

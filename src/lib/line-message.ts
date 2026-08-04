@@ -81,7 +81,8 @@ function weeklyLeadFlex(
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
   const iconUrl = `${baseUrl}/icons/icon-gori-editor.jpg`;
   const pointerImageUrl = `${baseUrl}/line/weekly-pointer.jpg`;
-  const matchedCount = docs.length;
+  // ヘッダーの件数は内訳（記事＋ラジオ）の合計と必ず一致させる
+  const matchedCount = docs.length + audioBriefingCount;
   const breakdown = weeklySourceBreakdown(docs, audioBriefingCount);
 
   return {
@@ -206,7 +207,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string): messagingApi.FlexBubble {
+function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string, seeAllUrl: string): messagingApi.FlexBubble {
   const src = WEEKLY_SOURCE_BADGE[doc.source] ?? { label: doc.source, color: "#555555" };
   const displayTitle = doc.hookTitle || doc.title;
 
@@ -246,7 +247,7 @@ function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string): messagingApi.Flex
             { type: "text", text: "週刊記事をすべて見る", size: "sm", weight: "bold", color: "#888888", flex: 0 } as messagingApi.FlexText,
             { type: "text", text: "→", size: "sm", weight: "bold", color: "#888888", flex: 0, margin: "xs" } as messagingApi.FlexText,
           ],
-          action: { type: "uri", uri: `${appUrl}/base` },
+          action: { type: "uri", uri: seeAllUrl },
         } as messagingApi.FlexBox,
       ],
     },
@@ -257,7 +258,7 @@ function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string): messagingApi.Flex
 // コンテンツ（記事＋ラジオ）は最大11枚までとする。
 const CAROUSEL_CONTENT_CAP = 11;
 
-function weeklySeeAllBubble(appUrl: string, overflowCount: number): messagingApi.FlexBubble {
+function weeklySeeAllBubble(seeAllUrl: string, overflowCount: number): messagingApi.FlexBubble {
   return {
     type: "bubble",
     size: "kilo",
@@ -267,7 +268,7 @@ function weeklySeeAllBubble(appUrl: string, overflowCount: number): messagingApi
       justifyContent: "center",
       alignItems: "center",
       paddingAll: "20px",
-      action: { type: "uri", uri: `${appUrl}/base` },
+      action: { type: "uri", uri: seeAllUrl },
       contents: [
         {
           type: "text",
@@ -294,7 +295,8 @@ function weeklySeeAllBubble(appUrl: string, overflowCount: number): messagingApi
 function weeklyCarouselFlex(
   docs: WeeklyCardDoc[],
   appUrl: string,
-  audioBriefings: WeeklyAudioBriefingDoc[]
+  audioBriefings: WeeklyAudioBriefingDoc[],
+  seeAllUrl: string
 ): { message: messagingApi.FlexMessage; adoptedAudioCount: number } {
   // 議事録ラジオは個別配信をやめ、週刊ヨミトクのカルーセルに記事カードと一緒に並べて配信する
   // （水曜の週刊通知とは別タイミングでLINEが届くと「事故っぽく」見えるため、まとめて1回にした）。
@@ -303,12 +305,12 @@ function weeklyCarouselFlex(
   const audioBubbles = audioBriefings.map((b) =>
     audioBriefingBubble({ docId: b.docId, briefingTitle: b.title, description: b.description, heroImageUrl: b.heroImageUrl, appUrl })
   );
-  const articleBubbles = docs.map((d) => weeklyCardBubble(d, appUrl));
+  const articleBubbles = docs.map((d) => weeklyCardBubble(d, appUrl, seeAllUrl));
   const combined = [...audioBubbles, ...articleBubbles];
   const shown = combined.slice(0, CAROUSEL_CONTENT_CAP);
   const overflowCount = combined.length - shown.length;
   const adoptedAudioCount = Math.min(audioBubbles.length, shown.length);
-  const bubbles = [...shown, weeklySeeAllBubble(appUrl, overflowCount)];
+  const bubbles = [...shown, weeklySeeAllBubble(seeAllUrl, overflowCount)];
 
   return {
     message: {
@@ -610,7 +612,8 @@ function audioBriefingBubble(params: {
             { type: "text", text: "視聴する", size: "sm", weight: "bold", color: "#3050AE", flex: 0 } as messagingApi.FlexText,
             { type: "text", text: "→", size: "sm", weight: "bold", color: "#3050AE", flex: 0, margin: "xs" } as messagingApi.FlexText,
           ],
-          action: { type: "uri", uri: `${params.appUrl}/base/articles/${params.docId}` },
+          // 記事の先頭ではなく、ラジオプレーヤー（#audio-briefing）へ直接ジャンプさせる
+          action: { type: "uri", uri: `${params.appUrl}/base/articles/${params.docId}#audio-briefing` },
         } as messagingApi.FlexBox,
       ],
     },
@@ -633,14 +636,18 @@ export async function pushWeeklyDigestCards(
   weekLabel: string,
   docCount: number,
   docs: WeeklyCardDoc[],
-  audioBriefings: WeeklyAudioBriefingDoc[]
+  audioBriefings: WeeklyAudioBriefingDoc[],
+  seeAllUrl?: string
 ): Promise<string> {
   const client = getClient();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
+  // 本番はその週のMessageBatchページを渡す想定。テスト送信など実バッチが無い場合は
+  // タイムラインへフォールバックする。
+  const resolvedSeeAllUrl = seeAllUrl ?? `${appUrl}/base`;
 
   // リード文の内訳件数は、カルーセルへ実際に採用された件数と一致させる
   // （切り詰められて0件と表示ズレを起こさないように、weeklyCarouselFlexの結果から取る）
-  const carouselResult = docs.length > 0 || audioBriefings.length > 0 ? weeklyCarouselFlex(docs, appUrl, audioBriefings) : null;
+  const carouselResult = docs.length > 0 || audioBriefings.length > 0 ? weeklyCarouselFlex(docs, appUrl, audioBriefings, resolvedSeeAllUrl) : null;
   const adoptedAudioCount = carouselResult?.adoptedAudioCount ?? 0;
 
   const lead = weeklyLeadFlex(weekLabel, docs, docCount, adoptedAudioCount);

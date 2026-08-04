@@ -67,12 +67,43 @@ export default async function DigestPage({
 
   if (!batch) return notFound();
 
+  const [prevBatch, nextBatch] = await Promise.all([
+    prisma.messageBatch.findFirst({
+      where: { kind: "WEEKLY_DIGEST", createdAt: { lt: batch.createdAt } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, title: true },
+    }),
+    prisma.messageBatch.findFirst({
+      where: { kind: "WEEKLY_DIGEST", createdAt: { gt: batch.createdAt } },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, title: true },
+    }),
+  ]);
+
   const docs = batch.documents.map((bd) => bd.siteDocument);
   const batchDate = formatDate(batch.createdAt);
 
   return (
     <div className={styles.page}>
       {session ? <BaseHeader companyName={session.companyName} /> : <GuestHeader />}
+
+      {/* 前後のダイジェストへの導線 */}
+      <div className={styles.digestNav}>
+        {prevBatch ? (
+          <Link href={`/digest/${prevBatch.id}`} className={styles.digestNavLink}>
+            ← 前のダイジェスト
+          </Link>
+        ) : (
+          <span className={`${styles.digestNavLink} ${styles.digestNavDisabled}`}>← 前のダイジェスト</span>
+        )}
+        {nextBatch ? (
+          <Link href={`/digest/${nextBatch.id}`} className={styles.digestNavLink}>
+            次のダイジェスト →
+          </Link>
+        ) : (
+          <span className={`${styles.digestNavLink} ${styles.digestNavDisabled}`}>次のダイジェスト →</span>
+        )}
+      </div>
 
       {/* Cover */}
       <div className={styles.cover}>

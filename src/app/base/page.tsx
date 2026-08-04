@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import FeedArticleCard from "./_components/FeedArticleCard";
 import PodcastEpisodeCard from "./_components/PodcastEpisodeCard";
+import ArticleAudioBriefingCard from "./_components/ArticleAudioBriefingCard";
 import FeedTabs from "./_components/FeedTabs";
 import MobileSearchBar from "./_components/MobileSearchBar";
 import { loadFeedExtras } from "@/lib/feedData";
@@ -124,7 +125,8 @@ export default async function BasePage({
   // 1ページ目＝タイムライン最上部にだけ混ぜる。件数が少ないうちはこれで十分実用的）。
   type FeedItem =
     | { type: "article"; publishedAt: Date; doc: (typeof docs)[number] }
-    | { type: "episode"; publishedAt: Date; episode: { id: string; episodeNo: number; title: string; description: string; audioUrl: string; durationSec: number } };
+    | { type: "episode"; publishedAt: Date; episode: { id: string; episodeNo: number; title: string; description: string; audioUrl: string; durationSec: number } }
+    | { type: "briefing"; publishedAt: Date; briefing: { id: string; docId: string; title: string; description: string; audioUrl: string; heroImageUrl: string | null } };
 
   let feedItems: FeedItem[] = docs.map((doc) => ({ type: "article", publishedAt: doc.publishedAt!, doc }));
 
@@ -150,8 +152,29 @@ export default async function BasePage({
           durationSec: ep.durationSec!,
         },
       }));
-    feedItems = [...feedItems, ...episodeItems].sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+
+    // 議事録ラジオはログイン必須の非公開コンテンツのため、未ログインのタイムラインには混ぜない
+    const briefingItems: FeedItem[] = session
+      ? (
+          await prisma.articleAudioBriefing.findMany({
+            where: { status: "PUBLISHED", publishedAt: { gte: oldest }, audioUrl: { not: null } },
+            select: { id: true, siteDocumentId: true, title: true, description: true, audioUrl: true, heroImageUrl: true, publishedAt: true },
+          })
+        ).map((b) => ({
+          type: "briefing" as const,
+          publishedAt: b.publishedAt!,
+          briefing: { id: b.id, docId: b.siteDocumentId, title: b.title, description: b.description, audioUrl: b.audioUrl!, heroImageUrl: b.heroImageUrl },
+        }))
+      : [];
+
+    feedItems = [...feedItems, ...episodeItems, ...briefingItems].sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
   }
+
+  // 週刊ダイジェストページへの導線をタブに常設する（右サイドバーの同カードはスマホで非表示のため）
+  const latestDigest = !isFiltered
+    ? await prisma.messageBatch.findFirst({ where: { kind: "WEEKLY_DIGEST" }, orderBy: { createdAt: "desc" }, select: { id: true } })
+    : null;
+
   const labelParts = [
     CATEGORY_LABELS[cat],
     tag ? `#${tag}` : "",
@@ -180,7 +203,7 @@ export default async function BasePage({
       <MobileSearchBar defaultValue={q} />
 
       {/* あなたにオススメ / 全ての投稿一覧 タブ（ホーム画面のみ） */}
-      {!isFiltered && <FeedTabs active={feedMode} />}
+      {!isFiltered && <FeedTabs active={feedMode} latestDigestId={latestDigest?.id ?? null} />}
 
       {/* タグ未設定時の案内 */}
       {!isFiltered && feedMode === "mine" && hasNoTagPreference && (
@@ -224,6 +247,15 @@ export default async function BasePage({
                 description={item.episode.description}
                 audioUrl={item.episode.audioUrl}
                 durationSec={item.episode.durationSec}
+              />
+            ) : item.type === "briefing" ? (
+              <ArticleAudioBriefingCard
+                key={`briefing-${item.briefing.id}`}
+                title={item.briefing.title}
+                description={item.briefing.description}
+                audioUrl={item.briefing.audioUrl}
+                heroImageUrl={item.briefing.heroImageUrl}
+                articleId={item.briefing.docId}
               />
             ) : (
               <FeedArticleCard
