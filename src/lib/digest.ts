@@ -32,6 +32,21 @@ async function fetchPdfBase64(url: string, label: string): Promise<string | null
   return null;
 }
 
+// PDFのLast-Modifiedヘッダーから実際の公開日を取得する（議事録は会合日より数週間遅れて
+// 公開されるため、publishedAtに会合日を使うと週刊ダイジェストの直近フィルタから漏れ続ける）。
+// 取得できない場合はnullを返し、呼び出し側で処理日をフォールバックとして使う。
+async function fetchLastModified(url: string): Promise<Date | null> {
+  try {
+    const res = await fetch(url, { method: "HEAD", headers: { "User-Agent": "Mozilla/5.0 (compatible; YomitokuBot/1.0)" } });
+    const header = res.headers.get("last-modified");
+    if (!header) return null;
+    const date = new Date(header);
+    return isNaN(date.getTime()) ? null : date;
+  } catch {
+    return null;
+  }
+}
+
 // analyzeDocument/generateStructuredContentを、ページ数上限フォールバック込みで実行する共通ヘルパー。
 // PDFがClaudeのネイティブ読み込み上限（100ページ）を超えていた場合、自前でテキスト抽出して
 // テキストのみで再試行する。それでもトークン上限を超える場合のみ tooLarge:true を返す。
@@ -164,17 +179,18 @@ function buildShingiThemeText(detail: ShingiThemeDetail): string {
 // 1テーマぶんの資料PDF（または議事録PDF）を分析し、doc.id（count===0の場合）か新規行に保存する。
 // 資料版・議事録版どちらの保存処理も同じ形なので、processShingiSession/processShingiMinutesの両方から呼ぶ。
 async function saveShingiTheme(params: {
-  doc: { id: string; url: string; publishedAt: Date | null };
+  doc: { id: string; url: string };
   themeNo: number;
   title: string;
   rawText: string;
   isFirst: boolean;
   shingiSessionNo: number | null;
   shingiVariant: "materials" | "minutes";
+  publishedAt: Date | null;
   result: AnalysisResult;
   structured: StructuredContent;
 }): Promise<string> {
-  const { doc, themeNo, title, rawText, isFirst, shingiSessionNo, shingiVariant, result, structured } = params;
+  const { doc, themeNo, title, rawText, isFirst, shingiSessionNo, shingiVariant, publishedAt, result, structured } = params;
   const commonData = {
     themeNo,
     title,
@@ -186,6 +202,7 @@ async function saveShingiTheme(params: {
     structuredContent: structured as object,
     shingiSessionNo,
     shingiVariant,
+    publishedAt,
     processedAt: new Date(),
   };
 
@@ -193,13 +210,13 @@ async function saveShingiTheme(params: {
     ? (await prisma.siteDocument.update({ where: { id: doc.id }, data: commonData })).id
     : (
         await prisma.siteDocument.create({
-          data: { url: doc.url, source: "shingi", publishedAt: doc.publishedAt, ...commonData },
+          data: { url: doc.url, source: "shingi", ...commonData },
         })
       ).id;
 
   await postEditorComment(id, title, structured);
   await postToSocial(
-    { id, title, source: "shingi", tags: result.tags, publishedAt: doc.publishedAt, decisionStatus: result.decisionStatus },
+    { id, title, source: "shingi", tags: result.tags, publishedAt, decisionStatus: result.decisionStatus },
     structured,
     result.summary
   );
@@ -267,6 +284,7 @@ export async function processShingiSession(doc: {
           isFirst: useAsPlaceholder,
           shingiSessionNo: doc.shingiSessionNo,
           shingiVariant: "materials",
+          publishedAt: doc.publishedAt,
           result: analysis.result,
           structured: analysis.structured,
         });
@@ -303,6 +321,7 @@ export async function processShingiSession(doc: {
         isFirst: useAsPlaceholder,
         shingiSessionNo: doc.shingiSessionNo,
         shingiVariant: "materials",
+        publishedAt: doc.publishedAt,
         result: analysis.result,
         structured: analysis.structured,
       });
@@ -376,6 +395,11 @@ export async function processShingiMinutes(doc: {
     return { count: 0, errors };
   }
 
+  // 議事録版のpublishedAtは会合日（doc.publishedAt、資料版から引き継いだ古い日付）ではなく、
+  // 議事録PDFが実際に公開された日を使う。議事録は会合の数週間後に公開されるのが常態のため、
+  // 会合日のままだと週刊ダイジェスト（直近7日フィルタ）から毎回漏れ続けてしまう。
+  const minutesPublishedAt = await fetchLastModified(minutesPdfUrl) ?? new Date();
+
   const pdfBase64 = await fetchPdfBase64(minutesPdfUrl, `第${doc.shingiSessionNo}回議事録`);
   if (!pdfBase64) {
     errors.push(`議事録PDF取得失敗のためスキップ: 第${doc.shingiSessionNo}回`);
@@ -405,6 +429,7 @@ export async function processShingiMinutes(doc: {
         isFirst: useAsPlaceholder,
         shingiSessionNo: doc.shingiSessionNo,
         shingiVariant: "minutes",
+        publishedAt: minutesPublishedAt,
         result: analysis.result,
         structured: analysis.structured,
       });
