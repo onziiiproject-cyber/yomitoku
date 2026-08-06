@@ -48,7 +48,3 @@ next-env.d.ts
 
 # claude code local settings
 .claude/settings.local.json
-
-# 音声合成の中間生成物（mp3・VOICEVOX読み込み用テキスト・台本まとめ）
-/tmp
-/voicevox-out
