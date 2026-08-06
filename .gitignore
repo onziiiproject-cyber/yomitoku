@@ -36,6 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# 台本の書き出し・合成音声など、ローカル作業用の出力
+/tmp/
+/voicevox-out/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
