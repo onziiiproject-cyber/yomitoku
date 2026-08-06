@@ -6,6 +6,8 @@ import type { Metadata } from "next";
 import type { StructuredContent } from "@/lib/anthropic";
 import BaseHeader from "../../base/_components/BaseHeader";
 import GuestHeader from "../../base/_components/GuestHeader";
+import ArticleAudioBriefingCard from "../../base/_components/ArticleAudioBriefingCard";
+import PodcastEpisodeCard from "../../base/_components/PodcastEpisodeCard";
 import styles from "./page.module.css";
 
 const SITE_URL = "https://yomitoku-base.com";
@@ -80,6 +82,26 @@ export default async function DigestPage({
     }),
   ]);
 
+  // 議事録ラジオ・放送室はどちらもBatchDocumentに紐づかない（記事本体の公開日ではなく
+  // 音声自体の公開日でその週の号に属するため）。送信時と同じ「直近7日」の窓を
+  // このバッチの作成日基準で再現する。
+  const since = new Date(batch.createdAt.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const audioBriefings = await prisma.articleAudioBriefing.findMany({
+    where: { status: "PUBLISHED", publishedAt: { gte: since, lte: batch.createdAt } },
+    orderBy: { publishedAt: "desc" },
+    select: { id: true, siteDocumentId: true, title: true, description: true, audioUrl: true, durationSec: true, heroImageUrl: true },
+  });
+
+  // 通し番号を出すため、公開済み全エピソードを古い順に取得してから対象週分だけ絞り込む
+  const allEpisodes = await prisma.podcastEpisode.findMany({
+    where: { status: "PUBLISHED", audioUrl: { not: null }, durationSec: { not: null } },
+    orderBy: { publishedAt: "asc" },
+  });
+  const podcastEpisodes = allEpisodes
+    .map((ep, i) => ({ ep, episodeNo: i + 1 }))
+    .filter(({ ep }) => ep.publishedAt! >= since && ep.publishedAt! <= batch.createdAt)
+    .reverse();
+
   const docs = batch.documents.map((bd) => bd.siteDocument);
   const batchDate = formatDate(batch.createdAt);
 
@@ -115,7 +137,7 @@ export default async function DigestPage({
           <h1 className={styles.coverTitle}>{batch.title}</h1>
           <p className={styles.coverDate}>{batchDate}</p>
           <div className={styles.coverBadge}>
-            今回は {docs.length} 件のトピックスをまとめました
+            今回は {docs.length + audioBriefings.length + podcastEpisodes.length} 件のトピックスをまとめました
           </div>
           <p className={styles.disclaimer}>
             ※ 厚生労働省「介護保険最新情報」をもとにしたAI自動要約です。正式な内容は原文でご確認ください。
@@ -170,6 +192,40 @@ export default async function DigestPage({
               </Link>
             );
           })}
+        </div>
+      )}
+
+      {/* 議事録ラジオ（BatchDocumentには紐づかないため別枠） */}
+      {audioBriefings.length > 0 && (
+        <div className={styles.audioSection}>
+          <h2 className={styles.audioSectionTitle}>🎙 分科会議事録ラジオ</h2>
+          {audioBriefings.map((b) => (
+            <ArticleAudioBriefingCard
+              key={b.id}
+              title={b.title}
+              description={b.description}
+              audioUrl={b.audioUrl!}
+              heroImageUrl={b.heroImageUrl}
+              articleId={b.siteDocumentId}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ヨミトク放送室（同じくBatchDocumentには紐づかない） */}
+      {podcastEpisodes.length > 0 && (
+        <div className={styles.audioSection}>
+          <h2 className={styles.audioSectionTitle}>🎙 ヨミトク放送室</h2>
+          {podcastEpisodes.map(({ ep, episodeNo }) => (
+            <PodcastEpisodeCard
+              key={ep.id}
+              episodeNo={episodeNo}
+              title={ep.title}
+              description={ep.description}
+              audioUrl={ep.audioUrl!}
+              durationSec={ep.durationSec!}
+            />
+          ))}
         </div>
       )}
 

@@ -97,9 +97,13 @@ function getWeekLabel(): string {
   return `${now.getMonth() + 1}/${now.getDate()}号`;
 }
 
+// 0時0分に正規化する（介護保険最新情報のpublishedAtは時刻情報がなく常に0時0分0秒のため、
+// 実行時刻ちょうどの「7日前」で切ると、ちょうど7日前の0時公開だった記事が数十秒〜数分の
+// 誤差だけで境界外に弾かれ、二度と拾われずに永久に漏れ続けるバグがあった）
 function oneWeekAgo(): Date {
   const d = new Date();
   d.setDate(d.getDate() - 7);
+  d.setHours(0, 0, 0, 0);
   return d;
 }
 

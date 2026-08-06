@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import GuestHeader from "../../_components/GuestHeader";
 import ArticleSwiper from "../../_components/ArticleSwiper";
 import ArticleAudioBriefingCard from "../../_components/ArticleAudioBriefingCard";
+import GuestAudioBriefingTeaser from "../../_components/GuestAudioBriefingTeaser";
 import { redactStructuredContentForGuest, type StructuredContent } from "@/lib/anthropic";
 
 const SITE_URL = "https://yomitoku-base.com";
@@ -127,35 +128,46 @@ export default async function ArticleDetailPage({
     />
   );
 
+  // ラジオは記事本文（全10枚のスワイパー）より下に置くと埋もれて気づかれないため、
+  // ページの一番上に固定表示する。未ログインでは再生できないが、存在自体はロック付きで見せる
+  // （以前はここが丸ごと非表示で、LINEの「視聴する」の#audio-briefingが空振りしていた）。
+  const hasBriefing = doc.audioBriefing && doc.audioBriefing.status === "PUBLISHED" && doc.audioBriefing.audioUrl;
+
   if (!session) {
     return (
       <div style={{ minHeight: "100vh", background: "#F7FAF9", fontFamily: "sans-serif" }}>
         {jsonLdScript}
         <GuestHeader />
         <main style={{ maxWidth: 600, margin: "0 auto", padding: "0 16px 80px" }}>
+          {hasBriefing && (
+            <GuestAudioBriefingTeaser
+              title={doc.audioBriefing!.title}
+              heroImageUrl={doc.audioBriefing!.heroImageUrl}
+              durationSec={doc.audioBriefing!.durationSec}
+            />
+          )}
           {swiper}
         </main>
       </div>
     );
   }
 
-  const audioBriefing =
-    doc.audioBriefing && doc.audioBriefing.status === "PUBLISHED" && doc.audioBriefing.audioUrl
-      ? (
-          <ArticleAudioBriefingCard
-            title={doc.audioBriefing.title}
-            description={doc.audioBriefing.description}
-            audioUrl={doc.audioBriefing.audioUrl}
-            heroImageUrl={doc.audioBriefing.heroImageUrl}
-          />
-        )
-      : null;
+  const audioBriefing = hasBriefing
+    ? (
+        <ArticleAudioBriefingCard
+          title={doc.audioBriefing!.title}
+          description={doc.audioBriefing!.description}
+          audioUrl={doc.audioBriefing!.audioUrl!}
+          heroImageUrl={doc.audioBriefing!.heroImageUrl}
+        />
+      )
+    : null;
 
   return (
     <>
       {jsonLdScript}
-      {swiper}
       {audioBriefing}
+      {swiper}
     </>
   );
 }

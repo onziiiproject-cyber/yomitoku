@@ -11,7 +11,7 @@ export default function ArticleAudioBriefingCard({ title, description, audioUrl,
     // LINEの「視聴する」ボタンはこのidへの#リンクで直接ジャンプさせるため、記事本文を
     // 読み飛ばしてすぐ再生できるようscroll-margin-topも付けている。
     // articleId指定時（タイムライン等、1ページに複数並びうる文脈）はid重複を避けて付けない。
-    <article id={articleId ? undefined : "audio-briefing"} style={{ background: "#fff", borderRadius: 16, border: "1.5px solid #E8F0EE", padding: 0, marginTop: 16, overflow: "hidden", scrollMarginTop: 16 }}>
+    <article id={articleId ? undefined : "audio-briefing"} style={{ background: "#fff", borderRadius: 16, border: "1.5px solid #E8F0EE", padding: 0, marginBottom: 16, overflow: "hidden", scrollMarginTop: 16 }}>
       {heroImageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
