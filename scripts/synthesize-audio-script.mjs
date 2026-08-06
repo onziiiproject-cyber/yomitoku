@@ -195,6 +195,13 @@ async function geminiSynth(chunk, key) {
       await sleep(wait * 1000);
       continue;
     }
+    // 混雑時に500/503が返ることがある（"experiencing high demand"）。時間を置けば通るので待って再試行する
+    if (res.status >= 500 && attempt <= 5) {
+      const wait = 15 * attempt;
+      process.stdout.write(`(${res.status}: ${wait}秒待機)`);
+      await sleep(wait * 1000);
+      continue;
+    }
     if (!res.ok) throw new Error(`Gemini TTS失敗: ${res.status} ${(await res.text()).slice(0, 400)}`);
 
     const json = await res.json();
