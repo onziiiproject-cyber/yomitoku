@@ -117,8 +117,9 @@ if (!target) {
 
 // 引数の --kind と名前が衝突するため、出力ラベル側は kindLabel で受ける
 const { kind: kindLabel, item } = target;
-// 放送室はGeminiへ移行済み。議事録ラジオ解説は別セッションの検証待ちなのでVOICEVOXのまま
-const engine = engineOpt ?? (kindLabel === "放送室" ? "gemini" : "voicevox");
+// 放送室・議事録ラジオ解説ともGeminiへ移行済み（2026-08-04）。声はどちらも
+// Sadaltager × Leda で共通。VOICEVOXに戻す場合のみ --engine voicevox を明示する
+const engine = engineOpt ?? "gemini";
 
 console.log(`${kindLabel}: ${item.title}（${item.script.length}行 / ${item.script.reduce((n, l) => n + l.text.length, 0)}字）`);
 console.log(`エンジン: ${engine}\n`);
