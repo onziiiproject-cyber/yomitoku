@@ -66,6 +66,7 @@ export default function AdminHeader() {
           {navLink("/admin", "登録企業一覧")}
           {navLink("/admin/reports", "報告一覧")}
           {navLink("/admin/referrals", "紹介実績")}
+          {navLink("/admin/ads", "広告管理")}
         </nav>
       </div>
       <button

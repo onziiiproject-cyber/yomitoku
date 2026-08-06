@@ -358,6 +358,27 @@ model ArticleAudioBriefing {
   createdAt      DateTime                    @default(now())
 }
 
+enum AdPlacement {
+  SIDEBAR // ①WEB右サイドバー下部
+  FEED    // ②タイムラインのカードに紛れ込ませる（インスタ広告仕様）
+}
+
+// 自社で直接営業して掲載する広告（プログラマティック広告網は使わない）。
+// 掲載期間・placementごとに配信し、クリックはリダイレクト経由で計測する。
+model Advertisement {
+  id             String      @id @default(cuid())
+  advertiserName String // 社内管理用の広告主名（表示はしない）
+  imageUrl       String
+  linkUrl        String
+  placement      AdPlacement
+  startAt        DateTime? // null なら即時開始
+  endAt          DateTime? // null なら無期限
+  disabledAt     DateTime? // 手動停止用
+  impressions    Int         @default(0)
+  clicks         Int         @default(0)
+  createdAt      DateTime    @default(now())
+}
+
 // 記事の内容についての誤り・わかりにくさの報告（ユーザーによる分散QA）
 model ArticleReport {
   id             String   @id @default(cuid())

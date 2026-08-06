@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import type { StructuredContent } from "@/lib/anthropic";
+import { getActiveAd } from "@/lib/ads";
 
 function formatDate(d: Date | null) {
   if (!d) return "";
@@ -13,7 +14,7 @@ const SOURCE_COLOR: Record<string, { label: string; color: string; bg: string }>
 };
 
 export default async function RightSidebar() {
-  const [breakingDocs, latestBatch] = await Promise.all([
+  const [breakingDocs, latestBatch, sidebarAd] = await Promise.all([
     prisma.siteDocument.findMany({
       where: { importance: "high", summary: { not: null }, publishedAt: { not: null } },
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
@@ -25,6 +26,7 @@ export default async function RightSidebar() {
       orderBy: { createdAt: "desc" },
       select: { id: true, title: true, content: true, createdAt: true },
     }),
+    getActiveAd("SIDEBAR"),
   ]);
 
   return (
@@ -148,15 +150,28 @@ export default async function RightSidebar() {
       )}
 
       {/* 広告バナー */}
-      <div style={{
-        background: "#F7FAF9",
-        borderRadius: 12,
-        border: "1.5px dashed #D0E8E4",
-        padding: "24px 16px",
-        textAlign: "center",
-      }}>
-        <p style={{ fontSize: 11, color: "#9BB5B0", margin: 0 }}>広告枠</p>
-      </div>
+      {sidebarAd ? (
+        <a
+          href={`/api/ads/${sidebarAd.id}/click`}
+          target="_blank"
+          rel="noopener noreferrer sponsored"
+          style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid #E2EDEB" }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={sidebarAd.imageUrl} alt="広告" style={{ display: "block", width: "100%", height: "auto" }} />
+          <p style={{ fontSize: 10, color: "#aaa", margin: 0, padding: "4px 8px", background: "#fff" }}>PR</p>
+        </a>
+      ) : (
+        <div style={{
+          background: "#F7FAF9",
+          borderRadius: 12,
+          border: "1.5px dashed #D0E8E4",
+          padding: "24px 16px",
+          textAlign: "center",
+        }}>
+          <p style={{ fontSize: 11, color: "#9BB5B0", margin: 0 }}>広告枠</p>
+        </div>
+      )}
     </aside>
   );
 }

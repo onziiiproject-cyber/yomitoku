@@ -7,7 +7,9 @@ import PodcastEpisodeCard from "./_components/PodcastEpisodeCard";
 import ArticleAudioBriefingCard from "./_components/ArticleAudioBriefingCard";
 import FeedTabs from "./_components/FeedTabs";
 import MobileSearchBar from "./_components/MobileSearchBar";
+import FeedAdCard from "./_components/FeedAdCard";
 import { loadFeedExtras } from "@/lib/feedData";
+import { getFeedAds } from "@/lib/ads";
 import { redactStructuredContentForGuest, type StructuredContent } from "@/lib/anthropic";
 
 export const metadata: Metadata = {
@@ -170,6 +172,28 @@ export default async function BasePage({
     feedItems = [...feedItems, ...episodeItems, ...briefingItems].sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
   }
 
+  // 広告はインスタのフィード広告と同じく、日付順のコンテンツの間に一定間隔で紛れ込ませる
+  // （広告自体には日付が無いため並び替え後のfeedItemsに後から挿し込む）。
+  const AD_INTERVAL = 6;
+  type RenderItem = FeedItem | { type: "ad"; ad: { id: string; imageUrl: string } };
+  let renderItems: RenderItem[] = feedItems;
+  if (!isFiltered && pageNum === 1 && feedItems.length > 0) {
+    const adSlots = Math.floor(feedItems.length / AD_INTERVAL);
+    const feedAds = await getFeedAds(adSlots);
+    if (feedAds.length > 0) {
+      const withAds: RenderItem[] = [];
+      let adsUsed = 0;
+      feedItems.forEach((item, i) => {
+        withAds.push(item);
+        if ((i + 1) % AD_INTERVAL === 0 && adsUsed < feedAds.length) {
+          withAds.push({ type: "ad", ad: feedAds[adsUsed] });
+          adsUsed++;
+        }
+      });
+      renderItems = withAds;
+    }
+  }
+
   // 週刊ダイジェストページへの導線をタブに常設する（右サイドバーの同カードはスマホで非表示のため）
   const latestDigest = !isFiltered
     ? await prisma.messageBatch.findFirst({ where: { kind: "WEEKLY_DIGEST" }, orderBy: { createdAt: "desc" }, select: { id: true } })
@@ -238,8 +262,10 @@ export default async function BasePage({
         </div>
       ) : (
         <div>
-          {feedItems.map((item, i) =>
-            item.type === "episode" ? (
+          {renderItems.map((item, i) =>
+            item.type === "ad" ? (
+              <FeedAdCard key={`ad-${item.ad.id}-${i}`} id={item.ad.id} imageUrl={item.ad.imageUrl} />
+            ) : item.type === "episode" ? (
               <PodcastEpisodeCard
                 key={`episode-${item.episode.id}`}
                 episodeNo={item.episode.episodeNo}
