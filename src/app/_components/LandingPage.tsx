@@ -166,9 +166,12 @@ export default function LandingPage({ ctaHref = "/register" }: { ctaHref?: strin
         }
         @media (max-width: 480px) {
           .weekly-features-grid, .summary-grid, .room-features-grid { grid-template-columns: 1fr !important; }
-          .nav-login { display: none !important; }
+          .nav-login { font-size: 13px !important; }
           .nav-logo-text { font-size: 15px !important; }
           .nav-cta { padding: 9px 14px !important; font-size: 13px !important; }
+        }
+        @media (max-width: 360px) {
+          .nav-logo-text { display: none !important; }
         }
       `}</style>
 
