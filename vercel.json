@@ -17,6 +17,10 @@
       "schedule": "0 0 * * *"
     },
     {
+      "path": "/api/cron/onboarding-drip",
+      "schedule": "0 0 * * *"
+    },
+    {
       "path": "/api/cron/podcast-draft",
       "schedule": "0 3 * * 1,4"
     }

@@ -126,6 +126,9 @@ model User {
   iconUrl         String?
   createdAt       DateTime @default(now())
 
+  // オンボーディング配信（登録N日目メッセージ）で送信済みのDay番号一覧
+  onboardingSentDays Int[] @default([])
+
   company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   lineRecipient LineRecipient? @relation(fields: [lineRecipientId], references: [id], onDelete: SetNull)
   tags          UserTag[]

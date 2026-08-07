@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { messagingApi } from "@line/bot-sdk";
+import { sendOnboardingStep } from "@/lib/onboarding-drip";
 
 function getClient() {
   return new messagingApi.MessagingApiClient({
@@ -59,7 +60,7 @@ export async function registerRecipientByCode(
   const existingUser = await prisma.user.findUnique({ where: { lineRecipientId: recipient.id } });
   const user = existingUser
     ? await prisma.user.update({ where: { id: existingUser.id }, data: { companyId: company.id, name: displayName } })
-    : await prisma.user.create({ data: { companyId: company.id, name: displayName, lineRecipientId: recipient.id } });
+    : await prisma.user.create({ data: { companyId: company.id, name: displayName, lineRecipientId: recipient.id, onboardingSentDays: [0] } });
 
   // 法人タグを個人の初期タグとしてコピー
   const companyTags = await prisma.companyTag.findMany({ where: { companyId: company.id } });
@@ -68,6 +69,15 @@ export async function registerRecipientByCode(
       data: companyTags.map((ct) => ({ userId: user.id, tagId: ct.tagId })),
       skipDuplicates: true,
     });
+  }
+
+  // オンボーディング配信Day0（初回のみ。unfollow→再登録などで既存Userを使い回す場合は送らない）
+  if (!existingUser) {
+    try {
+      await sendOnboardingStep(userId, 0);
+    } catch (e) {
+      console.error("[line-registration] onboarding day0 push failed:", e);
+    }
   }
 
   return { ok: true, companyName: company.name, memberOfName: company.facilityName ?? company.name };
