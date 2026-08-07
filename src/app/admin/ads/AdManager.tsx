@@ -190,8 +190,10 @@ export default function AdManager({ initialAds }: { initialAds: AdRow[] }) {
             {creating ? "掲載中..." : "掲載する"}
           </button>
         </div>
-        <p style={{ fontSize: 12, color: "#888", marginTop: 8, marginBottom: 0 }}>
-          ①は横長バナー、②はフィードのカードと同じ縦長比率の画像を推奨します。
+        <p style={{ fontSize: 12, color: "#888", marginTop: 8, marginBottom: 0, lineHeight: 1.7 }}>
+          ①右サイドバー：横長バナー　推奨サイズ 840×420px（比率2:1）<br />
+          ②タイムライン：フィードカードと同じ比率　推奨サイズ 1080×780px（比率18:13）<br />
+          画像形式：JPEG・PNG・WebP／最大3MB
         </p>
         {error && <p style={{ fontSize: 12, color: "#DC2626", marginTop: 8, marginBottom: 0 }}>{error}</p>}
       </div>
