@@ -13,6 +13,7 @@ export default function FeedTabs({ active, latestDigestId }: { active: "mine" | 
         top: 64,
         zIndex: 50,
         display: "flex",
+        alignItems: "center",
         gap: 4,
         background: "#F0F4F3",
         borderRadius: 12,
@@ -59,7 +60,7 @@ export default function FeedTabs({ active, latestDigestId }: { active: "mine" | 
             transition: "all 0.15s",
           }}
         >
-          週刊ダイジェスト
+          週刊<br />ダイジェスト
         </a>
       )}
     </div>
