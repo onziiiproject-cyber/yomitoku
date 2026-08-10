@@ -61,7 +61,7 @@ export async function runPodcastDraftGeneration(): Promise<PodcastDraftResult> {
   }
 
   const episodeNo = (await prisma.podcastEpisode.count()) + 1;
-  const draft = await generateRadioScript(candidate.title, candidate.summary, episodeNo);
+  const draft = await generateRadioScript(candidate.title, candidate.summary, episodeNo, candidate.publishedAt);
   const fullScript = [...draft.script, ...PROMO_SEGMENT];
 
   const episode = await prisma.podcastEpisode.create({

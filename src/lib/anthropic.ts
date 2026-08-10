@@ -211,9 +211,16 @@ export interface RadioScriptDraft {
 export async function generateRadioScript(
   articleTitle: string,
   articleSummary: string,
-  episodeNo: number
+  episodeNo: number,
+  publishedAt?: Date | null
 ): Promise<RadioScriptDraft> {
   const client = getClient();
+
+  // 「今回の記事に」だけだと、耳で聞いたときに何の話か分からないため冒頭で発表日を言わせる。
+  // 制度の話は和暦で書かれているので、台本も和暦に揃える（令和元年＝2019年）
+  const publishedLabel = publishedAt
+    ? `令和${publishedAt.getFullYear() - 2018}年${publishedAt.getMonth() + 1}月${publishedAt.getDate()}日`
+    : null;
 
   const prompt = `あなたは「ヨミトク放送室」という音声コンテンツの台本作家です。
 
@@ -224,10 +231,12 @@ export async function generateRadioScript(
 以下の記事に出てくる専門用語を、超初心者向けに「そもそも解説」する掛け合い台本を作成してください。
 
 記事タイトル: ${articleTitle}
-記事概要: ${articleSummary}
+記事概要: ${articleSummary}${publishedLabel ? `\n発表日: ${publishedLabel}` : ""}
 
 条件（厳守）:
-- 記事の分析・予測・具体的な対応方針など、有料コンテンツの価値になる内容は一切含めない
+${publishedLabel
+    ? `- 冒頭のミスグレーの問いかけでは「${publishedLabel}に公表された（発表された）〜」のように発表日を具体的に言う。「今回の記事に」だけで済ませない（音声だけ聞く人にはどの話か分からないため）\n`
+    : ""}- 記事の分析・予測・具体的な対応方針など、有料コンテンツの価値になる内容は一切含めない
 - あくまで記事に出てくる専門用語・制度の基礎知識を、超初心者向けにやさしく解説することだけに限定する
 - ミスグレーの「そもそも」な質問→ゴリ編集長の解説、という掛け合い形式
 - 台本は16〜20行程度、合計800〜1100字程度（3〜5分程度の尺を想定）
