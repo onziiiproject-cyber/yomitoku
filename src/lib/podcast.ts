@@ -60,7 +60,10 @@ export async function runPodcastDraftGeneration(): Promise<PodcastDraftResult> {
     return { created: false, reason: "候補記事が見つかりませんでした" };
   }
 
-  const episodeNo = (await prisma.podcastEpisode.count()) + 1;
+  // 見送り（REJECTED）は配信していないので通し番号に数えない。
+  // なお見送りでも行は残しておくこと。記事の重複判定はsourceDocIdの有無だけを見ているため、
+  // 行を消すとその記事が未使用に戻り、次の巡回でまた同じ記事が選ばれてしまう
+  const episodeNo = (await prisma.podcastEpisode.count({ where: { status: { not: "REJECTED" } } })) + 1;
   const draft = await generateRadioScript(candidate.title, candidate.summary, episodeNo, candidate.publishedAt);
   const fullScript = [...draft.script, ...PROMO_SEGMENT];
 
