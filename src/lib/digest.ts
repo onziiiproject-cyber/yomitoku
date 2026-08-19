@@ -92,9 +92,8 @@ export interface ProcessResult {
   errors: string[];
 }
 
-function getWeekLabel(): string {
-  const now = new Date();
-  return `${now.getMonth() + 1}/${now.getDate()}号`;
+function getWeekLabel(d: Date = new Date()): string {
+  return `${d.getMonth() + 1}/${d.getDate()}号`;
 }
 
 // 0時0分に正規化する（介護保険最新情報のpublishedAtは時刻情報がなく常に0時0分0秒のため、
@@ -895,9 +894,134 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
         },
       });
     }
+    // 他のcron（trial-reminders等）と同時刻に走ってもLINEのレート制限に引っかからないよう間隔を空ける
+    await new Promise((r) => setTimeout(r, 200));
   }
 
   return { newDocs: weekDocs.length, sentTo, batchId: batch.id, errors };
+}
+
+export interface RetryDigestResult {
+  batchId: string;
+  retried: number;
+  stillFailed: number;
+  errors: string[];
+}
+
+// 429などで送信失敗したMessageSendだけを再送する（runWeeklyDigest全体の再実行はしない）。
+// ヒーロー画像はDBに保存していないため毎回作り直すが、冪等な処理なので問題ない。
+// LINEのレート制限に配慮し、1件ごとに間隔を空けて送る。
+export async function retryFailedWeeklyDigestSends(batchId: string): Promise<RetryDigestResult> {
+  const errors: string[] = [];
+  const batch = await prisma.messageBatch.findUnique({ where: { id: batchId } });
+  if (!batch || batch.kind !== "WEEKLY_DIGEST") {
+    return { batchId, retried: 0, stillFailed: 0, errors: ["batch not found or not a weekly digest"] };
+  }
+
+  const failedSends = await prisma.messageSend.findMany({
+    where: { messageBatchId: batchId, status: "FAILED" },
+    include: { lineRecipient: { include: { user: { include: { tags: { include: { tag: true } } } } } } },
+  });
+  if (failedSends.length === 0) {
+    return { batchId, retried: 0, stillFailed: 0, errors: [] };
+  }
+
+  const weekLabel = getWeekLabel(batch.createdAt);
+  const since = new Date(batch.createdAt.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const batchDocs = await prisma.batchDocument.findMany({
+    where: { messageBatchId: batchId },
+    include: { siteDocument: true },
+  });
+  const weekDocs = batchDocs.map((bd) => bd.siteDocument);
+
+  const heroImageUrls = await Promise.all(
+    weekDocs.map(async (d) => {
+      const sc = d.structuredContent as unknown as StructuredContent | null;
+      const buffer = await generateWeeklyCardHeroImage({
+        source: d.source,
+        title: sc?.hookTitle || d.title,
+        decisionStatus: d.decisionStatus,
+        importanceStars: sc?.importanceStars ?? null,
+        urgencyStars: sc?.urgencyStars ?? null,
+        shingiVariant: d.shingiVariant,
+      });
+      const blob = await put(`weekly/${d.id}-hero-retry-${Date.now()}.png`, buffer, { access: "public", contentType: "image/png" });
+      return [d.id, blob.url] as const;
+    })
+  );
+  const heroImageUrlByDocId = new Map(heroImageUrls);
+
+  const cardDocs: WeeklyCardDoc[] = weekDocs.map((d) => {
+    const sc = d.structuredContent as unknown as StructuredContent | null;
+    return {
+      id: d.id,
+      title: d.title,
+      hookTitle: sc?.hookTitle ?? null,
+      summary: d.summary ?? "",
+      source: d.source,
+      tags: d.tags as string[],
+      importanceStars: sc?.importanceStars ?? null,
+      urgencyStars: sc?.urgencyStars ?? null,
+      isNew: new Date().getTime() - new Date(d.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000,
+      decisionStatus: d.decisionStatus,
+      heroImageUrl: heroImageUrlByDocId.get(d.id)!,
+      shingiVariant: d.shingiVariant,
+    };
+  });
+
+  const weekAudioBriefings = await prisma.articleAudioBriefing.findMany({
+    where: { status: "PUBLISHED", publishedAt: { gte: since, lte: batch.createdAt } },
+    include: { siteDocument: { select: { tags: true } } },
+    orderBy: { publishedAt: "desc" },
+  });
+  const audioBriefingDocs: WeeklyAudioBriefingDoc[] = weekAudioBriefings
+    .filter((b) => !!b.heroImageUrl)
+    .map((b) => ({
+      docId: b.siteDocumentId,
+      title: b.title,
+      description: b.description,
+      heroImageUrl: b.heroImageUrl!,
+      tags: (b.siteDocument?.tags as string[] | undefined) ?? [],
+    }));
+
+  let retried = 0;
+  let stillFailed = 0;
+  for (const send of failedSends) {
+    const recipient = send.lineRecipient;
+    if (!recipient || recipient.unfollowedAt) continue; // ブロック済みの相手には送らない
+
+    const recipientTagKeys = recipient.user?.tags.map((ut) => ut.tag.key) ?? [];
+    const cardsToSend =
+      recipientTagKeys.length === 0 ? cardDocs : cardDocs.filter((c) => c.tags.some((t) => recipientTagKeys.includes(t)));
+    const audioBriefingsToSend =
+      recipientTagKeys.length === 0
+        ? audioBriefingDocs
+        : audioBriefingDocs.filter((b) => b.tags.some((t) => recipientTagKeys.includes(t)));
+
+    try {
+      const messageId = await pushWeeklyDigestCards(
+        recipient.lineUserId,
+        weekLabel,
+        weekDocs.length + audioBriefingDocs.length,
+        cardsToSend,
+        audioBriefingsToSend,
+        `${process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com"}/digest/${batch.id}`
+      );
+      await prisma.messageSend.update({
+        where: { id: send.id },
+        data: { status: "SENT", lineResponseId: messageId, sentAt: new Date(), error: null },
+      });
+      retried++;
+    } catch (e) {
+      errors.push(`retry failed for ${recipient.lineUserId}: ${e}`);
+      await prisma.messageSend.update({ where: { id: send.id }, data: { error: String(e) } });
+      stillFailed++;
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+
+  return { batchId, retried, stillFailed, errors };
 }
 
 export interface BreakingNewsResult {

@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
       } catch (e) {
         console.error(`[cron/onboarding-drip] push failed for user ${user.id}, day ${day}:`, e);
       }
+      await new Promise((r) => setTimeout(r, 200));
     }
 
     return NextResponse.json({ ok: true, sent, checked: users.length });

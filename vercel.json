@@ -14,11 +14,11 @@
     },
     {
       "path": "/api/cron/trial-reminders",
-      "schedule": "0 0 * * *"
+      "schedule": "10 0 * * *"
     },
     {
       "path": "/api/cron/onboarding-drip",
-      "schedule": "0 0 * * *"
+      "schedule": "20 0 * * *"
     },
     {
       "path": "/api/cron/podcast-draft",

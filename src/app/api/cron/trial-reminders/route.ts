@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
         } catch (e) {
           console.error(`[cron/trial-reminders] push failed for ${company.id}:`, e);
         }
+        await new Promise((r) => setTimeout(r, 200));
       }
 
       await prisma.company.update({
