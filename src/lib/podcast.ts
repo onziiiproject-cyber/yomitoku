@@ -46,12 +46,20 @@ export async function runPodcastDraftGeneration(): Promise<PodcastDraftResult> {
     .map((e) => e.sourceDocId)
     .filter((id): id is string => !!id);
 
+  // 分科会の議事録版記事は議事録ラジオ解説（ログイン必須の有料コンテンツ）の素材なので、
+  // 放送室では扱わない。同じ議事録から有料と無料の音声が二重に出てしまうため。
+  // 解説が先に作られていれば紐づきで、まだなら記事タイトルの「（議事録より）」で弾く
+  const briefedDocIds = (
+    await prisma.articleAudioBriefing.findMany({ select: { siteDocumentId: true } })
+  ).map((b) => b.siteDocumentId);
+
   // すでに放送室で扱った記事は除外し、直近で公開された記事から1件選ぶ
   const candidate = await prisma.siteDocument.findFirst({
     where: {
       summary: { not: null },
       publishedAt: { not: null },
-      id: { notIn: usedDocIds },
+      id: { notIn: [...usedDocIds, ...briefedDocIds] },
+      NOT: { title: { contains: "（議事録より）" } },
     },
     orderBy: { publishedAt: "desc" },
   });
