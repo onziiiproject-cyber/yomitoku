@@ -78,6 +78,9 @@ model ReferralCode {
   disabledAt   DateTime?
   createdAt    DateTime  @default(now())
 
+  // /lp/[code]が開かれた回数（成約に至らなかったアクセスも含む）
+  visitCount Int @default(0)
+
   referredCompanies Company[] @relation("ReferredByCode")
 }
 

@@ -26,6 +26,7 @@ export default async function AdminReferralsPage() {
     isAmbassador: c.isAmbassador,
     disabledAt: c.disabledAt ? c.disabledAt.toISOString() : null,
     createdAt: c.createdAt.toISOString(),
+    visitCount: c.visitCount,
     signupCount: c.referredCompanies.length,
     conversionCount: c.referredCompanies.filter((r) => r.status === "ACTIVE").length,
   }));

@@ -9,6 +9,7 @@ interface ReferralCodeRow {
   isAmbassador: boolean;
   disabledAt: string | null;
   createdAt: string;
+  visitCount: number;
   signupCount: number;
   conversionCount: number;
 }
@@ -64,7 +65,7 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
         setError(data?.error ?? "エラーが発生しました");
         return;
       }
-      setCodes((prev) => [{ ...data, signupCount: 0, conversionCount: 0 }, ...prev]);
+      setCodes((prev) => [{ ...data, visitCount: 0, signupCount: 0, conversionCount: 0 }, ...prev]);
       setLabel("");
       setCustomCode("");
       setExpiresAt("");
@@ -175,7 +176,7 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
         <table style={{ width: "100%", minWidth: 900, borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "#F5F7F6", borderBottom: "1.5px solid #E8F0EE" }}>
-              {["QR", "発行日", "キャンペーン名", "コード", "リンク", "有効期限", "登録数", "有効数", ""].map((h) => (
+              {["QR", "発行日", "キャンペーン名", "コード", "リンク", "有効期限", "アクセス数", "登録数", "有効数", ""].map((h) => (
                 <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontSize: 12, fontWeight: 700, color: "#555", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>
@@ -183,7 +184,7 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
           <tbody>
             {codes.length === 0 ? (
               <tr>
-                <td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "#aaa" }}>紹介コードはまだ発行されていません</td>
+                <td colSpan={10} style={{ padding: "48px", textAlign: "center", color: "#aaa" }}>紹介コードはまだ発行されていません</td>
               </tr>
             ) : (
               codes.map((c, i) => {
@@ -233,6 +234,7 @@ export default function ReferralCodeManager({ initialCodes }: { initialCodes: Re
                         <span style={{ color: "#aaa" }}>無期限</span>
                       )}
                     </td>
+                    <td style={{ padding: "14px", color: "#555" }}>{c.visitCount.toLocaleString()}</td>
                     <td style={{ padding: "14px", color: "#1a1a1a", fontWeight: 700 }}>{c.signupCount}</td>
                     <td style={{ padding: "14px" }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: c.conversionCount > 0 ? "#0D686E" : "#aaa" }}>{c.conversionCount}</span>
