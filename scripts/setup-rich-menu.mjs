@@ -212,11 +212,7 @@ async function setupRichMenu(imagePath) {
       },
       {
         bounds: { x: colW * 2, y: splitY, width: W - colW * 2, height: H - splitY },
-        action: {
-          type:  "message",
-          label: "個別に相談する",
-          text:  "個別相談サービスは現在準備中です。もうしばらくお待ちください！",
-        },
+        action: { type: "uri", label: "個別に相談する", uri: "https://komaran.qolservice.co.jp" },
       },
     ],
   });
