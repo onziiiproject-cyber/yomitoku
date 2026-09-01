@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
 
   const form = await req.formData();
   const advertiserName = String(form.get("advertiserName") ?? "").trim();
+  const headline = String(form.get("headline") ?? "").trim();
   const linkUrl = String(form.get("linkUrl") ?? "").trim();
   const placement = String(form.get("placement") ?? "");
   const startAtRaw = String(form.get("startAt") ?? "").trim();
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
   const file = form.get("file");
 
   if (!advertiserName) return NextResponse.json({ error: "広告主名を入力してください" }, { status: 400 });
-  if (placement !== "SIDEBAR" && placement !== "FEED") {
+  if (placement !== "SIDEBAR" && placement !== "FEED" && placement !== "LINE_DIGEST") {
     return NextResponse.json({ error: "掲載枠を選択してください" }, { status: 400 });
   }
   try {
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
   });
 
   const ad = await prisma.advertisement.create({
-    data: { advertiserName, imageUrl: blob.url, linkUrl, placement, startAt, endAt },
+    data: { advertiserName, headline: headline || null, imageUrl: blob.url, linkUrl, placement, startAt, endAt },
   });
 
   return NextResponse.json(ad);

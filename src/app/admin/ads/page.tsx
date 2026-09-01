@@ -12,6 +12,7 @@ export default async function AdminAdsPage() {
   const rows = ads.map((a) => ({
     id: a.id,
     advertiserName: a.advertiserName,
+    headline: a.headline,
     imageUrl: a.imageUrl,
     linkUrl: a.linkUrl,
     placement: a.placement,

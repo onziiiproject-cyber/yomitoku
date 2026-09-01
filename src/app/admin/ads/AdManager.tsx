@@ -4,9 +4,10 @@ import { useState } from "react";
 interface AdRow {
   id: string;
   advertiserName: string;
+  headline: string | null;
   imageUrl: string;
   linkUrl: string;
-  placement: "SIDEBAR" | "FEED";
+  placement: "SIDEBAR" | "FEED" | "LINE_DIGEST";
   startAt: string | null;
   endAt: string | null;
   disabledAt: string | null;
@@ -18,6 +19,7 @@ interface AdRow {
 const PLACEMENT_LABEL: Record<AdRow["placement"], string> = {
   SIDEBAR: "①右サイドバー下部",
   FEED: "②タイムライン（カード紛れ込み）",
+  LINE_DIGEST: "③週刊ダイジェスト（LINE、月1回）",
 };
 
 function formatDate(iso: string | null) {
@@ -32,6 +34,7 @@ function isExpired(endAt: string | null) {
 export default function AdManager({ initialAds }: { initialAds: AdRow[] }) {
   const [ads, setAds] = useState(initialAds);
   const [advertiserName, setAdvertiserName] = useState("");
+  const [headline, setHeadline] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [placement, setPlacement] = useState<AdRow["placement"]>("SIDEBAR");
   const [startAt, setStartAt] = useState("");
@@ -52,6 +55,7 @@ export default function AdManager({ initialAds }: { initialAds: AdRow[] }) {
     try {
       const form = new FormData();
       form.set("advertiserName", advertiserName.trim());
+      if (headline.trim()) form.set("headline", headline.trim());
       form.set("linkUrl", linkUrl.trim());
       form.set("placement", placement);
       if (startAt) form.set("startAt", startAt);
@@ -68,6 +72,7 @@ export default function AdManager({ initialAds }: { initialAds: AdRow[] }) {
         {
           id: data.id,
           advertiserName: data.advertiserName,
+          headline: data.headline,
           imageUrl: data.imageUrl,
           linkUrl: data.linkUrl,
           placement: data.placement,
@@ -81,6 +86,7 @@ export default function AdManager({ initialAds }: { initialAds: AdRow[] }) {
         ...prev,
       ]);
       setAdvertiserName("");
+      setHeadline("");
       setLinkUrl("");
       setStartAt("");
       setEndAt("");
@@ -150,6 +156,13 @@ export default function AdManager({ initialAds }: { initialAds: AdRow[] }) {
             style={{ flex: "1 1 220px", minWidth: 0, padding: "9px 12px", border: "1.5px solid #D0E8E4", borderRadius: 8, fontSize: 13, outline: "none" }}
           />
           <input
+            value={headline}
+            onChange={(e) => setHeadline(e.target.value)}
+            placeholder="見出しテキスト（任意・記事タイトルの位置に表示）"
+            maxLength={60}
+            style={{ flex: "2 1 260px", minWidth: 0, padding: "9px 12px", border: "1.5px solid #D0E8E4", borderRadius: 8, fontSize: 13, outline: "none" }}
+          />
+          <input
             value={linkUrl}
             onChange={(e) => setLinkUrl(e.target.value)}
             placeholder="リンク先URL（https://...）"
@@ -162,6 +175,7 @@ export default function AdManager({ initialAds }: { initialAds: AdRow[] }) {
           >
             <option value="SIDEBAR">{PLACEMENT_LABEL.SIDEBAR}</option>
             <option value="FEED">{PLACEMENT_LABEL.FEED}</option>
+            <option value="LINE_DIGEST">{PLACEMENT_LABEL.LINE_DIGEST}</option>
           </select>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
@@ -193,6 +207,7 @@ export default function AdManager({ initialAds }: { initialAds: AdRow[] }) {
         <p style={{ fontSize: 12, color: "#888", marginTop: 8, marginBottom: 0, lineHeight: 1.7 }}>
           ①右サイドバー：横長バナー　推奨サイズ 840×420px（比率2:1）<br />
           ②タイムライン：フィードカードと同じ比率　推奨サイズ 1080×780px（比率18:13）<br />
+          ③週刊ダイジェスト：②と同じ比率　推奨サイズ 1080×780px（比率18:13）／その月最初の配信のみ、末尾に1枠だけ挿入されます<br />
           画像形式：JPEG・PNG・WebP／最大3MB
         </p>
         {error && <p style={{ fontSize: 12, color: "#DC2626", marginTop: 8, marginBottom: 0 }}>{error}</p>}

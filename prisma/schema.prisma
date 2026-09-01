@@ -365,8 +365,9 @@ model ArticleAudioBriefing {
 }
 
 enum AdPlacement {
-  SIDEBAR // ①WEB右サイドバー下部
-  FEED    // ②タイムラインのカードに紛れ込ませる（インスタ広告仕様）
+  SIDEBAR     // ①WEB右サイドバー下部
+  FEED        // ②タイムラインのカードに紛れ込ませる（インスタ広告仕様）
+  LINE_DIGEST // ③週刊ダイジェストのLINEカルーセル末尾（月1回、その月最初の配信のみ）
 }
 
 // 自社で直接営業して掲載する広告（プログラマティック広告網は使わない）。
@@ -374,6 +375,7 @@ enum AdPlacement {
 model Advertisement {
   id             String      @id @default(cuid())
   advertiserName String // 社内管理用の広告主名（表示はしない）
+  headline       String? // 記事タイトルと同じ位置に表示する見出しテキスト（任意）
   imageUrl       String
   linkUrl        String
   placement      AdPlacement

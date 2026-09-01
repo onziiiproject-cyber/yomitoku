@@ -255,8 +255,46 @@ function weeklyCardBubble(doc: WeeklyCardDoc, appUrl: string, seeAllUrl: string)
 }
 
 // LINE Flexカルーセルの上限は12枚。うち1枚は「すべて見る」カード用に確保しておき、
-// コンテンツ（記事＋ラジオ）は最大11枚までとする。
+// コンテンツ（記事＋ラジオ）は最大11枚までとする。広告を1枚混ぜる月は10枚に減らす。
 const CAROUSEL_CONTENT_CAP = 11;
+
+// 記事カードと同じ見た目・サイズにし、「広告」の小さなラベルだけで区別する
+// （実際の記事より手前に来ないよう、カルーセルの一番最後・「すべて見る」の直前に置く）
+function weeklyAdBubble(ad: { id: string; headline: string | null; imageUrl: string; linkUrl: string }, appUrl: string): messagingApi.FlexBubble {
+  return {
+    type: "bubble",
+    size: "kilo",
+    hero: {
+      type: "image",
+      url: ad.imageUrl,
+      size: "full",
+      aspectRatio: "18:13",
+      aspectMode: "cover",
+    } as messagingApi.FlexImage,
+    body: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "20px",
+      contents: [
+        { type: "text", text: "広告", size: "xs", weight: "bold", color: "#9BB5B0" } as messagingApi.FlexText,
+        ...(ad.headline
+          ? [{ type: "text", text: ad.headline, wrap: true, weight: "bold", size: "md", color: "#1a1a1a", maxLines: 3, margin: "sm" } as messagingApi.FlexText]
+          : []),
+        { type: "separator", margin: "32px", color: "#EEEEEE" } as messagingApi.FlexSeparator,
+        {
+          type: "box",
+          layout: "horizontal",
+          margin: "32px",
+          contents: [
+            { type: "text", text: "詳しく見る", size: "sm", weight: "bold", color: "#888888", flex: 0 } as messagingApi.FlexText,
+            { type: "text", text: "→", size: "sm", weight: "bold", color: "#888888", flex: 0, margin: "xs" } as messagingApi.FlexText,
+          ],
+          action: { type: "uri", uri: `${appUrl}/api/ads/${ad.id}/click` },
+        } as messagingApi.FlexBox,
+      ],
+    },
+  } as messagingApi.FlexBubble;
+}
 
 function weeklySeeAllBubble(seeAllUrl: string, overflowCount: number): messagingApi.FlexBubble {
   return {
@@ -296,7 +334,8 @@ function weeklyCarouselFlex(
   docs: WeeklyCardDoc[],
   appUrl: string,
   audioBriefings: WeeklyAudioBriefingDoc[],
-  seeAllUrl: string
+  seeAllUrl: string,
+  ad?: { id: string; headline: string | null; imageUrl: string; linkUrl: string } | null
 ): { message: messagingApi.FlexMessage; adoptedAudioCount: number } {
   // 議事録ラジオは個別配信をやめ、週刊ヨミトクのカルーセルに記事カードと一緒に並べて配信する
   // （水曜の週刊通知とは別タイミングでLINEが届くと「事故っぽく」見えるため、まとめて1回にした）。
@@ -307,10 +346,13 @@ function weeklyCarouselFlex(
   );
   const articleBubbles = docs.map((d) => weeklyCardBubble(d, appUrl, seeAllUrl));
   const combined = [...audioBubbles, ...articleBubbles];
-  const shown = combined.slice(0, CAROUSEL_CONTENT_CAP);
+  // 広告を混ぜる月は、記事の手前ではなく必ず最後（「すべて見る」の直前）に置くため、
+  // その分だけ通常コンテンツの上限を1枠減らす（12枚 = コンテンツ + 広告1 + すべて見る1）。
+  const contentCap = ad ? CAROUSEL_CONTENT_CAP - 1 : CAROUSEL_CONTENT_CAP;
+  const shown = combined.slice(0, contentCap);
   const overflowCount = combined.length - shown.length;
   const adoptedAudioCount = Math.min(audioBubbles.length, shown.length);
-  const bubbles = [...shown, weeklySeeAllBubble(seeAllUrl, overflowCount)];
+  const bubbles = [...shown, ...(ad ? [weeklyAdBubble(ad, appUrl)] : []), weeklySeeAllBubble(seeAllUrl, overflowCount)];
 
   return {
     message: {
@@ -637,7 +679,8 @@ export async function pushWeeklyDigestCards(
   docCount: number,
   docs: WeeklyCardDoc[],
   audioBriefings: WeeklyAudioBriefingDoc[],
-  seeAllUrl?: string
+  seeAllUrl?: string,
+  ad?: { id: string; headline: string | null; imageUrl: string; linkUrl: string } | null
 ): Promise<string> {
   const client = getClient();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com";
@@ -647,7 +690,7 @@ export async function pushWeeklyDigestCards(
 
   // リード文の内訳件数は、カルーセルへ実際に採用された件数と一致させる
   // （切り詰められて0件と表示ズレを起こさないように、weeklyCarouselFlexの結果から取る）
-  const carouselResult = docs.length > 0 || audioBriefings.length > 0 ? weeklyCarouselFlex(docs, appUrl, audioBriefings, resolvedSeeAllUrl) : null;
+  const carouselResult = docs.length > 0 || audioBriefings.length > 0 ? weeklyCarouselFlex(docs, appUrl, audioBriefings, resolvedSeeAllUrl, ad) : null;
   const adoptedAudioCount = carouselResult?.adoptedAudioCount ?? 0;
 
   const lead = weeklyLeadFlex(weekLabel, docs, docCount, adoptedAudioCount);

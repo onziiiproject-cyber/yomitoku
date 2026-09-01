@@ -8,6 +8,7 @@ import { postArticleToSocial } from "./meta";
 import { extractPdfText } from "./pdf-text";
 import { draftShingiAudioBriefing } from "./audio-briefing";
 import { put } from "@vercel/blob";
+import { getActiveAd } from "./ads";
 
 // PDFがClaudeのページ数上限（100ページ）やトークン上限を超えている場合、
 // この文書は何度リトライしても永久に処理できないので判別して即座に諦める
@@ -849,6 +850,13 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
       tags: (b.siteDocument?.tags as string[] | undefined) ?? [],
     }));
 
+  // 広告はその月最初の週刊ダイジェストだけに1枠混ぜる（毎週だと圧が強すぎるため）
+  const monthStart = new Date(batch.createdAt.getFullYear(), batch.createdAt.getMonth(), 1);
+  const sentEarlierThisMonth = await prisma.messageBatch.count({
+    where: { kind: "WEEKLY_DIGEST", createdAt: { gte: monthStart, lt: batch.createdAt } },
+  });
+  const digestAd = sentEarlierThisMonth === 0 ? await getActiveAd("LINE_DIGEST") : null;
+
   let sentTo = 0;
   for (const recipient of recipients) {
     const recipientTagKeys = recipient.user?.tags.map((ut) => ut.tag.key) ?? [];
@@ -869,7 +877,8 @@ export async function runWeeklyDigest(opts?: { force?: boolean }): Promise<Diges
         weekDocs.length + audioBriefingDocs.length,
         cardsToSend,
         audioBriefingsToSend,
-        `${process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com"}/digest/${batch.id}`
+        `${process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com"}/digest/${batch.id}`,
+        digestAd
       );
       await prisma.messageSend.create({
         data: {
@@ -985,6 +994,13 @@ export async function retryFailedWeeklyDigestSends(batchId: string): Promise<Ret
       tags: (b.siteDocument?.tags as string[] | undefined) ?? [],
     }));
 
+  // 再送でも元のバッチと同じ判定になるよう、同じ「その月最初か」ロジックで広告有無を決める
+  const retryMonthStart = new Date(batch.createdAt.getFullYear(), batch.createdAt.getMonth(), 1);
+  const retrySentEarlierThisMonth = await prisma.messageBatch.count({
+    where: { kind: "WEEKLY_DIGEST", createdAt: { gte: retryMonthStart, lt: batch.createdAt } },
+  });
+  const retryDigestAd = retrySentEarlierThisMonth === 0 ? await getActiveAd("LINE_DIGEST") : null;
+
   let retried = 0;
   let stillFailed = 0;
   for (const send of failedSends) {
@@ -1006,7 +1022,8 @@ export async function retryFailedWeeklyDigestSends(batchId: string): Promise<Ret
         weekDocs.length + audioBriefingDocs.length,
         cardsToSend,
         audioBriefingsToSend,
-        `${process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com"}/digest/${batch.id}`
+        `${process.env.NEXT_PUBLIC_APP_URL ?? "https://yomitoku-base.com"}/digest/${batch.id}`,
+        retryDigestAd
       );
       await prisma.messageSend.update({
         where: { id: send.id },

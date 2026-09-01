@@ -3,6 +3,7 @@ import type { AdPlacement } from "@/generated/prisma/client";
 
 export interface ActiveAd {
   id: string;
+  headline: string | null;
   imageUrl: string;
   linkUrl: string;
 }
@@ -18,7 +19,7 @@ export async function getActiveAd(placement: AdPlacement): Promise<ActiveAd | nu
       OR: [{ startAt: null }, { startAt: { lte: now } }],
       AND: [{ OR: [{ endAt: null }, { endAt: { gte: now } }] }],
     },
-    select: { id: true, imageUrl: true, linkUrl: true },
+    select: { id: true, headline: true, imageUrl: true, linkUrl: true },
   });
   if (ads.length === 0) return null;
 
@@ -39,7 +40,7 @@ export async function getFeedAds(count: number): Promise<ActiveAd[]> {
       OR: [{ startAt: null }, { startAt: { lte: now } }],
       AND: [{ OR: [{ endAt: null }, { endAt: { gte: now } }] }],
     },
-    select: { id: true, imageUrl: true, linkUrl: true },
+    select: { id: true, headline: true, imageUrl: true, linkUrl: true },
   });
   if (ads.length === 0) return [];
 

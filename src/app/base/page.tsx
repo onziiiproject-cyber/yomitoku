@@ -175,7 +175,7 @@ export default async function BasePage({
   // 広告はインスタのフィード広告と同じく、日付順のコンテンツの間に一定間隔で紛れ込ませる
   // （広告自体には日付が無いため並び替え後のfeedItemsに後から挿し込む）。
   const AD_INTERVAL = 6;
-  type RenderItem = FeedItem | { type: "ad"; ad: { id: string; imageUrl: string } };
+  type RenderItem = FeedItem | { type: "ad"; ad: { id: string; headline: string | null; imageUrl: string } };
   let renderItems: RenderItem[] = feedItems;
   if (!isFiltered && pageNum === 1 && feedItems.length > 0) {
     const adSlots = Math.floor(feedItems.length / AD_INTERVAL);
@@ -264,7 +264,7 @@ export default async function BasePage({
         <div>
           {renderItems.map((item, i) =>
             item.type === "ad" ? (
-              <FeedAdCard key={`ad-${item.ad.id}-${i}`} id={item.ad.id} imageUrl={item.ad.imageUrl} />
+              <FeedAdCard key={`ad-${item.ad.id}-${i}`} id={item.ad.id} headline={item.ad.headline} imageUrl={item.ad.imageUrl} />
             ) : item.type === "episode" ? (
               <PodcastEpisodeCard
                 key={`episode-${item.episode.id}`}
